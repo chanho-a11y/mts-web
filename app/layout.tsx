@@ -1,28 +1,29 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { brandForHost } from "@/lib/brands";
+import { getStorefrontContext } from "@/lib/storefront";
+import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
+import PromoBanner from "@/components/promo-banner";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const h = headers();
-  const brand = brandForHost(h.get("host"));
+  const { brand } = await getStorefrontContext();
   return {
-    title: `${brand.name} — everyday excellence`,
-    description:
-      "매일의 커피는 우리의 삶을 만듭니다. 정교한 기술과 깊이 있는 탐구로, 일상 속 탁월한 순간을 완성합니다.",
+    title: { default: `${brand.name} — everyday excellence`, template: `%s · ${brand.name}` },
+    description: brand.philosophy.ko,
+    openGraph: { siteName: brand.name, title: brand.name, description: brand.philosophy.ko },
   };
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const h = headers();
-  const locale = h.get("x-locale") ?? "ko";
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { brand, locale } = await getStorefrontContext();
   return (
     <html lang={locale}>
-      <body>{children}</body>
+      <body>
+        <PromoBanner message={null} />
+        <SiteHeader brand={brand} locale={locale} />
+        {children}
+        <SiteFooter brand={brand} />
+      </body>
     </html>
   );
 }

@@ -1,0 +1,60 @@
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import ProductForm from "@/components/product-form";
+import { generateDraftsAction } from "@/app/admin/products/actions";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminProductEdit({ params }: { params: { slug: string } }) {
+  const supabase = createClient();
+  const { data: p } = await supabase
+    .from("product")
+    .select(`id,slug,title_ko,one_liner,product_type,status,is_b2b_only,roast_level,flavor_notes,origin,variety,process,weight_g,key_color,
+      brand(code), product_variant(sku,base_price), product_categories(category(slug)),
+      content_draft(type,title,status,created_at)`)
+    .eq("slug", params.slug).maybeSingle();
+  if (!p) notFound();
+  const pv = (p as any).product_variant?.[0];
+  const initial = {
+    slug: p.slug, brand: (p as any).brand?.code, title_ko: p.title_ko, one_liner: p.one_liner ?? "",
+    product_type: p.product_type ?? "블렌드", is_b2b_only: p.is_b2b_only, roast_level: p.roast_level ?? "",
+    flavor_notes: p.flavor_notes ?? [], origin_country: (p as any).origin?.country ?? "",
+    variety: p.variety ?? "", process: p.process ?? "", weight_g: p.weight_g, key_color: p.key_color ?? "",
+    sku: pv?.sku ?? "", base_price: pv?.base_price ?? undefined,
+    category: (p as any).product_categories?.[0]?.category?.slug ?? "blends",
+  };
+  const drafts = (p as any).content_draft ?? [];
+
+  return (
+    <main className="space-y-8">
+      <div>
+        <h1 className="mb-1 text-2xl font-bold">제품 수정</h1>
+        <p className="mb-4 text-sm text-neutral-500">{p.slug}</p>
+        <ProductForm initial={initial} />
+      </div>
+
+      <section className="rounded-xl border p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-bold">자동 생성 콘텐츠 (content_draft)</h2>
+          <form action={generateDraftsAction}>
+            <input type="hidden" name="product_id" value={(p as any).id} />
+            <input type="hidden" name="slug" value={p.slug} />
+            <button className="rounded border px-3 py-1.5 text-xs">상세·블로그 초안 재생성</button>
+          </form>
+        </div>
+        {drafts.length === 0 ? (
+          <p className="text-sm text-neutral-400">초안이 없습니다. ‘재생성’을 누르거나 저장 시 자동 생성됩니다.</p>
+        ) : (
+          <ul className="text-sm">
+            {drafts.map((d: any, idx: number) => (
+              <li key={idx} className="border-b py-2">
+                <span className="mr-2 rounded bg-neutral-100 px-2 py-0.5 text-xs">{d.type}</span>
+                {d.title} <span className="text-xs text-neutral-400">· {d.status}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
+  );
+}

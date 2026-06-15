@@ -5,6 +5,7 @@ import { getStorefrontContext } from "@/lib/storefront";
 import { getProductBySlug } from "@/lib/queries";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
+import AddToCart from "@/components/add-to-cart";
 
 export const dynamic = "force-dynamic";
 
@@ -87,9 +88,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <p className="text-2xl font-bold">{p.minPrice > 0 ? formatKRW(p.minPrice) : "-"}</p>
             {p.is_b2b_only && <p className="text-xs text-neutral-500">{tt.wholesaleOnly}</p>}
           </div>
-          <button className="rounded-full px-6 py-2.5 text-sm text-white" style={{ background: "#1A1A1A" }}>
-            {tt.addToCart}
-          </button>
+          <AddToCart
+            slug={p.slug}
+            title={title}
+            image={p.image}
+            label={tt.addToCart}
+            variants={p.variants.map((v) => ({
+              id: v.id,
+              base_price: v.base_price,
+              option: (v.option_values as { option?: string })?.option ?? null,
+            }))}
+          />
         </div>
       </section>
 

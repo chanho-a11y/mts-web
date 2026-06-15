@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { brandForHost, type Brand } from "@/lib/brands";
-import { getLocale, type Locale } from "@/lib/i18n";
+import { type Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 
 export interface StorefrontContext {
@@ -11,8 +11,9 @@ export interface StorefrontContext {
 
 // Resolve the current storefront (brand + storefront row id) for this request.
 export async function getStorefrontContext(): Promise<StorefrontContext> {
-  const brand = brandForHost(headers().get("host"));
-  const locale = getLocale();
+  const h = headers();
+  const brand = brandForHost(h.get("host"));
+  const locale: Locale = h.get("x-locale") === "en" ? "en" : "ko";
   let storefrontId: string | null = null;
   try {
     const supabase = createClient();

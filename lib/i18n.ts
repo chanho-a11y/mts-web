@@ -1,11 +1,5 @@
-import { headers } from "next/headers";
-
+// Pure i18n module — safe to import from client & server (no next/headers here).
 export type Locale = "ko" | "en";
-
-export function getLocale(): Locale {
-  const l = headers().get("x-locale");
-  return l === "en" ? "en" : "ko";
-}
 
 const DICT = {
   ko: {

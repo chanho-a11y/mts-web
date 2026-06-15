@@ -3,6 +3,7 @@ import { getStorefrontContext } from "@/lib/storefront";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import PromoBanner from "@/components/promo-banner";
+import { CartProvider } from "@/components/cart-provider";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,10 +20,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale}>
       <body>
-        <PromoBanner message={null} />
-        <SiteHeader brand={brand} locale={locale} />
-        {children}
-        <SiteFooter brand={brand} />
+        <CartProvider>
+          <PromoBanner message={null} />
+          <SiteHeader brand={brand} locale={locale} />
+          {children}
+          <SiteFooter brand={brand} />
+        </CartProvider>
       </body>
     </html>
   );

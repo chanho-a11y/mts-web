@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 export interface VariantLite {
+  id: string;
   sku: string;
   base_price: number;
   weight_g: number | null;
@@ -92,7 +93,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     .from("product")
     .select(`slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,
       body_html,origin,producer,variety,altitude,process,brew_recipe,weight_g,
-      product_variant(sku,base_price,weight_g,grind,option_values,position,is_active),
+      product_variant(id,sku,base_price,weight_g,grind,option_values,position,is_active),
       product_image(storage_path,alt,is_primary,position),
       product_categories(category(slug,name_ko,name_en,position))`)
     .eq("slug", slug)

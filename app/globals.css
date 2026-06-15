@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Brand base (지침: Helvetica Neue · 본문 light · 줄간격 160 · 헤드라인 bold) */
+@layer base {
+  :root {
+    --brand-blue: #0076ba;
+    --ink: #1a1a1a;
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, Pretendard, sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--ink);
+    background: #ffffff;
+  }
+  h1, h2, h3 {
+    font-weight: 700;
+    letter-spacing: -2pt;
+    line-height: 1.6;
+  }
+}

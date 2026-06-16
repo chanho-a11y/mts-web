@@ -44,6 +44,21 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* 이미지 슬라이드 (제품 이미지 가로 스크롤) */}
+      {bestsellers.some((p) => p.image) && (
+        <section className="border-b border-neutral-100">
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto p-2">
+            {bestsellers.filter((p) => p.image).slice(0, 6).map((p) => (
+              <Link key={p.slug} href={`/products/${p.slug}`} className="relative aspect-[4/3] w-72 shrink-0 snap-start overflow-hidden rounded-lg bg-neutral-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.image!} alt={p.imageAlt ?? p.title_ko} className="h-full w-full object-cover" />
+                <span className="absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">{p.title_ko.replace(/\[.*?\]\s*/g, "")}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Category nav (slider) */}
       <section className="mx-auto max-w-6xl px-4 py-8">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-neutral-500">{tt.categories}</h2>
@@ -84,6 +99,21 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-4 py-12">
         <h2 className="text-xl font-bold">{tt.about}</h2>
         <p className="mt-3 max-w-2xl text-neutral-600">{locale === "en" ? brand.about.en : brand.about.ko}</p>
+        <Link href="/about" className="mt-3 inline-block text-sm text-neutral-500 hover:underline">{tt.viewAll} →</Link>
+      </section>
+
+      {/* 정보 링크 (커피정보 · 블로그 · Contact) */}
+      <section className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 md:grid-cols-3">
+        {[
+          { href: "/coffee-info", title: tt.coffeeInfo, desc: "농장·플레이버·추천 레시피·인포카드" },
+          { href: "/blogs/coffeelog", title: tt.blog, desc: "Coffeelog 커피 이야기" },
+          { href: "/contact", title: tt.contact, desc: "납품·컨설팅·교육·제품 문의" },
+        ].map((c) => (
+          <Link key={c.href} href={c.href} className="rounded-xl border p-6 hover:bg-neutral-50">
+            <p className="font-bold">{c.title}</p>
+            <p className="mt-1 text-sm text-neutral-500">{c.desc}</p>
+          </Link>
+        ))}
       </section>
     </main>
   );

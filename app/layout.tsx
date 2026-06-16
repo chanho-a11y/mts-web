@@ -19,10 +19,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { brand, locale } = await getStorefrontContext();
 
-  // 활성 '상단 배너' 프로모션
   let promo: string | null = null;
+  let signedIn = false;
+  let role: string | null = null;
   try {
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      signedIn = true;
+      const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      role = prof?.role ?? "individual";
+    }
     const { data } = await supabase
       .from("promotion")
       .select("banner_message,placements,is_active")
@@ -40,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <CartProvider>
           <PromoBanner message={promo} />
-          <SiteHeader brand={brand} locale={locale} />
+          <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} />
           {children}
           <SiteFooter brand={brand} />
         </CartProvider>

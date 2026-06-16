@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatKRW } from "@/lib/i18n";
+import ReorderButton from "@/components/reorder-button";
+import { requestTaxInvoiceAction } from "@/app/account/reorder-action";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export default async function OrderDetail({ params }: { params: { no: string } }
 
   const { data: order } = await supabase
     .from("orders")
-    .select("order_no,status,email,phone,shipping_address,items_subtotal,discount_total,tip_amount,shipping_fee,tax_amount,grand_total,currency,placed_at,order_item(sku,title_snapshot,unit_price,qty,line_total)")
+    .select("order_no,status,customer_type,email,phone,shipping_address,items_subtotal,discount_total,tip_amount,shipping_fee,tax_amount,grand_total,currency,placed_at,order_item(sku,title_snapshot,unit_price,qty,line_total)")
     .eq("order_no", params.no)
     .maybeSingle();
   if (!order) notFound();
@@ -40,6 +42,16 @@ export default async function OrderDetail({ params }: { params: { no: string } }
         <Row k="배송비" v={cur(order.shipping_fee)} />
         <Row k="합계" v={cur(order.grand_total)} bold />
       </dl>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <ReorderButton orderNo={order.order_no} />
+        {order.customer_type === "business" && (
+          <form action={requestTaxInvoiceAction}>
+            <input type="hidden" name="order_no" value={order.order_no} />
+            <button className="rounded-full border px-4 py-1.5 text-sm">세금계산서 요청</button>
+          </form>
+        )}
+      </div>
     </main>
   );
 }

@@ -75,6 +75,7 @@ export async function getStorefrontProducts(storefrontId: string | null): Promis
 }
 
 export interface ProductDetail extends ProductCardData {
+  id: string;
   body_html: string | null;
   origin: Record<string, any>;
   producer: string | null;
@@ -91,7 +92,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   const supabase = createClient();
   const { data, error } = await supabase
     .from("product")
-    .select(`slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,
+    .select(`id,slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,
       body_html,origin,producer,variety,altitude,process,brew_recipe,weight_g,
       product_variant(id,sku,base_price,weight_g,grind,option_values,position,is_active),
       product_image(storage_path,alt,is_primary,position),
@@ -111,6 +112,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     .map((i: any) => ({ storage_path: i.storage_path, alt: i.alt }));
   return {
     ...base,
+    id: d.id,
     body_html: d.body_html,
     origin: d.origin ?? {},
     producer: d.producer,

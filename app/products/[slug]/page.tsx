@@ -3,10 +3,12 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { getStorefrontContext } from "@/lib/storefront";
 import { getProductBySlug } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
 import { createSubscriptionAction } from "@/app/products/subscribe-action";
+import { addReviewAction } from "@/app/products/review-action";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const tt = t(locale);
   const p = await getProductBySlug(params.slug);
   if (!p) notFound();
+
+  // 리뷰
+  const supabase = createClient();
+  const { data: reviews } = await supabase
+    .from("review")
+    .select("rating,title,body,author_name,created_at")
+    .eq("product_id", p.id)
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+  const revCount = reviews?.length ?? 0;
+  const avgRating = revCount ? (reviews!.reduce((s, r) => s + r.rating, 0) / revCount) : 0;
 
   // 제품 브랜드 (놈코어/엠티스페이스) — 상세에서 표기할 브랜드
   const isNormcore = p.title_ko.toLowerCase().includes("normcore");
@@ -46,6 +59,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       price: p.minPrice,
       availability: "https://schema.org/InStock",
     },
+    ...(revCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating.toFixed(1), reviewCount: revCount } } : {}),
   };
 
   const info: [string, string | null][] = [
@@ -163,6 +177,39 @@ export default async function ProductPage({ params }: { params: { slug: string }
             dangerouslySetInnerHTML={{ __html: p.body_html }} />
         </section>
       )}
+
+      {/* 리뷰 */}
+      <section className="mx-auto max-w-3xl px-4 pb-12">
+        <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>
+          리뷰 {revCount > 0 && <span className="text-sm font-normal text-neutral-500">★ {avgRating.toFixed(1)} ({revCount})</span>}
+        </h2>
+        <div className="space-y-3">
+          {(reviews ?? []).map((r, i) => (
+            <div key={i} className="rounded-lg border p-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span style={{ color: key }}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                <span className="font-medium">{r.title}</span>
+                <span className="text-xs text-neutral-400">{r.author_name}</span>
+              </div>
+              {r.body && <p className="mt-1 text-neutral-600">{r.body}</p>}
+            </div>
+          ))}
+          {revCount === 0 && <p className="text-sm text-neutral-400">첫 리뷰를 남겨주세요.</p>}
+        </div>
+        <form action={addReviewAction} className="mt-4 space-y-2 rounded-lg border p-4">
+          <input type="hidden" name="product_id" value={p.id} />
+          <input type="hidden" name="slug" value={p.slug} />
+          <div className="flex items-center gap-2 text-sm">
+            <span>평점</span>
+            <select name="rating" defaultValue="5" className="rounded border px-2 py-1">
+              {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}점</option>)}
+            </select>
+          </div>
+          <input name="title" placeholder="제목" className="w-full rounded border px-3 py-2 text-sm" />
+          <textarea name="body" placeholder="후기를 남겨주세요" rows={2} className="w-full rounded border px-3 py-2 text-sm" />
+          <button className="rounded-full border px-4 py-1.5 text-sm">리뷰 등록 (로그인 필요)</button>
+        </form>
+      </section>
 
       {/* 9. 소셜 */}
       <section className="mx-auto max-w-3xl px-4 pb-20 text-sm">

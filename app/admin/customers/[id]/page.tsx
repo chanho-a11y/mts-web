@@ -22,8 +22,8 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
       </div>
 
       <section className="rounded-xl border p-5">
-        <h2 className="mb-3 font-bold">회원 개별 단가 설정</h2>
-        <p className="mb-3 text-xs text-neutral-500">설정 시 이 고객에게는 정가/등급가보다 우선 적용됩니다(resolve_price).</p>
+        <h2 className="mb-3 font-bold">기업 고객 할인 설정</h2>
+        <p className="mb-3 text-xs text-neutral-500">제품을 선택하고 <b>할인 금액(원)</b> · <b>할인율(%)</b> · <b>직접 단가</b> 중 하나로 입력하면 최종 개별가로 환산되어, 이 고객에게 정가/등급가보다 우선 적용됩니다(resolve_price).</p>
         <form action={setCustomerPriceAction} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="profile_id" value={params.id} />
           <label className="text-sm">상품(SKU)
@@ -33,7 +33,14 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
               ))}
             </select>
           </label>
-          <label className="text-sm">개별가(원)<input type="number" name="price" className={`mt-1 block ${input}`} /></label>
+          <label className="text-sm">할인 방식
+            <select name="mode" className={`mt-1 block ${input}`}>
+              <option value="amount">할인 금액(원)</option>
+              <option value="percent">할인율(%)</option>
+              <option value="fixed">직접 단가(원)</option>
+            </select>
+          </label>
+          <label className="text-sm">값<input type="number" step="0.1" name="value" placeholder="예: 1000 / 15 / 9000" className={`mt-1 block ${input}`} /></label>
           <button className="rounded-full bg-black px-4 py-2 text-sm text-white">저장</button>
         </form>
 

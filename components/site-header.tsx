@@ -5,8 +5,8 @@ import { t, type Locale } from "@/lib/i18n";
 import { signOutAction } from "@/app/account/actions";
 
 export default function SiteHeader({
-  brand, locale, signedIn, role,
-}: { brand: Brand; locale: Locale; signedIn: boolean; role: string | null }) {
+  brand, locale, signedIn, role, bg,
+}: { brand: Brand; locale: Locale; signedIn: boolean; role: string | null; bg?: string }) {
   const tt = t(locale);
   const isAdmin = role === "admin";
   const isBusiness = role === "business";
@@ -29,16 +29,35 @@ export default function SiteHeader({
         { href: "/collections/merch", label: "머천다이즈" },
       ];
 
+  // 버거 메뉴: 역할별 전체 네비게이션 트리(전 뷰포트 공통)
+  const burgerSections = [
+    { title: "쇼핑", links: shopNav },
+    { title: "브랜드", links: mainNav },
+    { title: "내 계정", links: signedIn
+        ? [{ href: "/account", label: "마이페이지" }, { href: "/account/orders", label: "구매내역" }]
+        : [{ href: "/account/login", label: tt.login }, { href: "/account/signup", label: tt.signup }] },
+  ];
+
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
       <div className="border-b border-neutral-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-4">
-            <details className="relative md:hidden">
-              <summary className="cursor-pointer list-none text-xl">☰</summary>
-              <nav className="absolute left-0 top-8 z-40 w-52 border bg-white p-3 text-sm shadow">
-                {[...mainNav, ...shopNav].map((n) => <Link key={n.href} href={n.href} className="block py-1">{n.label}</Link>)}
-                {isAdmin && <Link href="/admin" className="block py-1 font-bold text-brandBlue">관리자</Link>}
+            {/* 버거 버튼 — 데스크톱·모바일 공통 주 네비게이션 */}
+            <details className="relative">
+              <summary className="cursor-pointer list-none text-xl leading-none" aria-label="메뉴">☰</summary>
+              <nav className="absolute left-0 top-9 z-40 w-64 border bg-white p-4 text-sm shadow-lg">
+                {burgerSections.map((sec) => (
+                  <div key={sec.title} className="mb-3 last:mb-0">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{sec.title}</p>
+                    {sec.links.map((n) => <Link key={n.href} href={n.href} className="block py-1 hover:text-brandBlue">{n.label}</Link>)}
+                  </div>
+                ))}
+                {isAdmin && (
+                  <div className="mt-2 border-t pt-2">
+                    <Link href="/admin" className="block py-1 font-bold text-brandBlue">관리자</Link>
+                  </div>
+                )}
               </nav>
             </details>
             <Link href="/" className="text-lg font-bold tracking-tight">{brand.name}</Link>
@@ -53,7 +72,8 @@ export default function SiteHeader({
               <input name="q" placeholder="검색" className="w-24 rounded-full border px-3 py-1 text-xs" />
             </form>
             <LangToggle locale={locale} />
-            <a href={`https://instagram.com/${brand.instagram.replace("@", "")}`} target="_blank" rel="noreferrer" className="hover:opacity-70" aria-label="Instagram">IG</a>
+            <a href="https://instagram.com/mtspacecoffee" target="_blank" rel="noreferrer" className="hidden hover:opacity-70 sm:inline" aria-label="Instagram MTSPACE">@mtspacecoffee</a>
+            <a href="https://instagram.com/normcorecoffee_official" target="_blank" rel="noreferrer" className="hidden hover:opacity-70 lg:inline" aria-label="Instagram Normcore">@normcorecoffee_official</a>
             {isAdmin && <Link href="/admin" className="rounded bg-ink px-2 py-1 text-xs text-white">관리자</Link>}
             {signedIn ? (
               <>

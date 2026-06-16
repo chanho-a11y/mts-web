@@ -24,15 +24,43 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
       </div>
       <form action={saveSettingsAction} className="space-y-4">
         <input type="hidden" name="brand" value={code} />
-        <label className="block text-sm">홈 히어로 제목<input name="hero_title" defaultValue={s.hero_title} className={input} /></label>
-        <label className="block text-sm">홈 히어로 부제<textarea name="hero_subtitle" defaultValue={s.hero_subtitle} rows={2} className={input} /></label>
-        <label className="block text-sm">히어로 이미지 경로(예: /images/hero.jpg)<input name="hero_image" defaultValue={s.hero_image} placeholder="/images/hero.jpg" className={input} /></label>
-        <label className="block text-sm">히어로 배경색(HEX, 이미지 없을 때)<input name="hero_bg" defaultValue={s.hero_bg} placeholder="#FAFAFA" className={input} /></label>
-        <button className="rounded-full bg-black px-5 py-2 text-sm text-white">저장</button>
+
+        <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-xs font-bold uppercase text-neutral-400">홈 히어로 / 이미지 슬라이드</legend>
+          <label className="block text-sm">홈 히어로 제목<input name="hero_title" defaultValue={s.hero_title} className={input} /></label>
+          <label className="mt-3 block text-sm">홈 히어로 부제<textarea name="hero_subtitle" defaultValue={s.hero_subtitle} rows={2} className={input} /></label>
+          <label className="mt-3 block text-sm">홈 이미지 슬라이드(상품 아님) — 경로를 줄바꿈/콤마로 구분
+            <textarea name="home_slides" defaultValue={s.home_slides} rows={4} placeholder={"/images/hero.jpg\n/images/cat-single-origins.jpg\n/images/about-roastery.jpg"} className={input} /></label>
+        </fieldset>
+
+        <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-xs font-bold uppercase text-neutral-400">배경 (헤더 / 바디 / 푸터)</legend>
+          <label className="block text-sm">헤더 배경색(HEX)<input name="header_bg" defaultValue={s.header_bg} placeholder="#FFFFFF" className={input} /></label>
+          <label className="mt-3 block text-sm">바디 배경색(HEX)<input name="page_bg" defaultValue={s.page_bg} placeholder="#FFFFFF" className={input} /></label>
+          <label className="mt-3 block text-sm">푸터 배경색(HEX)<input name="footer_bg" defaultValue={s.footer_bg} placeholder="#FAFAFA" className={input} /></label>
+        </fieldset>
+
+        <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-xs font-bold uppercase text-neutral-400">폰트</legend>
+          <label className="block text-sm">폰트 패밀리<input name="font_family" defaultValue={s.font_family} placeholder="Helvetica Neue, sans-serif" className={input} /></label>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <label className="block text-sm">자간(px)<input name="letter_spacing" defaultValue={s.letter_spacing} placeholder="-2" className={input} /></label>
+            <label className="block text-sm">줄간격(%)<input name="line_height" defaultValue={s.line_height} placeholder="160" className={input} /></label>
+            <label className="block text-sm">헤드라인 굵기<input name="headline_weight" defaultValue={s.headline_weight} placeholder="700" className={input} /></label>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-xs font-bold uppercase text-neutral-400">스토어 정보</legend>
+          <label className="block text-sm">대표번호<input name="store_phone" defaultValue={s.store_phone} placeholder="010-4972-2312" className={input} /></label>
+          <label className="mt-3 block text-sm">이메일<input name="store_email" defaultValue={s.store_email} placeholder="hello@mtspace.coffee" className={input} /></label>
+        </fieldset>
+
+        <button className="rounded-full bg-black px-5 py-2 text-sm text-white">전체 저장</button>
       </form>
 
       <CategoryBanners />
-      <p className="mt-4 text-xs text-neutral-400">※ 이미지는 /images/ 경로(레포 public)나 외부 URL 모두 가능. 추후 업로드 UI 확장 예정.</p>
+      <p className="mt-4 text-xs text-neutral-400">※ 이미지는 /images/ 경로(레포 public)나 외부 URL 모두 가능. 빈 값이면 기본값 사용.</p>
     </main>
   );
 }

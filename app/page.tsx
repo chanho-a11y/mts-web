@@ -3,20 +3,36 @@ import { getStorefrontContext } from "@/lib/storefront";
 import { getCategories } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import ProductCard from "@/components/product-card";
+import HeroSlideshow from "@/components/hero-slideshow";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+
+// 역할별 카테고리 노출 순서
+const CONSUMER_ORDER = ["blends", "single-origins", "decaf", "normcore", "merch", "subscription"];
+const BUSINESS_ORDER = ["wholesale", "blends", "single-origins", "decaf"];
 
 export default async function Home() {
   const { brand, locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
   const categories = await getCategories(storefrontId);
 
-  // CMS 사이트 설정(브랜드별 히어로 override)
+  // 로그인 역할 (쇼핑을 등급별로 다르게)
+  let role: string | null = null;
+  try {
+    const supabase0 = createClient();
+    const { data: { user } } = await supabase0.auth.getUser();
+    if (user) {
+      const { data: prof } = await supabase0.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      role = prof?.role ?? "individual";
+    }
+  } catch {}
+  const isBusiness = role === "business";
+
+  // CMS 사이트 설정(히어로 + 이미지 슬라이드)
   let heroTitle = brand.name;
   let heroSubtitle = locale === "en" ? brand.philosophy.en : brand.philosophy.ko;
-  let heroBg = "";
-  let heroImage = "";
+  let slideRaw = "";
   try {
     const supabase = createClient();
     const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
@@ -25,52 +41,43 @@ export default async function Home() {
       const map = Object.fromEntries((settings ?? []).map((r) => [r.key, r.value]));
       if (map.hero_title) heroTitle = map.hero_title;
       if (map.hero_subtitle) heroSubtitle = map.hero_subtitle;
-      if (map.hero_bg) heroBg = map.hero_bg;
-      if (map.hero_image) heroImage = map.hero_image;
+      if (map.home_slides) slideRaw = map.home_slides;
     }
   } catch {}
+
+  // 이미지 슬라이드(상품 아님): CMS 경로 우선, 없으면 기본 이미지
+  const defaultSlides = ["/images/hero.jpg", "/images/cat-single-origins.jpg", "/images/about-roastery.jpg", "/images/cat-blends.jpg"];
+  const slides = (slideRaw ? slideRaw.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean) : defaultSlides)
+    .map((src) => ({ src, alt: brand.name }));
+
   const allProducts = categories.flatMap((c) => c.products);
   const bestsellers = allProducts.slice(0, 8);
 
+  // 등급별 쇼핑 카테고리
+  const order = isBusiness ? BUSINESS_ORDER : CONSUMER_ORDER;
+  const shopCategories = [...categories]
+    .filter((c) => (isBusiness ? c.slug !== "subscription" : c.slug !== "wholesale"))
+    .sort((a, b) => {
+      const ia = order.indexOf(a.slug); const ib = order.indexOf(b.slug);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
   return (
     <main>
-      {/* Hero */}
-      <section
-        className="relative border-b border-neutral-200"
-        style={heroImage
-          ? { backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0.15)), url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-          : { background: heroBg || "#FAFAFA" }}
-      >
-        <div className={`mx-auto max-w-6xl px-4 py-24 ${heroImage ? "text-white" : ""}`}>
-          <p className={`text-xs uppercase tracking-[0.3em] ${heroImage ? "text-white/80" : "text-neutral-500"}`}>everyday excellence</p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-bold leading-tight md:text-5xl">{heroTitle}</h1>
-          <p className={`mt-4 max-w-xl ${heroImage ? "text-white/90" : "text-neutral-600"}`}>{heroSubtitle}</p>
-          <Link href="/collections/all" className="mt-6 inline-block rounded-full bg-white px-6 py-2 text-sm font-medium text-ink">
-            {tt.shop}
-          </Link>
-        </div>
-      </section>
+      {/* 이미지 슬라이드 (실제 이미지) */}
+      <HeroSlideshow slides={slides} title={heroTitle} subtitle={heroSubtitle} />
 
-      {/* 이미지 슬라이드 (제품 이미지 가로 스크롤) */}
-      {bestsellers.some((p) => p.image) && (
-        <section className="border-b border-neutral-100">
-          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto p-2">
-            {bestsellers.filter((p) => p.image).slice(0, 6).map((p) => (
-              <Link key={p.slug} href={`/products/${p.slug}`} className="relative aspect-[4/3] w-72 shrink-0 snap-start overflow-hidden rounded-lg bg-neutral-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.image!} alt={p.imageAlt ?? p.title_ko} className="h-full w-full object-cover" />
-                <span className="absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">{p.title_ko.replace(/\[.*?\]\s*/g, "")}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="mx-auto max-w-6xl px-4">
+        <Link href="/collections/all" className="-mt-5 mb-4 inline-block rounded-full bg-ink px-6 py-2 text-sm font-medium text-white shadow">
+          {tt.shop}
+        </Link>
+      </div>
 
-      {/* Category nav (slider) */}
-      <section className="mx-auto max-w-6xl px-4 py-8">
+      {/* 카테고리 슬라이드 */}
+      <section className="mx-auto max-w-6xl px-4 py-4">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-neutral-500">{tt.categories}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2">
-          {categories.map((c) => (
+          {shopCategories.map((c) => (
             <Link key={c.slug} href={`/collections/${c.slug}`}
               className="whitespace-nowrap rounded-full border border-neutral-300 px-4 py-1.5 text-sm hover:bg-neutral-100">
               {locale === "en" && c.name_en ? c.name_en : c.name_ko}
@@ -79,7 +86,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Bestsellers (slider) */}
+      {/* 판매 상위 제품 슬라이드 */}
       {bestsellers.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-4">
           <h2 className="mb-4 text-xl font-bold">{tt.bestsellers}</h2>
@@ -89,11 +96,17 @@ export default async function Home() {
         </section>
       )}
 
-      {/* Category sections (배너 + 카드) */}
-      {categories.map((c) => (
-        <section key={c.slug} className="mx-auto max-w-6xl px-4 py-8">
+      {/* 등급별 쇼핑 (회원 역할에 따라 다르게) */}
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold">{isBusiness ? "사업자 전용 쇼핑" : "쇼핑"}</h2>
+          {isBusiness && <span className="rounded-full bg-brandBlue/10 px-2 py-0.5 text-[11px] text-brandBlue">기업회원 가격 적용</span>}
+        </div>
+      </div>
+      {shopCategories.map((c) => (
+        <section key={c.slug} className="mx-auto max-w-6xl px-4 py-6">
           <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">{locale === "en" && c.name_en ? c.name_en : c.name_ko}</h2>
+            <h3 className="text-xl font-bold">{locale === "en" && c.name_en ? c.name_en : c.name_ko}</h3>
             <Link href={`/collections/${c.slug}`} className="text-sm text-neutral-500 hover:underline">{tt.viewAll}</Link>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

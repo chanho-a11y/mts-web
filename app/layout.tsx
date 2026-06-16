@@ -22,6 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let promo: string | null = null;
   let signedIn = false;
   let role: string | null = null;
+  let cms: Record<string, string> = {};
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -40,16 +41,36 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .limit(1)
       .maybeSingle();
     promo = data?.banner_message ?? null;
+
+    const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
+    if (b) {
+      const { data: settings } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id);
+      cms = Object.fromEntries((settings ?? []).map((r) => [r.key, r.value ?? ""]));
+    }
   } catch {}
+
+  // CMS 폰트/배경 → CSS 변수
+  const cssVars: Record<string, string> = {};
+  if (cms.font_family) cssVars["--font-family"] = cms.font_family;
+  if (cms.letter_spacing) cssVars["--letter-spacing"] = `${cms.letter_spacing}px`;
+  if (cms.line_height) cssVars["--line-height"] = String(Number(cms.line_height) / 100 || cms.line_height);
+  if (cms.page_bg) cssVars["--page-bg"] = cms.page_bg;
+  const bodyStyle: React.CSSProperties = {
+    ...(cssVars as React.CSSProperties),
+    fontFamily: cms.font_family || undefined,
+    letterSpacing: cms.letter_spacing ? `${cms.letter_spacing}px` : undefined,
+    lineHeight: cms.line_height ? Number(cms.line_height) / 100 : undefined,
+    background: cms.page_bg || undefined,
+  };
 
   return (
     <html lang={locale}>
-      <body>
+      <body style={bodyStyle}>
         <CartProvider>
           <PromoBanner message={promo} />
-          <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} />
+          <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} />
           {children}
-          <SiteFooter brand={brand} />
+          <SiteFooter brand={brand} bg={cms.footer_bg || undefined} phone={cms.store_phone || undefined} email={cms.store_email || undefined} />
         </CartProvider>
       </body>
     </html>

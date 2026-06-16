@@ -17,6 +17,7 @@ export default function CheckoutForm({ tip }: { tip: number }) {
   const { items, clear } = useCart();
   const router = useRouter();
   const [provider, setProvider] = useState<Provider>("inicis");
+  const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sub = subtotal(items);
@@ -27,6 +28,7 @@ export default function CheckoutForm({ tip }: { tip: number }) {
       items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       tip,
       provider,
+      code: code.trim() || undefined,
       shipping: {
         recipient: String(formData.get("recipient") || ""),
         phone: String(formData.get("phone") || ""),
@@ -66,8 +68,13 @@ export default function CheckoutForm({ tip }: { tip: number }) {
       </div>
 
       <aside className="h-fit rounded-xl border p-5 text-sm">
-        <div className="flex justify-between py-1"><span>소계</span><span>{formatKRW(sub)}</span></div>
+        <label className="block">할인/프로모션 코드
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="코드 입력(선택)"
+            className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+        </label>
+        <div className="mt-3 flex justify-between py-1"><span>소계</span><span>{formatKRW(sub)}</span></div>
         {tip > 0 && <div className="flex justify-between py-1"><span>팁</span><span>{formatKRW(tip)}</span></div>}
+        <p className="py-1 text-xs text-neutral-400">코드 할인·배송비는 주문 시 서버에서 최종 계산됩니다.</p>
         <div className="mt-2 flex justify-between border-t pt-2 font-bold"><span>합계</span><span>{formatKRW(sub + tip)}</span></div>
         <button disabled={busy} className="mt-4 w-full rounded-full bg-black py-3 text-white disabled:opacity-50">
           {busy ? "처리 중…" : "주문하기"}

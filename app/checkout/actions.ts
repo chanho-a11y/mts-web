@@ -8,7 +8,27 @@ export interface CheckoutPayload {
   items: CheckoutItem[];
   tip: number;
   provider: Provider;
+  code?: string;
   shipping: { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string };
+}
+
+// 쿠폰/프로모션 코드 → KRW subtotal 기준 할인액
+async function resolveDiscount(supabase: any, code: string, subtotal: number): Promise<{ amount: number; label: string }> {
+  if (!code) return { amount: 0, label: "" };
+  const now = new Date().toISOString();
+  const { data: c } = await supabase.from("coupon").select("type,value,min_order,starts_at,ends_at,is_active").eq("code", code).maybeSingle();
+  let src: { type: string; value: number; min_order: number; starts_at: string | null; ends_at: string | null; is_active: boolean } | null = null;
+  if (c) src = { type: c.type, value: c.value, min_order: c.min_order ?? 0, starts_at: c.starts_at, ends_at: c.ends_at, is_active: c.is_active };
+  else {
+    const { data: pr } = await supabase.from("promotion").select("discount_type,value,starts_at,ends_at,is_active").eq("code", code).maybeSingle();
+    if (pr && pr.discount_type) src = { type: pr.discount_type, value: pr.value, min_order: 0, starts_at: pr.starts_at, ends_at: pr.ends_at, is_active: pr.is_active };
+  }
+  if (!src || src.is_active === false) return { amount: 0, label: "" };
+  if (src.min_order && subtotal < src.min_order) return { amount: 0, label: "" };
+  if (src.starts_at && now < src.starts_at) return { amount: 0, label: "" };
+  if (src.ends_at && now > src.ends_at) return { amount: 0, label: "" };
+  const amount = src.type === "percent" ? Math.round((subtotal * src.value) / 100) : Math.min(src.value, subtotal);
+  return { amount, label: code };
 }
 export interface CheckoutResult { ok: boolean; orderNo?: string; message: string; pgReady?: boolean }
 
@@ -47,11 +67,15 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const ship = await computeShipping(supabase, payload.shipping.country, totalWeight);
   const shippingFeeKRW = ship.feeKRW;
 
+  // 쿠폰/프로모션 코드 할인
+  const disc = await resolveDiscount(supabase, payload.code ?? "", subtotal);
+
   // 합계 (KRW 기준 산출 후, 해외/페이팔이면 USD 환산)
-  const grandKRW = subtotal + tip + shippingFeeKRW;
+  const grandKRW = Math.max(0, subtotal - disc.amount) + tip + shippingFeeKRW;
   const grand = usd ? Math.max(1, Math.round(grandKRW / KRW_PER_USD)) : grandKRW;
   const shippingFee = usd ? Math.round(shippingFeeKRW / KRW_PER_USD) : shippingFeeKRW;
-  const tax = !usd ? Math.round(subtotal / 11) : 0; // 부가세 포함가 역산(국내). 해외 0.
+  const discountTotal = usd ? Math.round(disc.amount / KRW_PER_USD) : disc.amount;
+  const tax = !usd ? Math.round(Math.max(0, subtotal - disc.amount) / 11) : 0; // 부가세 포함가 역산(국내). 해외 0.
 
   // order_no
   const { data: noData } = await supabase.rpc("next_order_no");
@@ -64,6 +88,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
       status: "created", email: user.email, phone: payload.shipping.phone,
       shipping_address: { ...payload.shipping, shipping_label: ship.label },
       items_subtotal: usd ? Math.round(subtotal / KRW_PER_USD) : subtotal, tip_amount: tip,
+      discount_total: discountTotal, coupon_code: disc.label || null,
       shipping_fee: shippingFee, tax_amount: tax, grand_total: grand, currency,
       channel: "web",
     })

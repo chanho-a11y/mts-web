@@ -34,6 +34,21 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
       </div>
 
       <section className="rounded-xl border p-5">
+        <h2 className="mb-3 font-bold">자산 미리보기 (key_color 테마)</h2>
+        <div className="flex flex-wrap gap-4">
+          <figure className="w-48">
+            <img src={`/api/asset/thumbnail/${p.slug}`} alt="thumbnail" className="w-full rounded border" />
+            <figcaption className="mt-1 text-xs text-neutral-500">썸네일 1080×1080 · <a href={`/api/asset/thumbnail/${p.slug}`} download className="underline">SVG 저장</a></figcaption>
+          </figure>
+          <figure className="w-40">
+            <img src={`/api/asset/cardnews/${p.slug}`} alt="cardnews" className="w-full rounded border" />
+            <figcaption className="mt-1 text-xs text-neutral-500">카드뉴스 1080×1350 · <a href={`/api/asset/cardnews/${p.slug}`} download className="underline">SVG 저장</a></figcaption>
+          </figure>
+        </div>
+        <p className="mt-2 text-xs text-neutral-400">※ 라벨·인스타·PNG 래스터화는 디자인 스튜디오 포팅 단계에서 추가됩니다.</p>
+      </section>
+
+      <section className="rounded-xl border p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-bold">자동 생성 콘텐츠 (content_draft)</h2>
           <form action={generateDraftsAction}>

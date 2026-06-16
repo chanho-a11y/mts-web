@@ -18,6 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/customers", label: "고객 관리" },
     { href: "/admin/business", label: "사업자 승인" },
     { href: "/admin/marketing", label: "마케팅" },
+    { href: "/admin/analytics", label: "분석" },
   ];
   return (
     <div className="mx-auto flex max-w-6xl gap-6 px-4 py-8">

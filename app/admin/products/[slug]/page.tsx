@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ProductForm from "@/components/product-form";
-import { generateDraftsAction } from "@/app/admin/products/actions";
+import { generateDraftsAction, adjustInventoryAction } from "@/app/admin/products/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +10,15 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const { data: p } = await supabase
     .from("product")
     .select(`id,slug,title_ko,one_liner,product_type,status,is_b2b_only,roast_level,flavor_notes,origin,variety,process,weight_g,key_color,
-      brand(code), product_variant(sku,base_price), product_categories(category(slug)),
+      brand(code), product_variant(id,sku,base_price), product_categories(category(slug)),
       content_draft(type,title,status,created_at)`)
     .eq("slug", params.slug).maybeSingle();
   if (!p) notFound();
   const pv = (p as any).product_variant?.[0];
+  const variantsWithStock = await Promise.all(((p as any).product_variant ?? []).map(async (v: any) => {
+    const { data: stock } = await supabase.rpc("current_stock", { p_variant_id: v.id });
+    return { ...v, stock: stock ?? 0 };
+  }));
   const initial = {
     slug: p.slug, brand: (p as any).brand?.code, title_ko: p.title_ko, one_liner: p.one_liner ?? "",
     product_type: p.product_type ?? "블렌드", is_b2b_only: p.is_b2b_only, roast_level: p.roast_level ?? "",
@@ -32,6 +36,28 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
         <p className="mb-4 text-sm text-neutral-500">{p.slug}</p>
         <ProductForm initial={initial} />
       </div>
+
+      <section className="rounded-xl border p-5">
+        <h2 className="mb-3 font-bold">재고</h2>
+        <table className="w-full text-sm">
+          <tbody>
+            {variantsWithStock.map((v: any) => (
+              <tr key={v.id} className="border-b">
+                <td className="py-2 font-mono text-xs">{v.sku}</td>
+                <td>현재고 <b>{v.stock}</b></td>
+                <td className="text-right">
+                  <form action={adjustInventoryAction} className="inline-flex gap-2">
+                    <input type="hidden" name="variant_id" value={v.id} />
+                    <input type="hidden" name="slug" value={p.slug} />
+                    <input type="number" name="delta" placeholder="+/- 수량" className="w-24 rounded border px-2 py-1 text-xs" />
+                    <button className="rounded border px-3 py-1 text-xs">조정</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <section className="rounded-xl border p-5">
         <h2 className="mb-3 font-bold">자산 미리보기 (key_color 테마)</h2>

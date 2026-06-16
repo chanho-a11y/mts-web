@@ -68,6 +68,17 @@ export async function generateDraftsAction(formData: FormData) {
   revalidatePath(`/admin/products/${slug}`);
 }
 
+export async function adjustInventoryAction(formData: FormData) {
+  const variantId = String(formData.get("variant_id") || "");
+  const delta = parseInt(String(formData.get("delta") || "0"), 10) || 0;
+  const slug = String(formData.get("slug") || "");
+  if (variantId && delta !== 0) {
+    const supabase = createClient();
+    await supabase.from("inventory_ledger").insert({ variant_id: variantId, delta, reason: "adjust" });
+  }
+  revalidatePath(`/admin/products/${slug}`);
+}
+
 async function generateForProduct(productId: string) {
   const supabase = createClient();
   const { data: p } = await supabase

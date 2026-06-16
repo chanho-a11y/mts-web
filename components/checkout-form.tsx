@@ -41,7 +41,10 @@ export default function CheckoutForm({ tip, email = "" }: { tip: number; email?:
     });
     setBusy(false);
     setMsg(res.message);
-    if (res.ok && !res.pgReady) clear();
+    if (res.ok && !res.pgReady) {
+      clear();
+      router.push(`/checkout/complete?order=${res.orderNo ?? ""}`);
+    }
   }
 
   if (items.length === 0 && !msg) return <p className="py-16 text-center text-neutral-500">장바구니가 비어 있습니다.</p>;

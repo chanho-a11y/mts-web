@@ -34,6 +34,9 @@ export default function SiteHeader({ brand, locale }: { brand: Brand; locale: Lo
         </nav>
 
         <div className="flex items-center gap-3 text-sm">
+          <form action="/search" className="hidden md:block">
+            <input name="q" placeholder="검색" className="w-28 rounded-full border px-3 py-1 text-xs" />
+          </form>
           <LangToggle locale={locale} />
           <a href={`https://instagram.com/${brand.instagram.replace("@", "")}`} target="_blank" rel="noreferrer" className="hover:opacity-70" aria-label="Instagram">IG</a>
           <Link href="/account" className="hover:opacity-70">{tt.login}</Link>

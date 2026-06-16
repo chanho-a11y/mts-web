@@ -57,11 +57,49 @@ export default async function AccountPage() {
         </section>
       )}
 
-      <section className="mt-4 rounded-xl border p-5 text-sm text-neutral-500">
-        <h2 className="mb-2 font-bold text-black">구매 내역</h2>
-        주문 기능(P3)·재주문은 다음 단계에서 연결됩니다.
-      </section>
+      <Orders userId={user.id} />
+      <Subs userId={user.id} />
     </main>
+  );
+}
+
+async function Orders({ userId }: { userId: string }) {
+  const supabase = createClient();
+  const { data: orders } = await supabase.from("orders")
+    .select("order_no,status,grand_total,currency,placed_at").eq("profile_id", userId)
+    .order("placed_at", { ascending: false }).limit(20);
+  return (
+    <section className="mt-4 rounded-xl border p-5 text-sm">
+      <h2 className="mb-3 font-bold">구매 내역</h2>
+      {orders && orders.length ? (
+        <ul className="divide-y">
+          {orders.map((o) => (
+            <li key={o.order_no} className="flex justify-between py-2">
+              <span className="font-mono text-xs">{o.order_no}</span>
+              <span>{o.status}</span>
+              <span>{o.currency === "USD" ? `$${o.grand_total}` : "₩" + o.grand_total.toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-neutral-400">주문 내역이 없습니다.</p>}
+    </section>
+  );
+}
+
+async function Subs({ userId }: { userId: string }) {
+  const supabase = createClient();
+  const { data: subs } = await supabase.from("subscription")
+    .select("interval,grind,status,next_charge_at,product_variant(sku,product(title_ko))").eq("profile_id", userId);
+  if (!subs || subs.length === 0) return null;
+  return (
+    <section className="mt-4 rounded-xl border p-5 text-sm">
+      <h2 className="mb-3 font-bold">구독</h2>
+      <ul className="divide-y">
+        {subs.map((s: any, i: number) => (
+          <li key={i} className="py-2">{s.product_variant?.product?.title_ko} · {s.interval} · {s.grind} · {s.status}</li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getStorefrontContext } from "@/lib/storefront";
 import { getCategories } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 import ProductCard from "@/components/product-card";
 import { t } from "@/lib/i18n";
 
@@ -10,19 +11,33 @@ export default async function Home() {
   const { brand, locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
   const categories = await getCategories(storefrontId);
+
+  // CMS 사이트 설정(브랜드별 히어로 override)
+  let heroTitle = brand.name;
+  let heroSubtitle = locale === "en" ? brand.philosophy.en : brand.philosophy.ko;
+  let heroBg = "";
+  try {
+    const supabase = createClient();
+    const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
+    if (b) {
+      const { data: settings } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id);
+      const map = Object.fromEntries((settings ?? []).map((r) => [r.key, r.value]));
+      if (map.hero_title) heroTitle = map.hero_title;
+      if (map.hero_subtitle) heroSubtitle = map.hero_subtitle;
+      if (map.hero_bg) heroBg = map.hero_bg;
+    }
+  } catch {}
   const allProducts = categories.flatMap((c) => c.products);
   const bestsellers = allProducts.slice(0, 8);
 
   return (
     <main>
       {/* Hero */}
-      <section className="border-b border-neutral-200 bg-neutral-50">
+      <section className="border-b border-neutral-200" style={{ background: heroBg || "#FAFAFA" }}>
         <div className="mx-auto max-w-6xl px-4 py-20">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">everyday excellence</p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-bold leading-tight md:text-5xl">{brand.name}</h1>
-          <p className="mt-4 max-w-xl text-neutral-600">
-            {locale === "en" ? brand.philosophy.en : brand.philosophy.ko}
-          </p>
+          <h1 className="mt-3 max-w-2xl text-4xl font-bold leading-tight md:text-5xl">{heroTitle}</h1>
+          <p className="mt-4 max-w-xl text-neutral-600">{heroSubtitle}</p>
           <Link href="/collections/all" className="mt-6 inline-block rounded-full bg-ink px-6 py-2 text-sm text-white">
             {tt.shop}
           </Link>

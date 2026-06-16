@@ -13,7 +13,7 @@ const METHODS: { p: Provider; label: string }[] = [
   { p: "paypal", label: "PayPal (해외·USD)" },
 ];
 
-export default function CheckoutForm({ tip }: { tip: number }) {
+export default function CheckoutForm({ tip, email = "" }: { tip: number; email?: string }) {
   const { items, clear } = useCart();
   const router = useRouter();
   const [provider, setProvider] = useState<Provider>("inicis");
@@ -29,6 +29,7 @@ export default function CheckoutForm({ tip }: { tip: number }) {
       tip,
       provider,
       code: code.trim() || undefined,
+      email: String(formData.get("email") || "") || undefined,
       shipping: {
         recipient: String(formData.get("recipient") || ""),
         phone: String(formData.get("phone") || ""),
@@ -49,7 +50,9 @@ export default function CheckoutForm({ tip }: { tip: number }) {
   return (
     <form action={submit} className="grid gap-8 md:grid-cols-3">
       <div className="space-y-4 md:col-span-2">
-        <h2 className="font-bold">배송지</h2>
+        <h2 className="font-bold">주문자 정보</h2>
+        <label className="block text-sm">이메일(주문 확인)<input type="email" name="email" defaultValue={email} required className={input} /></label>
+        <h2 className="pt-2 font-bold">배송지</h2>
         <label className="block text-sm">받는 분<input name="recipient" required className={input} /></label>
         <label className="block text-sm">전화번호<input name="phone" required className={input} /></label>
         <label className="block text-sm">국가

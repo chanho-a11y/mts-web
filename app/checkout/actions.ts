@@ -1,5 +1,6 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { getAdapter, type Provider } from "@/lib/payments";
 import { computeShipping, KRW_PER_USD } from "@/lib/shipping";
 
@@ -9,6 +10,7 @@ export interface CheckoutPayload {
   tip: number;
   provider: Provider;
   code?: string;
+  email?: string;
   shipping: { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string };
 }
 
@@ -35,22 +37,29 @@ export interface CheckoutResult { ok: boolean; orderNo?: string; message: string
 export async function createOrderAction(payload: CheckoutPayload): Promise<CheckoutResult> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, message: "로그인이 필요합니다." };
 
   if (!payload.items.length) return { ok: false, message: "장바구니가 비어 있습니다." };
+
+  // 회원: RLS 클라이언트(본인). 게스트: service-role(있을 때만).
+  const guest = !user;
+  if (guest && !hasServiceRole) {
+    return { ok: false, message: "현재 비회원 주문 준비 중입니다. 로그인 후 진행해주세요." };
+  }
+  const db = guest ? createAdminClient() : supabase;
+  const profileId = user?.id ?? null;
 
   // 가격 서버 재계산 (resolve_price: 개별가→등급가→정가) + 무게 합산
   let subtotal = 0;
   let totalWeight = 0;
   const lines: { variant_id: string; sku: string; title: string; option: any; unit: number; source: string; qty: number }[] = [];
   for (const it of payload.items) {
-    const { data: v } = await supabase
+    const { data: v } = await db
       .from("product_variant")
       .select("id,sku,weight_g,option_values,product(title_ko)")
       .eq("id", it.variantId)
       .maybeSingle();
     if (!v) return { ok: false, message: "상품을 찾을 수 없습니다." };
-    const { data: rp } = await supabase.rpc("resolve_price", { p_variant_id: it.variantId, p_profile_id: user.id });
+    const { data: rp } = await db.rpc("resolve_price", { p_variant_id: it.variantId, p_profile_id: profileId });
     const row = Array.isArray(rp) ? rp[0] : rp;
     const unit = row?.price ?? 0;
     subtotal += unit * it.qty;
@@ -68,7 +77,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const shippingFeeKRW = ship.feeKRW;
 
   // 쿠폰/프로모션 코드 할인
-  const disc = await resolveDiscount(supabase, payload.code ?? "", subtotal);
+  const disc = await resolveDiscount(db, payload.code ?? "", subtotal);
 
   // 합계 (KRW 기준 산출 후, 해외/페이팔이면 USD 환산)
   const grandKRW = Math.max(0, subtotal - disc.amount) + tip + shippingFeeKRW;
@@ -78,14 +87,14 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const tax = !usd ? Math.round(Math.max(0, subtotal - disc.amount) / 11) : 0; // 부가세 포함가 역산(국내). 해외 0.
 
   // order_no
-  const { data: noData } = await supabase.rpc("next_order_no");
+  const { data: noData } = await db.rpc("next_order_no");
   const orderNo = (noData as string) ?? `MTS${Date.now()}`;
 
-  const { data: order, error: oErr } = await supabase
+  const { data: order, error: oErr } = await db
     .from("orders")
     .insert({
-      order_no: orderNo, profile_id: user.id, customer_type: "individual",
-      status: "created", email: user.email, phone: payload.shipping.phone,
+      order_no: orderNo, profile_id: profileId, customer_type: guest ? "guest" : "individual",
+      status: "created", email: user?.email ?? payload.email ?? null, phone: payload.shipping.phone,
       shipping_address: { ...payload.shipping, shipping_label: ship.label },
       items_subtotal: usd ? Math.round(subtotal / KRW_PER_USD) : subtotal, tip_amount: tip,
       discount_total: discountTotal, coupon_code: disc.label || null,
@@ -96,13 +105,13 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     .single();
   if (oErr || !order) return { ok: false, message: `주문 생성 실패: ${oErr?.message}` };
 
-  await supabase.from("order_item").insert(
+  await db.from("order_item").insert(
     lines.map((l) => ({ order_id: order.id, variant_id: l.variant_id, sku: l.sku, title_snapshot: l.title, option_snapshot: l.option, unit_price: l.unit, price_source: l.source, qty: l.qty, line_total: l.unit * l.qty })),
   );
 
   const adapter = getAdapter(payload.provider);
   const init = await adapter.init({ orderId: order.id, orderNo, amount: grand, currency, returnUrl: "/checkout/complete" });
-  await supabase.from("payment").insert({
+  await db.from("payment").insert({
     order_id: order.id, provider: payload.provider, amount: grand, currency,
     status: "ready", idempotency_key: `${orderNo}:${payload.provider}`,
   });

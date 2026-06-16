@@ -6,6 +6,7 @@ import { getProductBySlug } from "@/lib/queries";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
+import { createSubscriptionAction } from "@/app/products/subscribe-action";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,24 @@ export default async function ProductPage({ params }: { params: { slug: string }
           )}
         </div>
       </section>
+
+      {/* 정기구독 (B2C 전용) */}
+      {!p.is_b2b_only && p.variants[0] && (
+        <section className="mx-auto max-w-3xl px-4 pt-4">
+          <form action={createSubscriptionAction} className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm">
+            <input type="hidden" name="variant_id" value={p.variants[0].id} />
+            <span className="font-medium">정기구독</span>
+            <select name="interval" className="rounded border px-2 py-1">
+              <option value="2w">2주마다</option><option value="4w">4주마다</option><option value="8w">8주마다</option>
+            </select>
+            <select name="grind" className="rounded border px-2 py-1">
+              <option value="whole">홀빈</option><option value="drip">드립 분쇄</option><option value="espresso">에스프레소 분쇄</option>
+            </select>
+            <button className="rounded-full border px-4 py-1.5">구독 신청</button>
+            <span className="text-xs text-neutral-400">로그인 필요 · 마이페이지에서 관리</span>
+          </form>
+        </section>
+      )}
 
       {/* 2. 한 줄 키워드 설명 */}
       {p.one_liner && (

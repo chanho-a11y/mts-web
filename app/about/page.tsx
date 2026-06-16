@@ -21,6 +21,9 @@ export default function AboutPage() {
       <h1 className="mt-2 text-3xl font-bold">About MTSPACE COFFEE</h1>
       <p className="mt-2 italic text-neutral-500">매일의 탁월함</p>
 
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/about-roastery.jpg" alt="MTSPACE COFFEE 로스터리" className="mt-6 aspect-[3/2] w-full rounded-xl object-cover" />
+
       <section className="mt-10 space-y-3 leading-relaxed text-neutral-700">
         <h2 className="text-lg font-bold text-black">브랜드 소개</h2>
         <p>
@@ -54,6 +57,8 @@ export default function AboutPage() {
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-600">
           {AWARDS.map((a) => <li key={a}>{a}</li>)}
         </ul>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/about-trophies.jpg" alt="홍찬호 바리스타 챔피언십 트로피" className="mt-4 aspect-[3/2] w-full rounded-xl object-cover" />
       </section>
 
       <section className="mt-8 space-y-3 leading-relaxed text-neutral-700">

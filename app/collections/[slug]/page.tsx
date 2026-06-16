@@ -33,10 +33,10 @@ export default async function CollectionPage({ params }: { params: { slug: strin
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       {/* 카테고리 배너 */}
-      <div className="mb-8 overflow-hidden rounded-xl bg-neutral-100 px-6 py-10"
-        style={catRow.banner_path ? { backgroundImage: `url(${catRow.banner_path})`, backgroundSize: "cover" } : undefined}>
+      <div className={`mb-8 overflow-hidden rounded-xl px-6 py-14 ${catRow.banner_path ? "text-white" : "bg-neutral-100"}`}
+        style={catRow.banner_path ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4)), url(${catRow.banner_path})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
         <h1 className="text-2xl font-bold">{locale === "en" && catRow.name_en ? catRow.name_en : catRow.name_ko}</h1>
-        <p className="mt-1 text-sm text-neutral-500">{products.length} items</p>
+        <p className={`mt-1 text-sm ${catRow.banner_path ? "text-white/80" : "text-neutral-500"}`}>{products.length} items</p>
       </div>
       {products.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

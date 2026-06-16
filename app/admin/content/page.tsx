@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { saveSettingsAction } from "@/app/admin/content/actions";
+import { saveSettingsAction, saveCategoryBannerAction } from "@/app/admin/content/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +26,33 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
         <input type="hidden" name="brand" value={code} />
         <label className="block text-sm">홈 히어로 제목<input name="hero_title" defaultValue={s.hero_title} className={input} /></label>
         <label className="block text-sm">홈 히어로 부제<textarea name="hero_subtitle" defaultValue={s.hero_subtitle} rows={2} className={input} /></label>
-        <label className="block text-sm">히어로 배경색(HEX, 선택)<input name="hero_bg" defaultValue={s.hero_bg} placeholder="#FAFAFA" className={input} /></label>
+        <label className="block text-sm">히어로 이미지 경로(예: /images/hero.jpg)<input name="hero_image" defaultValue={s.hero_image} placeholder="/images/hero.jpg" className={input} /></label>
+        <label className="block text-sm">히어로 배경색(HEX, 이미지 없을 때)<input name="hero_bg" defaultValue={s.hero_bg} placeholder="#FAFAFA" className={input} /></label>
         <button className="rounded-full bg-black px-5 py-2 text-sm text-white">저장</button>
       </form>
-      <p className="mt-4 text-xs text-neutral-400">※ 페이지 배경/폰트 등 상세 편집은 확장 예정. 현재 홈 히어로 제목·부제·배경 적용.</p>
+
+      <CategoryBanners />
+      <p className="mt-4 text-xs text-neutral-400">※ 이미지는 /images/ 경로(레포 public)나 외부 URL 모두 가능. 추후 업로드 UI 확장 예정.</p>
     </main>
+  );
+}
+
+async function CategoryBanners() {
+  const supabase = createClient();
+  const { data: cats } = await supabase.from("category").select("slug,name_ko,banner_path").order("position");
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 font-bold">카테고리 배너 이미지</h2>
+      <div className="space-y-2">
+        {(cats ?? []).map((c) => (
+          <form key={c.slug} action={saveCategoryBannerAction} className="flex items-center gap-2 text-sm">
+            <input type="hidden" name="slug" value={c.slug} />
+            <span className="w-28 shrink-0 text-neutral-500">{c.name_ko}</span>
+            <input name="banner_path" defaultValue={c.banner_path ?? ""} placeholder="/images/cat-xxx.jpg" className="flex-1 rounded border px-3 py-1.5" />
+            <button className="rounded border px-3 py-1.5 text-xs">저장</button>
+          </form>
+        ))}
+      </div>
+    </section>
   );
 }

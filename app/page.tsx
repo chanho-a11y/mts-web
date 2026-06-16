@@ -16,6 +16,7 @@ export default async function Home() {
   let heroTitle = brand.name;
   let heroSubtitle = locale === "en" ? brand.philosophy.en : brand.philosophy.ko;
   let heroBg = "";
+  let heroImage = "";
   try {
     const supabase = createClient();
     const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
@@ -25,6 +26,7 @@ export default async function Home() {
       if (map.hero_title) heroTitle = map.hero_title;
       if (map.hero_subtitle) heroSubtitle = map.hero_subtitle;
       if (map.hero_bg) heroBg = map.hero_bg;
+      if (map.hero_image) heroImage = map.hero_image;
     }
   } catch {}
   const allProducts = categories.flatMap((c) => c.products);
@@ -33,12 +35,17 @@ export default async function Home() {
   return (
     <main>
       {/* Hero */}
-      <section className="border-b border-neutral-200" style={{ background: heroBg || "#FAFAFA" }}>
-        <div className="mx-auto max-w-6xl px-4 py-20">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">everyday excellence</p>
+      <section
+        className="relative border-b border-neutral-200"
+        style={heroImage
+          ? { backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0.15)), url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+          : { background: heroBg || "#FAFAFA" }}
+      >
+        <div className={`mx-auto max-w-6xl px-4 py-24 ${heroImage ? "text-white" : ""}`}>
+          <p className={`text-xs uppercase tracking-[0.3em] ${heroImage ? "text-white/80" : "text-neutral-500"}`}>everyday excellence</p>
           <h1 className="mt-3 max-w-2xl text-4xl font-bold leading-tight md:text-5xl">{heroTitle}</h1>
-          <p className="mt-4 max-w-xl text-neutral-600">{heroSubtitle}</p>
-          <Link href="/collections/all" className="mt-6 inline-block rounded-full bg-ink px-6 py-2 text-sm text-white">
+          <p className={`mt-4 max-w-xl ${heroImage ? "text-white/90" : "text-neutral-600"}`}>{heroSubtitle}</p>
+          <Link href="/collections/all" className="mt-6 inline-block rounded-full bg-white px-6 py-2 text-sm font-medium text-ink">
             {tt.shop}
           </Link>
         </div>

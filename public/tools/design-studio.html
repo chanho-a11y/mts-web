@@ -661,6 +661,13 @@ button,input,textarea,select{font-family:inherit;letter-spacing:-0.02em;}
 </style>
 </head>
 <body>
+<div id="__mtsBar" style="position:sticky;top:0;z-index:99999;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#111;color:#fff;font:14px/1.4 -apple-system,Helvetica,Arial,sans-serif">
+  <strong style="font-size:13px">내부 연동</strong>
+  <select id="__mtsProduct" style="padding:4px 8px;border-radius:6px;border:none;max-width:320px"><option value="">내부 제품 불러오기…</option></select>
+  <button id="__mtsSave" type="button" style="padding:5px 12px;border-radius:6px;border:none;background:#2D6CDF;color:#fff;cursor:pointer">생성물 내부 저장</button>
+  <span id="__mtsStatus" style="opacity:.85;font-size:12px"></span>
+</div>
+
 
 <header class="topbar">
   <div class="brand">
@@ -4128,6 +4135,43 @@ window.kbRender = kbRender;
 window.kbSelect = kbSelect;
 window.runFullValidation = runFullValidation;
 
+</script>
+<script>
+(function(){
+  var MAP={ko:'f_ko',en:'f_en',country:'f_country',region:'f_region',farm:'f_farm',farmer:'f_farmer',variety:'f_variety',process:'f_process',altitude:'f_altitude',roast:'f_roast',flavor:'f_flavor',weight:'f_weight',story:'f_story',hash:'f_hash',rcp_es:'f_rcp_es',rcp_fil:'f_rcp_fil',rcp_milk:'f_rcp_milk'};
+  var items=[];
+  function setVal(id,v){var el=document.getElementById(id);if(!el)return;el.value=(v==null?'':String(v));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}
+  function status(t){var s=document.getElementById('__mtsStatus');if(s)s.textContent=t;}
+  fetch('/api/studio/products',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
+    items=(d&&d.items)||[];
+    var sel=document.getElementById('__mtsProduct');
+    items.forEach(function(it,i){var o=document.createElement('option');o.value=String(i);o.textContent=(it.ko||it.slug);sel.appendChild(o);});
+    status(items.length?(items.length+'개 제품 로드됨'):'표시할 제품 없음');
+  }).catch(function(){status('제품 로드 실패 — 관리자 로그인 필요');});
+  document.addEventListener('change',function(e){
+    if(e.target&&e.target.id==='__mtsProduct'){
+      var it=items[parseInt(e.target.value,10)];if(!it){return;}
+      window.__mtsSlug=it.slug;
+      Object.keys(MAP).forEach(function(k){ if(it[k]!=null && it[k]!=='') setVal(MAP[k],it[k]); });
+      var cc=document.getElementById('customColor'); if(cc&&it.key_color){cc.value=it.key_color;cc.dispatchEvent(new Event('input',{bubbles:true}));}
+      status('불러옴: '+(it.ko||it.slug));
+    }
+  });
+  document.addEventListener('click',function(e){
+    if(e.target&&e.target.id==='__mtsSave'){
+      var slug=window.__mtsSlug;
+      if(!slug){status('먼저 내부 제품을 선택하세요');return;}
+      var story=(document.getElementById('f_story')||{}).value||'';
+      var blog=(document.getElementById('bwOutput')||{}).value||'';
+      var ko=(document.getElementById('f_ko')||{}).value||'';
+      var body_html=blog?('<p>'+blog.replace(/^#+\s+/gm,'').replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')+'</p>'):'';
+      status('저장 중…');
+      fetch('/api/studio/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:slug,story:story,blog_title:ko,blog_body:blog,body_html:body_html})})
+        .then(function(r){return r.json();}).then(function(d){ status(d&&d.ok?('저장 완료: '+((d.saved||[]).join(', ')||'없음')):('저장 실패: '+(d&&d.error||''))); })
+        .catch(function(){status('저장 오류');});
+    }
+  });
+})();
 </script>
 </body>
 </html>

@@ -10,6 +10,7 @@ export interface AssetProduct {
   minPrice?: number;
 }
 export interface AssetBrand { name: string; instagram: string }
+export interface AssetTemplate { accent?: string | null; font?: string | null }
 
 function lum(hex: string): number {
   const h = hex.replace("#", "");
@@ -30,10 +31,11 @@ function wrap(s: string, perLine: number, maxLines: number): string[] {
   if (cur && out.length < maxLines) out.push(cur);
   return out;
 }
-const FONT = `-apple-system, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif`;
+const DEFAULT_FONT = `-apple-system, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif`;
 
-export function thumbnailSVG(p: AssetProduct, b: AssetBrand): string {
-  const key = p.key_color || "#1A1A1A";
+export function thumbnailSVG(p: AssetProduct, b: AssetBrand, tpl?: AssetTemplate): string {
+  const FONT = tpl?.font || DEFAULT_FONT;
+  const key = tpl?.accent || p.key_color || "#1A1A1A";
   const light = lum(key) > 0.6;
   const fg = light ? "#1A1A1A" : "#FFFFFF";
   const titleLines = wrap(p.title_ko.replace(/\[.*?\]\s*/g, ""), 11, 3);
@@ -51,8 +53,9 @@ ${titleLines.map((l, i) => `<text x="64" y="${560 + i * 92}" font-family='${FONT
 </svg>`;
 }
 
-export function cardnewsSVG(p: AssetProduct, b: AssetBrand): string {
-  const key = p.key_color || "#1A1A1A";
+export function cardnewsSVG(p: AssetProduct, b: AssetBrand, tpl?: AssetTemplate): string {
+  const FONT = tpl?.font || DEFAULT_FONT;
+  const key = tpl?.accent || p.key_color || "#1A1A1A";
   const light = lum(key) > 0.6;
   const fg = light ? "#1A1A1A" : "#FFFFFF";
   const titleLines = wrap(p.title_ko.replace(/\[.*?\]\s*/g, ""), 12, 3);

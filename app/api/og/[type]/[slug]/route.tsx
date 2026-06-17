@@ -21,7 +21,16 @@ export async function GET(req: Request, { params }: { params: { type: string; sl
     const p = arr?.[0];
     if (!p) return new Response("Not found", { status: 404 });
 
-    const key = p.key_color || "#1A1A1A";
+    // 양식 설정(자산 강조색) — /admin/templates (mtspace 브랜드 기준)
+    let accentOverride = "";
+    try {
+      const sres = await fetch(`${SUPA}/rest/v1/site_setting?brand_id=eq.a66da681-f7e1-4f1e-bf27-f6fa6edcb3e1&key=eq.asset_accent&select=value&limit=1`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      const sarr = await sres.json();
+      accentOverride = sarr?.[0]?.value || "";
+    } catch {}
+
+    const key = accentOverride || p.key_color || "#1A1A1A";
     const fg = lum(key) > 0.6 ? "#1A1A1A" : "#FFFFFF";
     const variants = (p.product_variant ?? []).filter((v: any) => v.is_active);
     const price = variants.length ? Math.min(...variants.map((v: any) => v.base_price)) : 0;

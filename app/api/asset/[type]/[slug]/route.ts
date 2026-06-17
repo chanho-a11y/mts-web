@@ -23,9 +23,22 @@ export async function GET(_req: NextRequest, { params }: { params: { type: strin
     flavor_notes: p.flavor_notes, roast_level: p.roast_level, key_color: p.key_color, minPrice,
   };
 
+  // 양식 설정(자산 강조색·폰트) — /admin/templates
+  let accent = ""; let font = "";
+  try {
+    const { data: b } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
+    if (b) {
+      const { data: st } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id)
+        .in("key", ["asset_accent", "asset_font"]);
+      const m = Object.fromEntries((st ?? []).map((r: any) => [r.key, r.value ?? ""]));
+      accent = m.asset_accent ?? ""; font = m.asset_font ?? "";
+    }
+  } catch {}
+  const tpl = { accent: accent || null, font: font || null };
+
   const svg = params.type === "cardnews"
-    ? cardnewsSVG(ap, { name: brand.name, instagram: brand.instagram })
-    : thumbnailSVG(ap, { name: brand.name, instagram: brand.instagram });
+    ? cardnewsSVG(ap, { name: brand.name, instagram: brand.instagram }, tpl)
+    : thumbnailSVG(ap, { name: brand.name, instagram: brand.instagram }, tpl);
 
   return new Response(svg, {
     headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=300" },

@@ -12,6 +12,7 @@ export async function saveSettingsAction(formData: FormData) {
     "header_bg", "page_bg", "footer_bg",
     "font_family", "letter_spacing", "line_height", "headline_weight",
     "store_phone", "store_email",
+    "logo_path", "favicon_path",
   ];
   for (const k of keys) {
     const v = String(formData.get(k) || "");

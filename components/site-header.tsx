@@ -5,8 +5,8 @@ import { t, type Locale } from "@/lib/i18n";
 import { signOutAction } from "@/app/account/actions";
 
 export default function SiteHeader({
-  brand, locale, signedIn, role, bg,
-}: { brand: Brand; locale: Locale; signedIn: boolean; role: string | null; bg?: string }) {
+  brand, locale, signedIn, role, bg, logo,
+}: { brand: Brand; locale: Locale; signedIn: boolean; role: string | null; bg?: string; logo?: string }) {
   const tt = t(locale);
   const isAdmin = role === "admin";
   const isBusiness = role === "business";
@@ -60,7 +60,12 @@ export default function SiteHeader({
                 )}
               </nav>
             </details>
-            <Link href="/" className="text-lg font-bold tracking-tight">{brand.name}</Link>
+            <Link href="/" className="text-lg font-bold tracking-tight">
+              {logo
+                /* eslint-disable-next-line @next/next/no-img-element */
+                ? <img src={logo} alt={brand.name} className="h-7 w-auto" />
+                : brand.name}
+            </Link>
           </div>
 
           <nav className="hidden items-center gap-6 text-sm md:flex">

@@ -51,6 +51,12 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
         </fieldset>
 
         <fieldset className="rounded-lg border p-4">
+          <legend className="px-1 text-xs font-bold uppercase text-neutral-400">디자인 자산</legend>
+          <label className="block text-sm">로고 이미지 경로(빈칸이면 텍스트 로고)<input name="logo_path" defaultValue={s.logo_path} placeholder="/images/logo.png" className={input} /></label>
+          <label className="mt-3 block text-sm">파비콘 경로<input name="favicon_path" defaultValue={s.favicon_path} placeholder="/favicon.ico" className={input} /></label>
+        </fieldset>
+
+        <fieldset className="rounded-lg border p-4">
           <legend className="px-1 text-xs font-bold uppercase text-neutral-400">스토어 정보</legend>
           <label className="block text-sm">대표번호<input name="store_phone" defaultValue={s.store_phone} placeholder="010-4972-2312" className={input} /></label>
           <label className="mt-3 block text-sm">이메일<input name="store_email" defaultValue={s.store_email} placeholder="hello@mtspace.coffee" className={input} /></label>

@@ -84,7 +84,14 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const grand = usd ? Math.max(1, Math.round(grandKRW / KRW_PER_USD)) : grandKRW;
   const shippingFee = usd ? Math.round(shippingFeeKRW / KRW_PER_USD) : shippingFeeKRW;
   const discountTotal = usd ? Math.round(disc.amount / KRW_PER_USD) : disc.amount;
-  const tax = !usd ? Math.round(Math.max(0, subtotal - disc.amount) / 11) : 0; // 부가세 포함가 역산(국내). 해외 0.
+  // 부가세율(설정값, 기본 10%) — 국내는 부가세 포함가에서 역산, 해외 0
+  let vatRate = 10;
+  try {
+    const { data: vr } = await supabase.from("site_setting").select("value").eq("key", "vat_rate").limit(1).maybeSingle();
+    if (vr?.value && !isNaN(Number(vr.value))) vatRate = Number(vr.value);
+  } catch {}
+  const taxableKRW = Math.max(0, subtotal - disc.amount);
+  const tax = !usd ? Math.round((taxableKRW * vatRate) / (100 + vatRate)) : 0;
 
   // order_no
   const { data: noData } = await db.rpc("next_order_no");

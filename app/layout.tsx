@@ -9,10 +9,20 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { brand } = await getStorefrontContext();
+  let favicon = "";
+  try {
+    const supabase = createClient();
+    const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
+    if (b) {
+      const { data } = await supabase.from("site_setting").select("value").eq("brand_id", b.id).eq("key", "favicon_path").maybeSingle();
+      favicon = data?.value ?? "";
+    }
+  } catch {}
   return {
     title: { default: `${brand.name} — everyday excellence`, template: `%s · ${brand.name}` },
     description: brand.philosophy.ko,
     openGraph: { siteName: brand.name, title: brand.name, description: brand.philosophy.ko },
+    ...(favicon ? { icons: { icon: favicon } } : {}),
   };
 }
 
@@ -68,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body style={bodyStyle}>
         <CartProvider>
           <PromoBanner message={promo} />
-          <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} />
+          <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} logo={cms.logo_path || undefined} />
           {children}
           <SiteFooter brand={brand} bg={cms.footer_bg || undefined} phone={cms.store_phone || undefined} email={cms.store_email || undefined} />
         </CartProvider>

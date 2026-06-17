@@ -42,8 +42,24 @@ export default async function ProductPage({ params }: { params: { slug: string }
   // 제품 브랜드 (놈코어/엠티스페이스) — 상세에서 표기할 브랜드
   const isNormcore = p.title_ko.toLowerCase().includes("normcore");
   const pBrand = isNormcore ? BRANDS.normcore : BRANDS.mtspace;
-  const key = p.key_color ?? "#1A1A1A";
   const title = locale === "en" && p.title_en ? p.title_en : p.title_ko;
+
+  // 양식(템플릿) 설정: 섹션 순서·강조색·폰트 (관리자 /admin/templates)
+  let detailOrder = "";
+  let detailAccent = "";
+  let detailFont = "";
+  try {
+    const { data: b } = await supabase.from("brand").select("id").eq("code", pBrand.code).maybeSingle();
+    if (b) {
+      const { data: st } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id)
+        .in("key", ["detail_section_order", "detail_accent", "detail_font"]);
+      const m = Object.fromEntries((st ?? []).map((r) => [r.key, r.value ?? ""]));
+      detailOrder = m.detail_section_order ?? "";
+      detailAccent = m.detail_accent ?? "";
+      detailFont = m.detail_font ?? "";
+    }
+  } catch {}
+  const key = detailAccent || p.key_color || "#1A1A1A";
 
   // JSON-LD (SEO/AIEO)
   const jsonLd = {
@@ -71,11 +87,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
     [tt.weight, p.weight_g ? `${p.weight_g}g` : null],
   ];
 
-  return (
-    <main style={{ ["--key" as string]: key }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-
-      {/* 1. 대표 이미지 + 이름 & 플레이버 오버레이 */}
+  // 섹션 정의 (키별) — 양식 설정(/admin/templates)으로 순서/표시 제어
+  const sections: Record<string, React.ReactNode> = {
+    hero: (
       <section className="relative h-[60vh] min-h-[360px] w-full overflow-hidden bg-neutral-900">
         {p.image && (
           <Image src={p.image} alt={p.imageAlt ?? title} fill priority className="object-cover opacity-80" sizes="100vw" />
@@ -88,33 +102,29 @@ export default async function ProductPage({ params }: { params: { slug: string }
           )}
         </div>
       </section>
-
-      {/* 정기구독 (B2C 전용) */}
-      {!p.is_b2b_only && p.variants[0] && (
-        <section className="mx-auto max-w-3xl px-4 pt-4">
-          <form action={createSubscriptionAction} className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm">
-            <input type="hidden" name="variant_id" value={p.variants[0].id} />
-            <span className="font-medium">정기구독</span>
-            <select name="interval" className="rounded border px-2 py-1">
-              <option value="2w">2주마다</option><option value="4w">4주마다</option><option value="8w">8주마다</option>
-            </select>
-            <select name="grind" className="rounded border px-2 py-1">
-              <option value="whole">홀빈</option><option value="drip">드립 분쇄</option><option value="espresso">에스프레소 분쇄</option>
-            </select>
-            <button className="rounded-full border px-4 py-1.5">구독 신청</button>
-            <span className="text-xs text-neutral-400">로그인 필요 · 마이페이지에서 관리</span>
-          </form>
-        </section>
-      )}
-
-      {/* 2. 한 줄 키워드 설명 */}
-      {p.one_liner && (
-        <section className="mx-auto max-w-3xl px-4 py-10 text-center">
-          <p className="text-xl font-medium" style={{ color: key }}>{p.one_liner}</p>
-        </section>
-      )}
-
-      {/* 구매 영역 */}
+    ),
+    subscribe: (!p.is_b2b_only && p.variants[0]) ? (
+      <section className="mx-auto max-w-3xl px-4 pt-4">
+        <form action={createSubscriptionAction} className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm">
+          <input type="hidden" name="variant_id" value={p.variants[0].id} />
+          <span className="font-medium">정기구독</span>
+          <select name="interval" className="rounded border px-2 py-1">
+            <option value="2w">2주마다</option><option value="4w">4주마다</option><option value="8w">8주마다</option>
+          </select>
+          <select name="grind" className="rounded border px-2 py-1">
+            <option value="whole">홀빈</option><option value="drip">드립 분쇄</option><option value="espresso">에스프레소 분쇄</option>
+          </select>
+          <button className="rounded-full border px-4 py-1.5">구독 신청</button>
+          <span className="text-xs text-neutral-400">로그인 필요 · 마이페이지에서 관리</span>
+        </form>
+      </section>
+    ) : null,
+    oneliner: p.one_liner ? (
+      <section className="mx-auto max-w-3xl px-4 py-10 text-center">
+        <p className="text-xl font-medium" style={{ color: key }}>{p.one_liner}</p>
+      </section>
+    ) : null,
+    buy: (
       <section className="mx-auto max-w-3xl px-4">
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-neutral-200 p-5">
           <div>
@@ -134,8 +144,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
           />
         </div>
       </section>
-
-      {/* 3. 커피 정보 */}
+    ),
+    info: (
       <section className="mx-auto max-w-3xl px-4 py-12">
         <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>{tt.coffeeInfo}</h2>
         <dl className="divide-y divide-neutral-100 text-sm">
@@ -147,8 +157,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
           ))}
         </dl>
       </section>
-
-      {/* 4·5·6. 브랜드 로고 · 철학 · 소개 */}
+    ),
+    brand: (
       <section className="bg-neutral-50 py-14 text-center">
         <div className="mx-auto max-w-2xl px-4">
           <p className="text-xl font-bold tracking-tight">{pBrand.name}</p>
@@ -156,8 +166,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <p className="mt-3 text-sm text-neutral-500">{locale === "en" ? pBrand.about.en : pBrand.about.ko}</p>
         </div>
       </section>
-
-      {/* 7. 추천 추출 & 레시피 */}
+    ),
+    recipe: (
       <section className="mx-auto max-w-3xl px-4 py-12">
         <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>{tt.recipe}</h2>
         {p.brew_recipe && Object.keys(p.brew_recipe).length > 0 ? (
@@ -168,17 +178,15 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </p>
         )}
       </section>
-
-      {/* 8. more information */}
-      {p.body_html && (
-        <section className="mx-auto max-w-3xl px-4 pb-12">
-          <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>{tt.moreInfo}</h2>
-          <div className="prose-sm text-sm leading-relaxed text-neutral-700"
-            dangerouslySetInnerHTML={{ __html: p.body_html }} />
-        </section>
-      )}
-
-      {/* 리뷰 */}
+    ),
+    more: p.body_html ? (
+      <section className="mx-auto max-w-3xl px-4 pb-12">
+        <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>{tt.moreInfo}</h2>
+        <div className="prose-sm text-sm leading-relaxed text-neutral-700"
+          dangerouslySetInnerHTML={{ __html: p.body_html }} />
+      </section>
+    ) : null,
+    reviews: (
       <section className="mx-auto max-w-3xl px-4 pb-12">
         <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>
           리뷰 {revCount > 0 && <span className="text-sm font-normal text-neutral-500">★ {avgRating.toFixed(1)} ({revCount})</span>}
@@ -210,14 +218,27 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <button className="rounded-full border px-4 py-1.5 text-sm">리뷰 등록 (로그인 필요)</button>
         </form>
       </section>
-
-      {/* 9. 소셜 */}
+    ),
+    social: (
       <section className="mx-auto max-w-3xl px-4 pb-20 text-sm">
         <a href={`https://instagram.com/${pBrand.instagram.replace("@", "")}`} target="_blank" rel="noreferrer"
           className="underline" style={{ color: key }}>
           Instagram {pBrand.instagram}
         </a>
       </section>
+    ),
+  };
+
+  const DEFAULT_ORDER = ["hero", "subscribe", "oneliner", "buy", "info", "brand", "recipe", "more", "reviews", "social"];
+  const parsed = detailOrder
+    ? detailOrder.split(/[\n,]+/).map((s) => s.trim()).filter((k) => DEFAULT_ORDER.includes(k))
+    : [];
+  const order = parsed.length ? parsed : DEFAULT_ORDER;
+
+  return (
+    <main style={{ ["--key" as string]: key, fontFamily: detailFont || undefined }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {order.map((k) => <div key={k}>{sections[k]}</div>)}
     </main>
   );
 }

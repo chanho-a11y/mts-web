@@ -28,6 +28,9 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     category: (p as any).product_categories?.[0]?.category?.slug ?? "blends",
   };
   const drafts = (p as any).content_draft ?? [];
+  const { data: studioAssets } = await supabase
+    .from("product_asset").select("kind,url,created_at").eq("product_id", (p as any).id)
+    .order("created_at", { ascending: false });
 
   return (
     <main className="space-y-8">
@@ -71,7 +74,27 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
             <figcaption className="mt-1 text-xs text-neutral-500">카드뉴스 1080×1350 · <a href={`/api/asset/cardnews/${p.slug}`} download className="underline">SVG 저장</a></figcaption>
           </figure>
         </div>
-        <p className="mt-2 text-xs text-neutral-400">※ 라벨·인스타·PNG 래스터화는 디자인 스튜디오 포팅 단계에서 추가됩니다.</p>
+        <p className="mt-2 text-xs text-neutral-400">※ 위는 제품 데이터 기반 자동 미리보기. 아래는 디자인 스튜디오에서 저장한 실제 자산입니다.</p>
+      </section>
+
+      <section className="rounded-xl border p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-bold">디자인 스튜디오 저장 자산</h2>
+          <a href="/admin/studio" className="rounded border px-3 py-1.5 text-xs text-brandBlue hover:bg-neutral-100">스튜디오에서 편집</a>
+        </div>
+        {studioAssets && studioAssets.length > 0 ? (
+          <div className="flex flex-wrap gap-4">
+            {studioAssets.map((a: any, i: number) => (
+              <figure key={i} className="w-40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt={a.kind} className="w-full rounded border" />
+                <figcaption className="mt-1 text-xs text-neutral-500">{a.kind} · <a href={a.url} target="_blank" rel="noreferrer" className="underline">열기</a></figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-400">아직 저장된 자산이 없습니다. <a href="/admin/studio" className="underline">디자인 스튜디오</a>에서 제품을 불러와 ‘제품에 반영’을 누르면 라벨·카드뉴스·썸네일이 여기에 저장됩니다.</p>
+        )}
       </section>
 
       <section className="rounded-xl border p-5">

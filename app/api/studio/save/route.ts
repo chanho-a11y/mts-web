@@ -81,6 +81,33 @@ export async function POST(req: Request) {
     }
   }
 
+  // 2-b) 라벨·카드뉴스 등 자산 이미지 → Storage 업로드 → product_asset
+  if (Array.isArray(payload.assets) && payload.assets.length) {
+    if (!hasServiceRole) {
+      done.push("assets_skipped(no_service_role)");
+    } else {
+      const admin = createAdminClient();
+      let n = 0;
+      for (const a of payload.assets) {
+        try {
+          const m = String(a?.dataurl || "").match(/^data:(image\/\w+);base64,(.+)$/);
+          const kind = String(a?.kind || "asset").replace(/[^a-z0-9_-]/gi, "");
+          if (!m || !kind) continue;
+          const ext = m[1] === "image/jpeg" ? "jpg" : "png";
+          const buf = Buffer.from(m[2], "base64");
+          const path = `${kind}/${slug}-${Date.now()}-${n}.${ext}`;
+          const up = await admin.storage.from("product-assets").upload(path, buf, { contentType: m[1], upsert: true });
+          if (!up.error) {
+            const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-assets/${path}`;
+            await admin.from("product_asset").insert({ product_id: pid, kind, url });
+            n++;
+          }
+        } catch { /* skip */ }
+      }
+      if (n) done.push(`assets:${n}`);
+    }
+  }
+
   // 3) 블로그 초안 → content_post (draft)
   if (payload.blog_body) {
     const sfId = (product as any).product_storefronts?.[0]?.storefront_id ?? null;

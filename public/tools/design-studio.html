@@ -663,8 +663,9 @@ button,input,textarea,select{font-family:inherit;letter-spacing:-0.02em;}
 <body>
 <div id="__mtsBar" style="position:sticky;top:0;z-index:99999;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#111;color:#fff;font:14px/1.4 -apple-system,Helvetica,Arial,sans-serif">
   <strong style="font-size:13px">내부 연동</strong>
-  <select id="__mtsProduct" style="padding:4px 8px;border-radius:6px;border:none;max-width:320px"><option value="">내부 제품 불러오기…</option></select>
-  <button id="__mtsSave" type="button" style="padding:5px 12px;border-radius:6px;border:none;background:#2D6CDF;color:#fff;cursor:pointer">제품에 반영(상세텍스트+썸네일+블로그)</button>
+  <select id="__mtsProduct" style="padding:4px 8px;border-radius:6px;border:none;max-width:300px"><option value="">내부 제품 불러오기…</option></select>
+  <button id="__mtsSave" type="button" style="padding:5px 12px;border-radius:6px;border:none;background:#2D6CDF;color:#fff;cursor:pointer">제품에 반영</button>
+  <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="__mtsAssets" checked>라벨·카드뉴스 함께 저장</label>
   <span id="__mtsStatus" style="opacity:.85;font-size:12px"></span>
 </div>
 
@@ -4141,6 +4142,7 @@ window.runFullValidation = runFullValidation;
   var MAP={ko:'f_ko',en:'f_en',country:'f_country',region:'f_region',farm:'f_farm',farmer:'f_farmer',variety:'f_variety',process:'f_process',altitude:'f_altitude',roast:'f_roast',flavor:'f_flavor',weight:'f_weight',story:'f_story',hash:'f_hash',rcp_es:'f_rcp_es',rcp_fil:'f_rcp_fil',rcp_milk:'f_rcp_milk'};
   var items=[];
   function g(id){var el=document.getElementById(id);return el?(el.value||''):'';}
+  function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
   function setVal(id,v){var el=document.getElementById(id);if(!el)return;el.value=(v==null?'':String(v));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}
   function status(t){var s=document.getElementById('__mtsStatus');if(s)s.textContent=t;}
 
@@ -4161,16 +4163,15 @@ window.runFullValidation = runFullValidation;
     }
   });
 
-  async function captureThumb(){
+  // 탭 전환→캔버스 캡처→복귀
+  async function cap(tab,stageId){
     try{
       if(typeof rasterise!=='function') return null;
       var prev=(typeof currentTab!=='undefined')?currentTab:null;
-      var tabEl=document.querySelector('[data-tab="thumb"]');
-      if(tabEl) tabEl.click();
-      await new Promise(function(r){setTimeout(r,500);});
-      var stage=document.getElementById('stage-thumb');
-      var url=null;
-      if(stage){ var canvas=await rasterise(stage); url=canvas.toDataURL('image/jpeg',0.9); }
+      var tEl=document.querySelector('[data-tab="'+tab+'"]'); if(tEl) tEl.click();
+      await wait(500);
+      var st=document.getElementById(stageId); var url=null;
+      if(st){ var c=await rasterise(st); url=c.toDataURL('image/jpeg',0.88); }
       if(prev){ var pe=document.querySelector('[data-tab="'+prev+'"]'); if(pe) pe.click(); }
       return url;
     }catch(e){ return null; }
@@ -4182,11 +4183,16 @@ window.runFullValidation = runFullValidation;
     if(!slug){status('먼저 내부 제품을 선택하세요');return;}
     (async function(){
       status('썸네일 캡처 중…');
-      var thumb=await captureThumb();
+      var thumb=await cap('thumb','stage-thumb');
+      var assets=[];
+      if(document.getElementById('__mtsAssets') && document.getElementById('__mtsAssets').checked){
+        status('라벨 캡처 중…'); var lab=await cap('label','stage-label'); if(lab) assets.push({kind:'label',dataurl:lab});
+        status('카드뉴스 캡처 중…'); var card=await cap('post','post1'); if(card) assets.push({kind:'cardnews',dataurl:card});
+      }
       var fields={ko:g('f_ko'),en:g('f_en'),country:g('f_country'),region:g('f_region'),farm:g('f_farm'),farmer:g('f_farmer'),variety:g('f_variety'),process:g('f_process'),altitude:g('f_altitude'),roast:g('f_roast'),flavor:g('f_flavor'),weight:g('f_weight'),story:g('f_story'),hash:g('f_hash'),rcp_es:g('f_rcp_es'),rcp_fil:g('f_rcp_fil'),rcp_milk:g('f_rcp_milk'),key_color:g('customColor')};
       status('저장 중…');
       try{
-        var r=await fetch('/api/studio/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:slug,fields:fields,blog_title:g('f_ko'),blog_body:g('bwOutput'),thumb_dataurl:thumb})});
+        var r=await fetch('/api/studio/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:slug,fields:fields,blog_title:g('f_ko'),blog_body:g('bwOutput'),thumb_dataurl:thumb,assets:assets})});
         var d=await r.json();
         status(d&&d.ok?('저장 완료 → '+((d.saved||[]).join(', ')||'없음')):('저장 실패: '+((d&&d.error)||'')));
       }catch(err){ status('저장 오류'); }

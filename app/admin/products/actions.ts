@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { generateDrafts } from "@/lib/content-gen";
+import { generateDrafts, buildDesignedDetailHtml } from "@/lib/content-gen";
 
 function csv(v: string): string[] {
   return v.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
@@ -50,8 +50,8 @@ export async function upsertProductAction(formData: FormData) {
     const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
     if (cat) await supabase.from("product_categories").upsert({ product_id: prod.id, category_id: cat.id });
   }
-  const domain = is_b2b ? "mtspace.coffee" : "normcorecoffee.com";
-  const { data: sf } = await supabase.from("storefront").select("id").eq("domain", domain).maybeSingle();
+  // MTSPACE 단일 사이트 — 모든 제품을 mtspace.coffee 스토어프론트에 노출(B2B 여부는 RLS·역할로 제어)
+  const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
 
   // 자동 콘텐츠 초안 생성 (체크 시)
@@ -83,13 +83,36 @@ async function generateForProduct(productId: string) {
   const supabase = createClient();
   const { data: p } = await supabase
     .from("product")
-    .select("title_ko,one_liner,flavor_notes,roast_level,origin,variety,process,weight_g,body_html")
+    .select("slug,title_ko,title_en,one_liner,flavor_notes,roast_level,origin,producer,variety,process,altitude,weight_g,key_color,brew_recipe,body_html,product_storefronts(storefront_id)")
     .eq("id", productId).maybeSingle();
   if (!p) return;
-  const drafts = generateDrafts(p as any);
-  // 기존 동타입 초안 정리 후 재생성
+  const pp = p as any;
+
+  // 1) 제품 상세 body_html = SEO 디자인 텍스트 박스 (한 번 입력 → 제품에 반영)
+  const o = pp.origin ?? {};
+  const r = pp.brew_recipe ?? {};
+  const designed = buildDesignedDetailHtml({
+    ko: pp.title_ko, en: pp.title_en ?? "", country: o.country ?? "", region: o.region ?? "", farm: o.farm ?? pp.producer ?? "",
+    farmer: pp.producer ?? "", variety: pp.variety ?? "", process: pp.process ?? "", altitude: pp.altitude ?? "",
+    roast: pp.roast_level ?? "", flavor: (pp.flavor_notes ?? []).join(", "), weight: pp.weight_g ? String(pp.weight_g) : "",
+    story: pp.one_liner ?? "", rcp_es: r.espresso ?? "", rcp_fil: r.filter ?? "", rcp_milk: r.milk ?? "",
+  }, pp.key_color ?? "#1A1A1A");
+  await supabase.from("product").update({ body_html: designed }).eq("id", productId);
+
+  // 2) 관리자 미리보기용 초안(content_draft)
+  const drafts = generateDrafts(pp);
   await supabase.from("content_draft").delete().eq("product_id", productId).in("type", ["detail", "blog"]);
   await supabase.from("content_draft").insert(
     drafts.map((d) => ({ product_id: productId, type: d.type, title: d.title, body_html: d.body_html, keywords: d.keywords, seo_title: d.seo_title, seo_description: d.seo_description, status: "draft", generator: "template" })),
   );
+
+  // 3) 블로그 초안(content_post, draft) — 제품당 1건 upsert
+  const blog = drafts.find((d) => d.type === "blog");
+  if (blog) {
+    const sfId = pp.product_storefronts?.[0]?.storefront_id ?? null;
+    await supabase.from("content_post").upsert({
+      slug: `${pp.slug}-auto`, title: blog.title, body_html: blog.body_html,
+      excerpt: blog.seo_description, storefront_id: sfId, status: "draft", author: "자동 생성",
+    }, { onConflict: "slug" });
+  }
 }

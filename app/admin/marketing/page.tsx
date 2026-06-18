@@ -57,6 +57,13 @@ export default async function AdminMarketingPage() {
           </tbody>
         </table>
       </section>
+
+      <section className="rounded-xl border p-5">
+        <h2 className="mb-2 font-bold">메타 쇼핑 · 구글 머천트 연결</h2>
+        <p className="mb-2 text-sm text-neutral-600">아래 상품 피드 URL을 Meta 커머스 관리자(카탈로그 → 데이터 피드) 또는 Google Merchant Center에 등록하면 상품이 자동 동기화됩니다.</p>
+        <code className="block rounded bg-neutral-100 px-3 py-2 text-xs">https://mtspace.coffee/feed/shopping.xml</code>
+        <p className="mt-2 text-xs text-neutral-400">RSS 2.0 + g: 네임스페이스(Meta·Google 공용). 30분 캐시. 활성·재고 상품만 포함.</p>
+      </section>
     </main>
   );
 }

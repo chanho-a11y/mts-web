@@ -14,7 +14,7 @@ export default async function AdminOrdersPage() {
     <main>
       <h1 className="mb-6 text-2xl font-bold">주문 관리</h1>
       <OrdersTable orders={orders ?? []} />
-      <p className="mt-4 text-xs text-neutral-400">출고 처리 시 재고가 차감되고 송장이 생성됩니다. 고객 출고 알림 이메일은 Gmail 연동 후 자동 발송됩니다.</p>
+      <p className="mt-4 text-xs text-neutral-400">출고 처리 시 재고 차감·송장 생성·고객 출고 알림 이메일이 발송됩니다(이메일 프로바이더 env 설정 시).</p>
     </main>
   );
 }

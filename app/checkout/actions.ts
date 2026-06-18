@@ -32,7 +32,7 @@ async function resolveDiscount(supabase: any, code: string, subtotal: number): P
   const amount = src.type === "percent" ? Math.round((subtotal * src.value) / 100) : Math.min(src.value, subtotal);
   return { amount, label: code };
 }
-export interface CheckoutResult { ok: boolean; orderNo?: string; message: string; pgReady?: boolean }
+export interface CheckoutResult { ok: boolean; orderNo?: string; message: string; pgReady?: boolean; redirectUrl?: string | null }
 
 export async function createOrderAction(payload: CheckoutPayload): Promise<CheckoutResult> {
   const supabase = createClient();
@@ -124,7 +124,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   });
 
   return {
-    ok: true, orderNo, pgReady: init.ready,
+    ok: true, orderNo, pgReady: init.ready, redirectUrl: init.redirectUrl ?? null,
     message: init.ready ? "결제창으로 이동합니다." : `주문이 생성되었습니다 (주문번호 ${orderNo}). ${init.message}`,
   };
 }

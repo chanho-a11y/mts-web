@@ -4,10 +4,27 @@
 
 export interface SendResult { sent: boolean; provider?: string; reason?: string }
 
-const FROM = process.env.EMAIL_FROM || "MTSPACE COFFEE <hello@mtspace.coffee>";
+const GMAIL_USER = process.env.GMAIL_USER || "chanho@mtspace.coffee";
+const FROM = process.env.EMAIL_FROM || `MTSPACE COFFEE <${GMAIL_USER}>`;
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
   if (!to) return { sent: false, reason: "no_recipient" };
+
+  // 1순위: Gmail SMTP (앱 비밀번호) — chanho@mtspace.coffee 발송
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  if (gmailPass) {
+    try {
+      const nodemailer = (await import("nodemailer")).default;
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com", port: 465, secure: true,
+        auth: { user: GMAIL_USER, pass: gmailPass.replace(/\s+/g, "") },
+      });
+      await transporter.sendMail({ from: FROM, to, subject, html });
+      return { sent: true, provider: "gmail" };
+    } catch (e) {
+      return { sent: false, provider: "gmail", reason: (e as Error)?.message?.slice(0, 80) || "smtp_error" };
+    }
+  }
 
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {

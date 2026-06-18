@@ -41,6 +41,12 @@ export default function CheckoutForm({ tip, email = "" }: { tip: number; email?:
     });
     setBusy(false);
     setMsg(res.message);
+    if (res.ok && res.pgReady && res.redirectUrl) {
+      // PG 결제창/승인 페이지로 이동 (PayPal 등)
+      clear();
+      window.location.href = res.redirectUrl;
+      return;
+    }
     if (res.ok && !res.pgReady) {
       clear();
       router.push(`/checkout/complete?order=${res.orderNo ?? ""}`);

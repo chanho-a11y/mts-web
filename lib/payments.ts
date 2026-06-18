@@ -43,12 +43,52 @@ export const kakaopay: PaymentAdapter = {
     return { ready: true, message: "kakaopay ready" };
   },
 };
+// ---- PayPal Orders v2 (REST) ----
+export function paypalBase() {
+  return process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+}
+export async function paypalToken(): Promise<string | null> {
+  const id = process.env.PAYPAL_CLIENT_ID, sec = process.env.PAYPAL_SECRET;
+  if (!id || !sec) return null;
+  const res = await fetch(`${paypalBase()}/v1/oauth2/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${id}:${sec}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  if (!res.ok) return null;
+  return (await res.json()).access_token ?? null;
+}
+export async function paypalCapture(token: string, ppOrderId: string): Promise<{ ok: boolean; captureId?: string; raw?: unknown }> {
+  const res = await fetch(`${paypalBase()}/v2/checkout/orders/${ppOrderId}/capture`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  const raw = await res.json().catch(() => null);
+  const ok = res.ok && (raw?.status === "COMPLETED");
+  const captureId = raw?.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+  return { ok, captureId, raw };
+}
+
 export const paypal: PaymentAdapter = {
   provider: "paypal", label: "PayPal (해외·USD)", currency: "USD",
   async init(p) {
-    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_SECRET) return notConfigured("paypal");
-    // TODO: PayPal Orders v2 create → approve link
-    return { ready: true, message: "paypal ready" };
+    const token = await paypalToken();
+    if (!token) return notConfigured("paypal");
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
+    const res = await fetch(`${paypalBase()}/v2/checkout/orders`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        purchase_units: [{ reference_id: p.orderNo, amount: { currency_code: "USD", value: `${p.amount}.00` } }],
+        application_context: {
+          return_url: `${origin}/api/payments/paypal?order=${encodeURIComponent(p.orderNo)}&oid=${p.orderId}`,
+          cancel_url: `${origin}/checkout/complete?order=${encodeURIComponent(p.orderNo)}&paid=0`,
+        },
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.id) return { ready: false, message: "paypal create 실패" };
+    const approve = (data.links ?? []).find((l: { rel: string; href: string }) => l.rel === "approve")?.href;
+    return { ready: true, message: "paypal ready", redirectUrl: approve };
   },
 };
 

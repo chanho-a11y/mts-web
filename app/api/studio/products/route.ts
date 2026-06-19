@@ -13,15 +13,20 @@ export async function GET() {
 
   const { data } = await supabase
     .from("product")
-    .select("slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,hashtags,brew_recipe,body_html,status")
+    .select("slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,hashtags,brew_recipe,body_html,status,product_image(storage_path,is_primary,position),product_variant(base_price,is_active)")
     .eq("status", "active")
     .order("title_ko");
 
   const items = (data ?? []).map((p: any) => {
     const o = p.origin ?? {};
     const r = p.brew_recipe ?? {};
+    const imgs = (p.product_image ?? []).slice().sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0) || a.position - b.position);
+    const vs = (p.product_variant ?? []).filter((v: any) => v.is_active);
+    const price = vs.length ? Math.min(...vs.map((v: any) => v.base_price)) : 0;
     return {
       slug: p.slug,
+      image: imgs[0]?.storage_path ?? null,
+      price: price || "",
       ko: p.title_ko ?? "",
       en: p.title_en ?? "",
       country: o.country ?? "",

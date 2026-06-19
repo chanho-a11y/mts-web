@@ -1,0 +1,32 @@
+{
+  "$schema": "MTSPACE product detail page — input model v1",
+  "page": { "maxWidth": 1040, "background": "#FCFAF5", "layout": "left sticky buy-rail (312px) + right content", "mobileBreakpoint": 760 },
+  "sectionOrder": ["hero", "lead", "image", "flavourNotes", "about", "coffeeInfo", "recipe", "faq"],
+  "fields": [
+    { "id": "name_kr", "label": "제품명(국문)", "type": "text", "binding": ["hero.h1", "rail.h1", "title", "breadcrumb.here", "jsonld.Product.name(kr)"], "h1": true },
+    { "id": "name_en", "label": "제품명(영문)", "type": "text", "binding": ["hero.en", "rail.en", "jsonld.Product.name(en)"] },
+    { "id": "weight", "label": "용량", "type": "text", "binding": ["hero.en", "rail.en", "chips"], "default": "125g" },
+    { "id": "slug", "label": "URL 슬러그", "type": "text", "binding": ["canonical", "og.url", "jsonld.sku", "jsonld.offers.url"], "example": "damn-good-125g" },
+    { "id": "typeLine", "label": "분류 라인", "type": "text", "binding": ["hero.kicker", "rail.kicker"], "example": "Signature Blend · Dark Roast" },
+    { "id": "point", "label": "포인트 컬러 키", "type": "enum", "options": ["chocolate-dark","chocolate-medium","citrus-light","citrus-medium","peach-light","berry-light","tropical-light"],
+      "binding": ["css.--point","css.--point-text","css.--check","accent","hero.bg"], "note": "라벨 패키지와 동일한 플레이버×로스팅 매트릭스." },
+    { "id": "price", "label": "가격(표시)", "type": "text", "binding": ["rail.price"], "example": "₩10,990" },
+    { "id": "priceValue", "label": "가격(숫자)", "type": "text", "binding": ["jsonld.offers.price"], "example": "10990" },
+    { "id": "notesEn", "label": "플레이버 노트(영문)", "type": "text", "binding": ["hero.notes", "og.description"] },
+    { "id": "heroLine", "label": "히어로 한 줄 카피", "type": "text", "binding": ["hero.notes"] },
+    { "id": "chips", "label": "퀵 칩", "type": "array<text>", "binding": ["rail.chips"] },
+    { "id": "lead", "label": "제품 핵심 본문", "type": "textarea", "binding": ["section.lead", "meta.description", "og.description"] },
+    { "id": "flavours", "label": "플레이버 노트 카드", "type": "array", "item": ["title","desc"], "binding": ["section.flavourNotes"], "count": "3 recommended" },
+    { "id": "about", "label": "엠티스페이스 소개", "type": "array<textarea>", "binding": ["section.about"], "note": "브랜드 고정 문구 2단락 — 제품 불문 동일." },
+    { "id": "specs", "label": "커피 정보", "type": "array", "item": ["key","value"], "binding": ["section.coffeeInfo", "jsonld.additionalProperty"] },
+    { "id": "recipe", "label": "추출 레시피", "type": "array", "item": ["method","numbers","condition"], "binding": ["section.recipe"] },
+    { "id": "faqs", "label": "FAQ", "type": "array", "item": ["q","a"], "binding": ["section.faq", "jsonld.FAQPage.mainEntity"], "aieo": true },
+    { "id": "images", "label": "이미지 슬롯", "type": "array", "item": ["ratio","caption","alt"], "binding": ["rail.image","section.image","about.image"], "note": "alt 필수(SEO). 비율: 1:1(메인), 16:9(분위기), 4:5(소개)." }
+  ],
+  "seo": {
+    "headBlock": ["title","meta description","canonical","og:type/title/description/image"],
+    "jsonld": ["Product + Offer", "FAQPage", "BreadcrumbList"],
+    "hierarchy": "H1 = name_kr (hero, once) · H2 = each section head · H3 = sub",
+    "imageAlt": "required on every <img>"
+  }
+}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- ============================================================
+     MTSPACE COFFEE — PRODUCT DETAIL PAGE TEMPLATE
+     Importable, data-driven. All {{TOKENS}} are filled from one product object.
+     SEO/AIEO: semantic H1→H2→H3, meta, OG, canonical, JSON-LD (Product+Offer / FAQPage / Breadcrumb).
+     ============================================================ -->
+
+<!-- {{HEAD_SEO}} — generated block, see PRODUCT_DETAIL_SPEC.md §6 -->
+<title>댐굳 damn good 125g · 다크 로스트 블렌드 | MTSPACE COFFEE</title>
+<meta name="description" content="댐굳은 MTSPACE COFFEE의 가장 깊고 안정적인 풍미를 담은 시그니쳐 다크 로스트 블렌드입니다. 다크 초콜릿·자두·카라멜의 균형 잡힌 한 잔.">
+<link rel="canonical" href="https://mtspace.coffee/products/damn-good-125g">
+<meta property="og:type" content="product">
+<meta property="og:title" content="댐굳 damn good 125g | MTSPACE COFFEE">
+<meta property="og:description" content="다크 초콜릿 · 자두 · 카라멜. 가장 깊고 안정적인 다크 로스트 블렌드.">
+<meta property="og:image" content="https://mtspace.coffee/img/damn-good-125g-og.jpg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+
+<style>
+  /* ---------- design tokens (brand-fixed) ---------- */
+  :root{
+    --oat:#F6F1E7; --paper:#FCFAF5; --tint:#F1EBDD; --tint2:#F3EEE2;
+    --ink:#3C352C; --ink-soft:#5C574E; --mute:#8A8173; --faint:#A79E8D; --hair:#ECE4D4; --hair2:#EFE7D6;
+    /* per-product point color — set on <body data-point> or inline */
+    --point:#5E3F2A; --point-text:#5E3F2A; --check:rgba(255,255,255,.06);
+    --maxw:1040px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#e7e3dc;color:var(--ink);font-family:'Helvetica Neue',Pretendard,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .page{max-width:var(--maxw);margin:0 auto;background:var(--paper);box-shadow:0 2px 18px rgba(0,0,0,.10);overflow:hidden}
+  .accent{height:4px;background:var(--point)}
+  a{color:inherit}
+
+  /* type voices */
+  .mono{font-family:'IBM Plex Mono',Pretendard,monospace}
+  .serif{font-family:'Noto Serif KR',serif;font-weight:300}
+  .spectral{font-family:Spectral,serif}
+
+  header.bar{border-bottom:1px solid var(--hair);padding:15px 34px;display:flex;align-items:center;justify-content:space-between}
+  .wm{font-weight:800;font-size:13px}.wm .l{font-weight:200}
+  .crumb{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.5px;color:var(--faint)}
+  .crumb .here{color:var(--point-text)}
+  .tagline{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase}
+
+  .layout{display:flex;align-items:flex-start}
+  aside.rail{width:312px;flex:none;border-right:1px solid var(--hair);padding:28px 26px;position:sticky;top:0;align-self:flex-start}
+  .imgslot{background:var(--tint);border:1px solid #e3dac8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center}
+  .imgslot .tag{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#b0a690}
+  .imgslot .cap{font-size:11px;color:var(--mute);padding:0 14px}
+  .imgslot .alt{font-size:9.5px;color:#b9af9b}
+  .thumbs{display:flex;gap:6px;margin-top:9px}
+  .thumbs .t{flex:1;height:48px;background:var(--tint);border:1px solid #e3dac8;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:8px;color:#b0a690}
+  .rail .kicker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--mute);text-transform:uppercase;margin-top:24px}
+  .rail h1{font-weight:800;font-size:27px;line-height:1.1;margin:8px 0 2px}
+  .rail .en{font-family:Spectral,serif;font-style:italic;font-size:15px;color:#6b6356}
+  .price{font-family:'IBM Plex Mono',monospace;font-size:19px;margin-top:18px}.price .cur{font-size:10px;color:var(--faint)}
+  .cta{width:100%;margin-top:12px;border:none;background:var(--ink);color:var(--oat);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 0;cursor:pointer}
+  .tax{font-size:10px;color:var(--faint);margin-top:8px;text-align:center}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}
+  .chip{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--point-text);border:1px solid var(--point);border-radius:99px;padding:3px 9px}
+
+  main.content{flex:1;min-width:0}
+  section.hero{position:relative;padding:38px 38px 34px;color:#fff;background-color:var(--point);
+    background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:24px 24px}
+  .hero .kicker{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.72)}
+  .hero h1{font-weight:800;font-size:46px;line-height:1.04;margin:12px 0 6px}
+  .hero .en{font-family:Spectral,serif;font-style:italic;font-size:21px;color:rgba(255,255,255,.9)}
+  .hero .rule{width:48px;height:2px;background:rgba(255,255,255,.55);margin:18px 0}
+  .hero .notes{font-family:Spectral,serif;font-style:italic;font-size:16px;color:rgba(255,255,255,.85);line-height:1.5;max-width:460px}
+  .sec{padding:38px 38px 0}
+  .sec.first{padding-top:34px}
+  h2.head{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--mute);text-transform:uppercase;margin:0 0 16px}
+  .lead{font-family:'Noto Serif KR',serif;font-weight:300;font-size:15px;line-height:1.95;color:var(--ink);margin:0}
+  .flav{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .flav .card{background:var(--tint2);border-top:2px solid var(--point);padding:18px 14px;text-align:center}
+  .flav .t{font-family:Spectral,serif;font-size:19px;color:var(--point-text)}
+  .flav .d{font-size:11px;color:var(--mute);margin-top:6px;line-height:1.6}
+  .about{display:flex;gap:26px;align-items:stretch}
+  .about .txt{flex:1.3}.about .txt p{font-family:'Noto Serif KR',serif;font-weight:300;font-size:14px;line-height:1.92;color:var(--ink);margin:0}
+  .about .txt p+p{color:var(--ink-soft);margin-top:12px}
+  .about .img{flex:1;min-height:180px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
+  .kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--hair2)}
+  .kv .k{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.7px;color:#b0a690;flex:none}
+  .kv .v{font-size:13px;text-align:right}
+  .rec{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:11px 0;border-bottom:1px solid var(--hair2)}
+  .rec .k{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.8px;color:var(--point-text);flex:none;width:120px}
+  .rec .n{font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+  .rec .c{font-size:10.5px;color:var(--faint);margin-top:2px}
+  .faq{padding:13px 0;border-bottom:1px solid var(--hair)}
+  .faq .q{font-weight:700;font-size:13.5px}
+  .faq .a{font-family:'Noto Serif KR',serif;font-weight:300;font-size:13px;line-height:1.82;color:var(--ink-soft);margin-top:7px}
+  footer.fine{border-top:1px solid var(--hair);padding:18px 34px;font-size:9px;color:var(--faint);line-height:1.7}
+
+  /* ---------- mobile reflow ---------- */
+  @media (max-width:760px){
+    .layout{flex-direction:column}
+    aside.rail{width:100%;position:static;border-right:none;border-bottom:1px solid var(--hair);order:2}
+    main.content{order:1;width:100%}
+    .grid2{grid-template-columns:1fr}
+    .about{flex-direction:column}
+    .flav{grid-template-columns:1fr 1fr}
+    .hero h1{font-size:36px}
+  }
+</style>
+</head>
+
+<body data-point="chocolate-dark">
+<div class="page">
+  <div class="accent"></div>
+
+  <header class="bar">
+    <div class="wm">MTSPACE <span class="l">COFFEE</span></div>
+    <nav class="crumb" aria-label="breadcrumb">Home / Coffee / Blend / <span class="here">댐굳</span></nav>
+    <div class="tagline">everyday excellence</div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT: sticky buy rail -->
+    <aside class="rail">
+      <div class="imgslot" style="height:264px">
+        <div class="tag">IMAGE · 1:1</div>
+        <div class="cap">댐굳 패키지 정면 — 오트 배경</div>
+        <div class="alt">alt: 엠티스페이스 커피 댐굳 다크 로스트 블렌드 125g 패키지 정면</div>
+      </div>
+      <div class="thumbs"><div class="t">썸 1</div><div class="t">썸 2</div><div class="t">썸 3</div></div>
+      <div class="kicker">Signature Blend · Dark Roast</div>
+      <h1>댐굳</h1>
+      <div class="en">damn good · 125g</div>
+      <div class="price">₩10,990 <span class="cur">KRW</span></div>
+      <button class="cta">Add to cart</button>
+      <div class="tax">세금 포함 · 배송비 결제 시 계산</div>
+      <div class="chips"><span class="chip">DARK ROAST</span><span class="chip">125g</span><span class="chip">BLEND</span></div>
+    </aside>
+
+    <!-- RIGHT: content -->
+    <main class="content">
+      <section class="hero">
+        <div class="kicker">Signature Blend · Dark Roast</div>
+        <h1>댐굳</h1>
+        <div class="en">damn good · 125g</div>
+        <div class="rule"></div>
+        <div class="notes">Dark chocolate · Plum · Caramel — 가장 깊고 안정적인 한 잔</div>
+      </section>
+
+      <!-- 1 · 제품 핵심 -->
+      <section class="sec first">
+        <p class="lead">댐굳은 MTSPACE COFFEE의 가장 깊고 안정적인 풍미를 담은 시그니쳐 다크 로스트 블렌드입니다. 다크 초콜릿의 진한 단맛, 잘 익은 자두의 부드러운 산미, 카라멜의 묵직한 여운이 균형을 이루며, 누구에게 추출되어도 일정한 컵 퀄리티를 보장합니다. 집에서도 카페 퀄리티의 진한 커피를 즐기고 싶은 분께 이상적입니다.</p>
+      </section>
+      <div class="sec"><div class="imgslot" style="height:240px;margin-top:30px"><div class="tag">IMAGE · 16:9</div><div class="cap">분위기 컷 — 댐굳 한 잔과 패키지</div><div class="alt">alt: 엠티스페이스 커피 댐굳으로 추출한 커피 한 잔과 패키지</div></div></div>
+
+      <!-- 2 · 플레이버 노트 -->
+      <section class="sec">
+        <h2 class="head">Flavour Notes · 플레이버 노트</h2>
+        <div class="flav">
+          <div class="card"><div class="t">다크 초콜릿</div><div class="d">진한 단맛과 바디</div></div>
+          <div class="card"><div class="t">자두</div><div class="d">부드러운 산미</div></div>
+          <div class="card"><div class="t">카라멜</div><div class="d">묵직한 여운</div></div>
+        </div>
+      </section>
+
+      <!-- 3 · 엠티스페이스 소개 -->
+      <section class="sec">
+        <h2 class="head">About MTSPACE COFFEE · 엠티스페이스 커피 소개</h2>
+        <div class="about">
+          <div class="txt">
+            <p>매일의 커피는 우리의 삶을 만듭니다. MTSPACE COFFEE는 정교한 기술과 깊이 있는 탐구로 일상 속 탁월한 순간을 완성하는 스페셜티 커피 브랜드입니다.</p>
+            <p>원두의 산지 선택부터 자체 로스터리의 주 단위 로스팅까지, 작은 차이를 끝까지 다듬어 매일의 한 잔에 깊이를 더합니다. 화려하지 않지만 빈틈없는 커피를 지향합니다.</p>
+          </div>
+          <div class="imgslot img"><div class="tag">IMAGE · 4:5</div><div class="cap">로스터리 / 브루잉 장면</div></div>
+        </div>
+      </section>
+
+      <!-- 4 · 커피 정보 -->
+      <section class="sec">
+        <h2 class="head">Coffee Information · 커피 정보</h2>
+        <div class="grid2">
+          <div class="kv"><span class="k">ROAST</span><span class="v">다크 로스트</span></div>
+          <div class="kv"><span class="k">FLAVOUR</span><span class="v">다크 초콜릿 · 자두 · 카라멜</span></div>
+          <div class="kv"><span class="k">WEIGHT</span><span class="v">125 g (홈 브루용)</span></div>
+          <div class="kv"><span class="k">ORIGIN</span><span class="v">에티오피아</span></div>
+          <div class="kv"><span class="k">PROCESS</span><span class="v">내추럴 · 워시드</span></div>
+          <div class="kv"><span class="k">BREW</span><span class="v">에스프레소 · 밀크 베이스 · 필터</span></div>
+        </div>
+      </section>
+
+      <!-- 5 · 추출 레시피 -->
+      <section class="sec">
+        <h2 class="head">Recommended Recipe · 추출 레시피</h2>
+        <div class="rec"><span class="k">ESPRESSO</span><div style="text-align:right"><div class="n">20g in, 40g out, 27s</div><div class="c">(vst 20g 바스켓, 물 92도, 9bar 기준)</div></div></div>
+        <div class="rec"><span class="k">MILK</span><div style="text-align:right"><div class="n">22g in, 40g out, 28s</div><div class="c">(싱글샷 6oz 기준)</div></div></div>
+        <div class="rec"><span class="k">FILTER</span><div style="text-align:right"><div class="n">15g in, 30g/45s blooming, 240g, 2:30-3:00</div><div class="c">(v60, ufo 기준)</div></div></div>
+      </section>
+
+      <!-- 6 · FAQ -->
+      <section class="sec" style="padding-bottom:8px">
+        <h2 class="head">FAQ · 자주 묻는 질문</h2>
+        <div class="faq"><div class="q">Q. 댐굳은 어떤 맛인가요?</div><div class="a">다크 초콜릿의 진한 단맛, 잘 익은 자두의 부드러운 산미, 카라멜의 묵직한 여운이 균형을 이루는 깊고 안정적인 다크 로스트 블렌드입니다.</div></div>
+        <div class="faq"><div class="q">Q. 어떤 추출에 잘 어울리나요?</div><div class="a">에스프레소, 밀크 베이스 음료, 필터 커피에 안정적으로 어울립니다. 깊고 진한 커피를 원하는 분께 적합합니다.</div></div>
+        <div class="faq"><div class="q">Q. 로스팅은 언제 하나요?</div><div class="a">MTSPACE COFFEE 자체 로스터리에서 주 단위로 로스팅하여 신선하게 발송합니다.</div></div>
+        <div class="faq"><div class="q">Q. 초보자도 즐길 수 있나요?</div><div class="a">네. 누구에게 추출되어도 일정한 컵 퀄리티를 보장하도록 설계된 블렌드로, 다크 로스트 입문에 이상적입니다.</div></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="fine">판매자: (주)엠티에스솔루션스 · 대표 홍찬호 · 사업자 653-81-02761 · 경기도 가평군 청평면 톳골길 3, A동 B1호 · 통신판매업 제2026-경기가평-129호</footer>
+</div>
+
+<!-- ============ JSON-LD (place in <head> or end of <body>) ============ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "댐굳 damn good",
+  "sku": "damn-good-125g",
+  "brand": { "@type": "Brand", "name": "MTSPACE COFFEE" },
+  "category": "Coffee > Blend > Dark Roast",
+  "description": "다크 초콜릿 · 자두 · 카라멜의 균형 잡힌 시그니쳐 다크 로스트 블렌드.",
+  "image": ["https://mtspace.coffee/img/damn-good-125g-1.jpg"],
+  "additionalProperty": [
+    { "@type": "PropertyValue", "name": "Roast", "value": "Dark" },
+    { "@type": "PropertyValue", "name": "Flavour", "value": "Dark chocolate, Plum, Caramel" },
+    { "@type": "PropertyValue", "name": "Origin", "value": "Ethiopia" }
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "10990",
+    "priceCurrency": "KRW",
+    "availability": "https://schema.org/InStock",
+    "url": "https://mtspace.coffee/products/damn-good-125g"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "댐굳은 어떤 맛인가요?", "acceptedAnswer": { "@type": "Answer", "text": "다크 초콜릿의 진한 단맛, 잘 익은 자두의 부드러운 산미, 카라멜의 묵직한 여운이 균형을 이루는 깊고 안정적인 다크 로스트 블렌드입니다." } },
+    { "@type": "Question", "name": "어떤 추출에 잘 어울리나요?", "acceptedAnswer": { "@type": "Answer", "text": "에스프레소, 밀크 베이스 음료, 필터 커피에 안정적으로 어울립니다. 깊고 진한 커피를 원하는 분께 적합합니다." } },
+    { "@type": "Question", "name": "로스팅은 언제 하나요?", "acceptedAnswer": { "@type": "Answer", "text": "MTSPACE COFFEE 자체 로스터리에서 주 단위로 로스팅하여 신선하게 발송합니다." } },
+    { "@type": "Question", "name": "초보자도 즐길 수 있나요?", "acceptedAnswer": { "@type": "Answer", "text": "네. 누구에게 추출되어도 일정한 컵 퀄리티를 보장하도록 설계된 블렌드로, 다크 로스트 입문에 이상적입니다." } }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+  {"@type":"ListItem","position":1,"name":"Home","item":"https://mtspace.coffee/"},
+  {"@type":"ListItem","position":2,"name":"Coffee","item":"https://mtspace.coffee/coffee"},
+  {"@type":"ListItem","position":3,"name":"댐굳"}
+]}
+</script>
+</body>
+</html>

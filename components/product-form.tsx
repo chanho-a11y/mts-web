@@ -7,6 +7,7 @@ export interface ProductFormData {
   roast_level?: string; flavor_notes?: string[]; origin_country?: string;
   variety?: string; process?: string; weight_g?: number | null; key_color?: string;
   sku?: string; base_price?: number; category?: string;
+  report_no?: string; material?: string;
 }
 
 export default function ProductForm({ initial = {} }: { initial?: ProductFormData }) {
@@ -44,6 +45,10 @@ export default function ProductForm({ initial = {} }: { initial?: ProductFormDat
         <label className="block text-sm">가공<input name="process" defaultValue={i.process} className={input} /></label>
       </div>
       <label className="block text-sm">플레이버 노트 (쉼표 구분)<input name="flavor_notes" defaultValue={(i.flavor_notes ?? []).join(", ")} className={input} /></label>
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block text-sm">품목보고번호(라벨)<input name="report_no" defaultValue={i.report_no} placeholder="2022026 4913101" className={input} /></label>
+        <label className="block text-sm">원재료명(라벨)<input name="material" defaultValue={i.material} placeholder="커피원두 100% (에티오피아 100%)" className={input} /></label>
+      </div>
       <div className="grid grid-cols-3 gap-4">
         <label className="block text-sm">키 컬러(HEX)<input name="key_color" defaultValue={i.key_color} placeholder="#5D155C" className={input} /></label>
         <label className="block text-sm">SKU<input name="sku" defaultValue={i.sku} className={input} /></label>
@@ -54,7 +59,7 @@ export default function ProductForm({ initial = {} }: { initial?: ProductFormDat
         <label className="flex items-center gap-2"><input type="checkbox" name="auto_content" defaultChecked /> 저장 시 콘텐츠 자동 생성</label>
         <input type="hidden" name="status" value="active" />
       </div>
-      <button className="rounded-full bg-black px-6 py-2.5 text-sm text-white">{isNew ? "등록" : "저장"}</button>
+      <button className="rounded-card bg-ink px-6 py-2.5 text-sm font-semibold text-oat">{isNew ? "등록" : "저장"}</button>
     </form>
   );
 }

@@ -84,6 +84,7 @@ export interface ProductDetail extends ProductCardData {
   process: string | null;
   brew_recipe: Record<string, any>;
   weight_g: number | null;
+  label_point: string | null;
   variants: VariantLite[];
   images: { storage_path: string; alt: string | null }[];
 }
@@ -93,7 +94,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   const { data, error } = await supabase
     .from("product")
     .select(`id,slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,
-      body_html,origin,producer,variety,altitude,process,brew_recipe,weight_g,
+      body_html,origin,producer,variety,altitude,process,brew_recipe,weight_g,label_point,
       product_variant(id,sku,base_price,weight_g,grind,option_values,position,is_active),
       product_image(storage_path,alt,is_primary,position),
       product_categories(category(slug,name_ko,name_en,position))`)
@@ -121,6 +122,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     process: d.process,
     brew_recipe: d.brew_recipe ?? {},
     weight_g: d.weight_g,
+    label_point: d.label_point ?? null,
     variants,
     images,
   };

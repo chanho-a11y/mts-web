@@ -1,0 +1,35 @@
+{
+  "$comment": "MTSPACE COFFEE — product detail page presets. One entry per product/slug. Mirrors the label studio presets, extended with detail-page copy.",
+  "brand": {
+    "intro": "매일의 커피는 우리의 삶을 만듭니다. MTSPACE COFFEE는 정교한 기술과 깊이 있는 탐구로 일상 속 탁월한 순간을 완성하는 스페셜티 커피 브랜드입니다.",
+    "intro2": "원두의 산지 선택부터 자체 로스터리의 주 단위 로스팅까지, 작은 차이를 끝까지 다듬어 매일의 한 잔에 깊이를 더합니다. 화려하지 않지만 빈틈없는 커피를 지향합니다."
+  },
+  "pointColors": {
+    "chocolate-dark":   { "point": "#5E3F2A", "text": "#5E3F2A", "check": "rgba(255,255,255,.06)", "name": "CHOCOLATE · DARK" },
+    "chocolate-medium": { "point": "#8B5E3C", "text": "#8B5E3C", "check": "rgba(255,255,255,.06)", "name": "CHOCOLATE · MEDIUM" },
+    "citrus-light":     { "point": "#D2A84E", "text": "#8A6526", "check": "rgba(255,255,255,.10)", "name": "CITRUS · LIGHT" },
+    "citrus-medium":    { "point": "#BC8E36", "text": "#8A6526", "check": "rgba(255,255,255,.09)", "name": "CITRUS · MEDIUM" },
+    "peach-light":      { "point": "#DCA07E", "text": "#9A5E42", "check": "rgba(255,255,255,.11)", "name": "PEACH · LIGHT" },
+    "berry-light":      { "point": "#B27488", "text": "#6E3E4E", "check": "rgba(255,255,255,.10)", "name": "BERRY · LIGHT" },
+    "tropical-light":   { "point": "#AEAF5E", "text": "#6B6B32", "check": "rgba(255,255,255,.10)", "name": "TROPICAL · LIGHT" }
+  },
+  "products": {
+    "damn-good-125g": {
+      "name_kr": "댐굳", "name_en": "damn good", "weight": "125g",
+      "typeLine": "Signature Blend · Dark Roast", "point": "chocolate-dark",
+      "price": "₩10,990", "priceValue": "10990",
+      "notesEn": "Dark chocolate · Plum · Caramel", "heroLine": "가장 깊고 안정적인 한 잔",
+      "chips": ["DARK ROAST", "125g", "BLEND"],
+      "lead": "댐굳은 MTSPACE COFFEE의 가장 깊고 안정적인 풍미를 담은 시그니쳐 다크 로스트 블렌드입니다. 다크 초콜릿의 진한 단맛, 잘 익은 자두의 부드러운 산미, 카라멜의 묵직한 여운이 균형을 이루며, 누구에게 추출되어도 일정한 컵 퀄리티를 보장합니다. 집에서도 카페 퀄리티의 진한 커피를 즐기고 싶은 분께 이상적입니다.",
+      "flavours": [["다크 초콜릿","진한 단맛과 바디"],["자두","부드러운 산미"],["카라멜","묵직한 여운"]],
+      "specs": [["ROAST","다크 로스트"],["FLAVOUR","다크 초콜릿 · 자두 · 카라멜"],["WEIGHT","125 g (홈 브루용)"],["ORIGIN","에티오피아"],["PROCESS","내추럴 · 워시드"],["BREW","에스프레소 · 밀크 베이스 · 필터"]],
+      "recipe": [["ESPRESSO","20g in, 40g out, 27s","(vst 20g 바스켓, 물 92도, 9bar 기준)"],["MILK","22g in, 40g out, 28s","(싱글샷 6oz 기준)"],["FILTER","15g in, 30g/45s blooming, 240g, 2:30-3:00","(v60, ufo 기준)"]],
+      "faqs": [
+        ["댐굳은 어떤 맛인가요?","다크 초콜릿의 진한 단맛, 잘 익은 자두의 부드러운 산미, 카라멜의 묵직한 여운이 균형을 이루는 깊고 안정적인 다크 로스트 블렌드입니다."],
+        ["어떤 추출에 잘 어울리나요?","에스프레소, 밀크 베이스 음료, 필터 커피에 안정적으로 어울립니다. 깊고 진한 커피를 원하는 분께 적합합니다."],
+        ["로스팅은 언제 하나요?","MTSPACE COFFEE 자체 로스터리에서 주 단위로 로스팅하여 신선하게 발송합니다."],
+        ["초보자도 즐길 수 있나요?","네. 누구에게 추출되어도 일정한 컵 퀄리티를 보장하도록 설계된 블렌드로, 다크 로스트 입문에 이상적입니다."]
+      ]
+    }
+  }
+}

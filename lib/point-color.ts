@@ -38,6 +38,22 @@ export function pointColor(opts: { keyColor?: string | null; flavorNotes?: strin
 const LABEL_KEYS = new Set([
   "chocolate-dark", "chocolate-medium", "citrus-light", "citrus-medium", "peach-light", "berry-light", "tropical-light",
 ]);
+// 포인트 테마(블록 배경/텍스트/그리드) — 라벨·상세 공용 (presets.json pointColors 1:1)
+export interface PointTheme { point: string; pointText: string; check: string }
+const THEME: Record<string, PointTheme> = {
+  "chocolate-dark": { point: "#5E3F2A", pointText: "#5E3F2A", check: "rgba(255,255,255,.13)" },
+  "chocolate-medium": { point: "#8B5E3C", pointText: "#8B5E3C", check: "rgba(255,255,255,.13)" },
+  "citrus-light": { point: "#D2A84E", pointText: "#8A6526", check: "rgba(255,255,255,.20)" },
+  "citrus-medium": { point: "#BC8E36", pointText: "#8A6526", check: "rgba(255,255,255,.18)" },
+  "peach-light": { point: "#DCA07E", pointText: "#9A5E42", check: "rgba(255,255,255,.22)" },
+  "berry-light": { point: "#B27488", pointText: "#6E3E4E", check: "rgba(255,255,255,.20)" },
+  "tropical-light": { point: "#AEAF5E", pointText: "#6B6B32", check: "rgba(255,255,255,.20)" },
+};
+export function pointTheme(opts: { labelPoint?: string | null; flavorNotes?: string[] | null; roast?: string | null }): PointTheme {
+  const key = opts.labelPoint && THEME[opts.labelPoint] ? opts.labelPoint : pointKey({ flavorNotes: opts.flavorNotes, roast: opts.roast });
+  return THEME[key] || THEME["chocolate-dark"];
+}
+
 export function pointKey(opts: { flavorNotes?: string[] | null; roast?: string | null }): string {
   const fam = flavorFamily((opts.flavorNotes ?? []).join(", "));
   const r = roastLevel(opts.roast);

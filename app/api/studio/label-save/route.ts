@@ -22,8 +22,15 @@ export async function POST(req: Request) {
   const { data: product } = await supabase.from("product").select("id").eq("slug", slug).maybeSingle();
   if (!product) return NextResponse.json({ error: "product not found" }, { status: 404 });
 
+  // 라벨 메타(품목보고번호·원재료명·포인트컬러) 제품에 영구 저장
+  const meta: Record<string, unknown> = {};
+  if (typeof payload.reportNo === "string") meta.report_no = payload.reportNo || null;
+  if (typeof payload.material === "string") meta.material = payload.material || null;
+  if (typeof payload.point === "string") meta.label_point = payload.point || null;
+  if (Object.keys(meta).length) await supabase.from("product").update(meta).eq("id", (product as any).id);
+
   const m = String(payload.label_dataurl || "").match(/^data:(image\/\w+);base64,(.+)$/);
-  if (!m) return NextResponse.json({ error: "no image" }, { status: 400 });
+  if (!m) return NextResponse.json({ ok: true, saved: ["meta"], note: "이미지 없이 메타만 저장" });
   const ext = m[1] === "image/jpeg" ? "jpg" : "png";
   const buf = Buffer.from(m[2], "base64");
   const admin = createAdminClient();

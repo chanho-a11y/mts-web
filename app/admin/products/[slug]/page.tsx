@@ -9,7 +9,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const supabase = createClient();
   const { data: p } = await supabase
     .from("product")
-    .select(`id,slug,title_ko,one_liner,product_type,status,is_b2b_only,roast_level,flavor_notes,origin,variety,process,weight_g,key_color,
+    .select(`id,slug,title_ko,one_liner,product_type,status,is_b2b_only,roast_level,flavor_notes,origin,variety,process,weight_g,key_color,report_no,material,
       brand(code), product_variant(id,sku,base_price), product_categories(category(slug)),
       content_draft(type,title,status,created_at)`)
     .eq("slug", params.slug).maybeSingle();
@@ -26,6 +26,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     variety: p.variety ?? "", process: p.process ?? "", weight_g: p.weight_g, key_color: p.key_color ?? "",
     sku: pv?.sku ?? "", base_price: pv?.base_price ?? undefined,
     category: (p as any).product_categories?.[0]?.category?.slug ?? "blends",
+    report_no: (p as any).report_no ?? "", material: (p as any).material ?? "",
   };
   const drafts = (p as any).content_draft ?? [];
   const { data: studioAssets } = await supabase

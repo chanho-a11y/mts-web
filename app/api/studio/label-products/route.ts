@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from("product")
-    .select(`slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,brew_recipe,body_html,product_type,
+    .select(`slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,brew_recipe,body_html,product_type,report_no,material,label_point,
       product_categories(category(slug))`)
     .eq("status", "active")
     .order("title_ko");
@@ -53,15 +53,15 @@ export async function GET() {
     return {
       key: p.slug,
       slug: p.slug,
-      reportNo: "",
+      reportNo: p.report_no || "",
       tableName: ko,
       name_en: en,
       name_en2: en,
       typeKr, typeEn,
       notesEn: flavorStr,
-      point: pointKey({ flavorNotes: p.flavor_notes, roast: p.roast_level }),
+      point: p.label_point || pointKey({ flavorNotes: p.flavor_notes, roast: p.roast_level }),
       nameSize, enSize,
-      material: "커피원두 100%",
+      material: p.material || "커피원두 100%",
       desc: p.one_liner || strip(p.body_html).slice(0, 170),
       infoLabel: isSingle ? "single origin Information" : "coffee Information",
       flavor: flavorStr,

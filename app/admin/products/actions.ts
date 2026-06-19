@@ -31,6 +31,8 @@ export async function upsertProductAction(formData: FormData) {
     process: String(formData.get("process") || "") || null,
     weight_g: parseInt(String(formData.get("weight_g") || "0"), 10) || null,
     key_color: String(formData.get("key_color") || "") || null,
+    report_no: String(formData.get("report_no") || "") || null,
+    material: String(formData.get("material") || "") || null,
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);

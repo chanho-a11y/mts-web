@@ -606,7 +606,8 @@ fitScale();
         if(prev) docEl.style.setProperty('--scale',prev); if(typeof fitScale==='function') fitScale();
         var url=canvas.toDataURL('image/jpeg',0.92);
         status('저장 중…');
-        var r=await fetch('/api/studio/label-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:slug,label_dataurl:url})});
+        var meta=(typeof state!=='undefined')?{reportNo:state.reportNo||'',material:state.material||'',point:state.point||''}:{};
+        var r=await fetch('/api/studio/label-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({slug:slug,label_dataurl:url},meta))});
         var d=await r.json();
         status(d&&d.ok?'제품 라벨 저장 완료 ✓':('저장 실패: '+((d&&d.error)||'')));
       }catch(err){ status('저장 오류'); }

@@ -39,8 +39,8 @@ export default function SiteHeader({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
-      <div className="border-b border-neutral-200">
+    <header className="sticky top-0 z-30 bg-oat/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
+      <div className="border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-4">
             {/* 버거 버튼 — 데스크톱·모바일 공통 주 네비게이션 */}
@@ -60,11 +60,11 @@ export default function SiteHeader({
                 )}
               </nav>
             </details>
-            <Link href="/" className="text-lg font-bold tracking-tight">
+            <Link href="/" className="mt-wordmark text-lg text-ink">
               {logo
                 /* eslint-disable-next-line @next/next/no-img-element */
                 ? <img src={logo} alt={brand.name} className="h-7 w-auto" />
-                : brand.name}
+                : <span>MTSPACE<span className="light"> COFFEE</span></span>}
             </Link>
           </div>
 
@@ -97,10 +97,10 @@ export default function SiteHeader({
       </div>
 
       {/* 상단 고정 쇼핑 메뉴 */}
-      <div className="border-b border-neutral-100 bg-neutral-50">
-        <nav className="mx-auto flex max-w-6xl items-center gap-5 overflow-x-auto px-4 py-2 text-xs">
-          {shopNav.map((n) => <Link key={n.href} href={n.href} className="whitespace-nowrap hover:text-brandBlue">{n.label}</Link>)}
-          {isBusiness && <span className="ml-auto rounded-full bg-brandBlue/10 px-2 py-0.5 text-[10px] text-brandBlue">기업회원</span>}
+      <div className="border-b border-line bg-sand">
+        <nav className="mx-auto flex max-w-6xl items-center gap-5 overflow-x-auto px-4 py-2 font-mono text-[11px] uppercase tracking-wide text-inkSoft">
+          {shopNav.map((n) => <Link key={n.href} href={n.href} className="whitespace-nowrap hover:text-clayDeep">{n.label}</Link>)}
+          {isBusiness && <span className="ml-auto rounded-full bg-clay/15 px-2 py-0.5 text-[10px] tracking-normal text-clayDeep">기업회원</span>}
         </nav>
       </div>
     </header>

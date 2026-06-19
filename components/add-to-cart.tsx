@@ -17,15 +17,15 @@ export default function AddToCart({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {variants.length > 1 && (
-        <select value={vid} onChange={(e) => setVid(e.target.value)} className="rounded border px-3 py-2 text-sm">
+        <select value={vid} onChange={(e) => setVid(e.target.value)} className="rounded-card border border-line bg-paper px-3 py-2 text-sm">
           {variants.map((x) => <option key={x.id} value={x.id}>{x.option ?? "기본"} · {formatKRW(x.base_price)}</option>)}
         </select>
       )}
       <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, +e.target.value))}
-        className="w-16 rounded border px-2 py-2 text-sm" />
+        className="w-16 rounded-card border border-line bg-paper px-2 py-2 text-sm" />
       <button
         onClick={() => { add({ variantId: v.id, slug, title, option: v.option, price: v.base_price, image, qty }); setDone(true); setTimeout(() => setDone(false), 1500); }}
-        className="rounded-full bg-black px-6 py-2.5 text-sm text-white">
+        className="rounded-card bg-ink px-6 py-3 text-sm font-semibold tracking-wide text-oat hover:bg-[#4A443A]">
         {done ? "담겼습니다 ✓" : label}
       </button>
     </div>

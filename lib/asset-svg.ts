@@ -1,5 +1,4 @@
-// 제품 데이터 → 브랜드 자산 SVG (key_color 테마). 디자인 스튜디오 이미지 절반(벡터).
-// 추후 PNG 래스터화(Satori/Playwright)로 확장.
+// 제품 데이터 → 브랜드 자산 SVG (Brand Redesign v2: oat/clay/ink · Helvetica/Spectral/Plex Mono).
 export interface AssetProduct {
   title_ko: string;
   title_en?: string | null;
@@ -12,12 +11,12 @@ export interface AssetProduct {
 export interface AssetBrand { name: string; instagram: string }
 export interface AssetTemplate { accent?: string | null; font?: string | null }
 
-function lum(hex: string): number {
-  const h = hex.replace("#", "");
-  if (h.length < 6) return 0;
-  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
+// 브랜드 팔레트
+const OAT = "#F6F1E7", INK = "#3C352C", INK_SOFT = "#8A8173", CLAY_DEEP = "#B0764A", LINE = "#E3DAC8", GRID = "#ECE0CB";
+const SANS = `"Helvetica Neue", Pretendard, Arial, sans-serif`;
+const SERIF = `Spectral, "Noto Serif KR", Georgia, serif`;
+const MONO = `"IBM Plex Mono", monospace`;
+
 function esc(s: string): string {
   return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -31,43 +30,51 @@ function wrap(s: string, perLine: number, maxLines: number): string[] {
   if (cur && out.length < maxLines) out.push(cur);
   return out;
 }
-const DEFAULT_FONT = `-apple-system, "Helvetica Neue", "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, sans-serif`;
+function gridPattern(id: string, size: number): string {
+  return `<pattern id="${id}" width="${size}" height="${size}" patternUnits="userSpaceOnUse">
+<path d="M ${size} 0 L 0 0 0 ${size}" fill="none" stroke="${GRID}" stroke-width="1"/></pattern>`;
+}
 
 export function thumbnailSVG(p: AssetProduct, b: AssetBrand, tpl?: AssetTemplate): string {
-  const FONT = tpl?.font || DEFAULT_FONT;
-  const key = tpl?.accent || p.key_color || "#1A1A1A";
-  const light = lum(key) > 0.6;
-  const fg = light ? "#1A1A1A" : "#FFFFFF";
-  const titleLines = wrap(p.title_ko.replace(/\[.*?\]\s*/g, ""), 11, 3);
+  const point = tpl?.accent || p.key_color || CLAY_DEEP;
+  const sans = tpl?.font || SANS;
+  const title = p.title_ko.replace(/\[.*?\]\s*/g, "");
+  const titleLines = wrap(title, 11, 3);
   const notes = (p.flavor_notes ?? []).slice(0, 3).join(" · ");
+  const baseY = 600 - (titleLines.length - 1) * 46;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="${key}"/><stop offset="1" stop-color="${key}" stop-opacity="0.78"/></linearGradient></defs>
+<defs>${gridPattern("g", 32)}</defs>
+<rect width="1080" height="1080" fill="${OAT}"/>
 <rect width="1080" height="1080" fill="url(#g)"/>
-<text x="64" y="96" font-family='${FONT}' font-size="30" font-weight="700" letter-spacing="2" fill="${fg}">${esc(b.name)}</text>
-<text x="64" y="132" font-family='${FONT}' font-size="20" fill="${fg}" opacity="0.7">${esc(p.roast_level ?? "")}</text>
-${titleLines.map((l, i) => `<text x="64" y="${560 + i * 92}" font-family='${FONT}' font-size="76" font-weight="700" fill="${fg}">${esc(l)}</text>`).join("")}
-<text x="64" y="${560 + titleLines.length * 92 + 30}" font-family='${FONT}' font-size="34" fill="${fg}" opacity="0.9">${esc(notes)}</text>
-<text x="64" y="1010" font-family='${FONT}' font-size="26" fill="${fg}" opacity="0.85">${p.minPrice ? "₩" + p.minPrice.toLocaleString() : ""}</text>
-<text x="1016" y="1010" text-anchor="end" font-family='${FONT}' font-size="24" fill="${fg}" opacity="0.7">${esc(b.instagram)}</text>
+<text x="64" y="92" font-family='${MONO}' font-size="22" letter-spacing="2" fill="${INK_SOFT}">MTSPACE COFFEE</text>
+<circle cx="1016" cy="84" r="11" fill="${point}"/>
+<line x1="64" y1="120" x2="180" y2="120" stroke="${point}" stroke-width="3"/>
+${titleLines.map((l, i) => `<text x="540" y="${baseY + i * 92}" text-anchor="middle" font-family='${sans}' font-size="78" font-weight="800" fill="${INK}">${esc(l)}</text>`).join("")}
+<text x="540" y="${baseY + titleLines.length * 92 + 16}" text-anchor="middle" font-family='${SERIF}' font-style="italic" font-size="34" fill="${CLAY_DEEP}">${esc(notes)}</text>
+<line x1="64" y1="980" x2="1016" y2="980" stroke="${LINE}" stroke-width="1"/>
+<text x="64" y="1028" font-family='${MONO}' font-size="22" letter-spacing="1" fill="${INK_SOFT}">SINGLE ORIGIN</text>
+<text x="1016" y="1028" text-anchor="end" font-family='${MONO}' font-size="22" fill="${INK}">${p.minPrice ? "KRW " + p.minPrice.toLocaleString() : esc(b.instagram)}</text>
 </svg>`;
 }
 
 export function cardnewsSVG(p: AssetProduct, b: AssetBrand, tpl?: AssetTemplate): string {
-  const FONT = tpl?.font || DEFAULT_FONT;
-  const key = tpl?.accent || p.key_color || "#1A1A1A";
-  const light = lum(key) > 0.6;
-  const fg = light ? "#1A1A1A" : "#FFFFFF";
-  const titleLines = wrap(p.title_ko.replace(/\[.*?\]\s*/g, ""), 12, 3);
-  const oneLiner = wrap(p.one_liner ?? "", 22, 2);
+  const point = tpl?.accent || p.key_color || CLAY_DEEP;
+  const sans = tpl?.font || SANS;
+  const title = p.title_ko.replace(/\[.*?\]\s*/g, "");
+  const titleLines = wrap(title, 12, 3);
+  const oneLiner = wrap(p.one_liner ?? "", 24, 2);
   const notes = (p.flavor_notes ?? []).slice(0, 4).join("  ·  ");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
-<rect width="1080" height="1350" fill="${key}"/>
-<text x="80" y="120" font-family='${FONT}' font-size="28" font-weight="700" letter-spacing="3" fill="${fg}">${esc(b.name)}</text>
-<line x1="80" y1="150" x2="200" y2="150" stroke="${fg}" stroke-width="3"/>
-${titleLines.map((l, i) => `<text x="80" y="${640 + i * 96}" font-family='${FONT}' font-size="82" font-weight="700" fill="${fg}">${esc(l)}</text>`).join("")}
-${oneLiner.map((l, i) => `<text x="80" y="${640 + titleLines.length * 96 + 50 + i * 44}" font-family='${FONT}' font-size="34" fill="${fg}" opacity="0.9">${esc(l)}</text>`).join("")}
-<text x="80" y="1240" font-family='${FONT}' font-size="32" fill="${fg}" opacity="0.95">${esc(notes)}</text>
-<text x="80" y="1300" font-family='${FONT}' font-size="24" fill="${fg}" opacity="0.65">${esc(b.instagram)} · everyday excellence</text>
+<defs>${gridPattern("g", 48)}</defs>
+<rect width="1080" height="1350" fill="${OAT}"/>
+<rect width="1080" height="1350" fill="url(#g)"/>
+<text x="80" y="120" font-family='${MONO}' font-size="24" letter-spacing="3" fill="${INK_SOFT}">MTSPACE COFFEE</text>
+<circle cx="1000" cy="112" r="13" fill="${point}"/>
+<line x1="80" y1="150" x2="220" y2="150" stroke="${point}" stroke-width="4"/>
+${titleLines.map((l, i) => `<text x="80" y="${560 + i * 96}" font-family='${sans}' font-size="84" font-weight="800" fill="${INK}">${esc(l)}</text>`).join("")}
+${oneLiner.map((l, i) => `<text x="80" y="${560 + titleLines.length * 96 + 56 + i * 50}" font-family='${SERIF}' font-style="italic" font-size="40" fill="${CLAY_DEEP}">${esc(l)}</text>`).join("")}
+<line x1="80" y1="1180" x2="1000" y2="1180" stroke="${LINE}" stroke-width="1"/>
+<text x="80" y="1240" font-family='${MONO}' font-size="30" fill="${INK}">${esc(notes)}</text>
+<text x="80" y="1295" font-family='${MONO}' font-size="22" letter-spacing="2" fill="${INK_SOFT}">${esc(b.instagram)} · EVERYDAY EXCELLENCE</text>
 </svg>`;
 }

@@ -1,26 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+KR:wght@300;400;500;600&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Brand base (지침: Helvetica Neue · 본문 light · 줄간격 160 · 헤드라인 bold) */
+/* MTSPACE COFFEE — Brand Redesign (DESIGN_SYSTEM v2: clay/oat/ink · Spectral/Helvetica/Plex Mono) */
 @layer base {
   :root {
-    --brand-blue: #0076ba;
-    --ink: #1a1a1a;
+    --clay: #C68D62; --clay-deep: #B0764A;
+    --oat: #F6F1E7; --sand: #ECE2D1; --ink: #3C352C; --ink-soft: #8A8173;
+    --line: #E3DAC8; --paper: #FFFFFF; --page-bg: #E7E0D3; --warm-paper: #FAF6EE; --note-panel: #F3EFE6;
+    --brand-blue: #B0764A; /* legacy alias → clay-deep */
+    --font-sans: "Helvetica Neue", Pretendard, Arial, sans-serif;
+    --font-serif: Spectral, "Noto Serif KR", Georgia, serif;
+    --font-mono: "IBM Plex Mono", monospace;
   }
-  html {
-    color-scheme: light;
-  }
+  html { color-scheme: light; }
   body {
-    font-family: "Helvetica Neue", Helvetica, Arial, Pretendard, sans-serif;
-    font-weight: 300;
-    line-height: 1.6;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    line-height: 1.7;
     color: var(--ink);
-    background: #ffffff;
+    background: var(--oat);
   }
-  h1, h2, h3 {
-    font-weight: 700;
-    letter-spacing: -2pt;
-    line-height: 1.6;
+  h1, h2, h3, h4 { font-weight: 700; letter-spacing: 0; line-height: 1.15; }
+}
+
+@layer utilities {
+  .font-serif { font-family: var(--font-serif); }
+  .font-mono { font-family: var(--font-mono); }
+  .prose-serif { font-family: var(--font-serif); font-weight: 400; line-height: 1.85; }
+
+  /* 헤어라인 그리드 (히어로/빈 표면용; 텍스트 뒤에는 끄기) */
+  .mt-grid {
+    background-color: var(--oat);
+    background-image:
+      linear-gradient(#ECE0CB 1px, transparent 1px),
+      linear-gradient(90deg, #ECE0CB 1px, transparent 1px);
+    background-size: 24px 24px;
   }
+  .mt-grid-lg { background-size: 48px 48px; }
+
+  /* 워드마크: MTSPACE(800) + COFFEE(200) */
+  .mt-wordmark { font-family: var(--font-sans); font-weight: 800; letter-spacing: 0; }
+  .mt-wordmark .light { font-weight: 200; }
+  .mt-tagline { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 5px; color: var(--clay-deep); }
 }

@@ -9,6 +9,7 @@ import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
 import { createSubscriptionAction } from "@/app/products/subscribe-action";
 import { addReviewAction } from "@/app/products/review-action";
+import { pointColor } from "@/lib/point-color";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       detailFont = m.detail_font ?? "";
     }
   } catch {}
-  const key = detailAccent || p.key_color || "#1A1A1A";
+  const key = detailAccent || pointColor({ keyColor: p.key_color, flavorNotes: p.flavor_notes, roast: p.roast_level });
 
   // JSON-LD (SEO/AIEO)
   const jsonLd = {
@@ -94,11 +95,15 @@ export default async function ProductPage({ params }: { params: { slug: string }
         {p.image && (
           <Image src={p.image} alt={p.imageAlt ?? title} fill priority className="object-cover opacity-80" sizes="100vw" />
         )}
-        <div className="absolute inset-0 flex flex-col justify-end p-8 text-white"
-          style={{ background: `linear-gradient(to top, ${key}cc, transparent 70%)` }}>
-          <h1 className="max-w-3xl text-3xl font-bold md:text-4xl">{title}</h1>
+        <div className="absolute inset-0 flex flex-col justify-end p-8 text-oat"
+          style={{ background: `linear-gradient(to top, ${key}e6, transparent 72%)` }}>
+          <p className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-oat/90">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: key }} />
+            {p.is_b2b_only ? "WHOLESALE" : "SINGLE ORIGIN"}{p.origin?.country ? ` · ${p.origin.country}` : ""}
+          </p>
+          <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight md:text-5xl">{title}</h1>
           {p.flavor_notes.length > 0 && (
-            <p className="mt-2 text-sm opacity-90">{p.flavor_notes.join(" · ")}</p>
+            <p className="prose-serif mt-2 text-base italic text-oat/95 md:text-lg">{p.flavor_notes.join(" · ")}</p>
           )}
         </div>
       </section>
@@ -120,16 +125,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
       </section>
     ) : null,
     oneliner: p.one_liner ? (
-      <section className="mx-auto max-w-3xl px-4 py-10 text-center">
-        <p className="text-xl font-medium" style={{ color: key }}>{p.one_liner}</p>
+      <section className="mx-auto max-w-3xl px-4 py-12 text-center">
+        <p className="prose-serif text-2xl italic text-clayDeep">{p.one_liner}</p>
       </section>
     ) : null,
     buy: (
       <section className="mx-auto max-w-3xl px-4">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-neutral-200 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-paper p-5 shadow-card">
           <div>
-            <p className="text-2xl font-bold">{p.minPrice > 0 ? formatKRW(p.minPrice) : "-"}</p>
-            {p.is_b2b_only && <p className="text-xs text-neutral-500">{tt.wholesaleOnly}</p>}
+            <p className="text-2xl font-extrabold text-ink">{p.minPrice > 0 ? formatKRW(p.minPrice) : "-"}</p>
+            {p.weight_g ? <p className="font-mono text-[11px] uppercase tracking-wider text-inkSoft">NET {p.weight_g}g</p> : null}
+            {p.is_b2b_only && <p className="text-xs text-inkSoft">{tt.wholesaleOnly}</p>}
           </div>
           <AddToCart
             slug={p.slug}
@@ -148,22 +154,22 @@ export default async function ProductPage({ params }: { params: { slug: string }
     info: (
       <section className="mx-auto max-w-3xl px-4 py-12">
         <h2 className="mb-4 border-l-4 pl-3 text-lg font-bold" style={{ borderColor: key }}>{tt.coffeeInfo}</h2>
-        <dl className="divide-y divide-neutral-100 text-sm">
+        <dl className="divide-y divide-line text-sm">
           {info.map(([k, v]) => (
             <div key={k} className="flex gap-4 py-2.5">
-              <dt className="w-28 shrink-0 text-neutral-500">{k}</dt>
-              <dd>{v ?? "-"}</dd>
+              <dt className="w-28 shrink-0 font-mono text-[11px] uppercase tracking-wider text-inkSoft">{k}</dt>
+              <dd className="font-medium text-ink">{v ?? "-"}</dd>
             </div>
           ))}
         </dl>
       </section>
     ),
     brand: (
-      <section className="bg-neutral-50 py-14 text-center">
+      <section className="mt-grid bg-sand py-16 text-center">
         <div className="mx-auto max-w-2xl px-4">
-          <p className="text-xl font-bold tracking-tight">{pBrand.name}</p>
-          <p className="mt-4 text-neutral-700">{locale === "en" ? pBrand.philosophy.en : pBrand.philosophy.ko}</p>
-          <p className="mt-3 text-sm text-neutral-500">{locale === "en" ? pBrand.about.en : pBrand.about.ko}</p>
+          <p className="mt-wordmark text-xl text-ink">MTSPACE<span className="light"> COFFEE</span></p>
+          <p className="prose-serif mt-4 text-[17px] text-ink/85">{locale === "en" ? pBrand.philosophy.en : pBrand.philosophy.ko}</p>
+          <p className="mt-3 text-sm text-inkSoft">{locale === "en" ? pBrand.about.en : pBrand.about.ko}</p>
         </div>
       </section>
     ),

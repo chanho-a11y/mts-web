@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { BRANDS } from "@/lib/brands";
 import { thumbnailSVG, cardnewsSVG, type AssetProduct } from "@/lib/asset-svg";
+import { pointColor } from "@/lib/point-color";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: { type: strin
   const brand = BRANDS[brandCode];
   const ap: AssetProduct = {
     title_ko: p.title_ko, title_en: p.title_en, one_liner: p.one_liner,
-    flavor_notes: p.flavor_notes, roast_level: p.roast_level, key_color: p.key_color, minPrice,
+    flavor_notes: p.flavor_notes, roast_level: p.roast_level,
+    key_color: pointColor({ keyColor: p.key_color, flavorNotes: p.flavor_notes, roast: p.roast_level }), minPrice,
   };
 
   // 양식 설정(자산 강조색·폰트) — /admin/templates

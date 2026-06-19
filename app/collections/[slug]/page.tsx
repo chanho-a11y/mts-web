@@ -33,17 +33,17 @@ export default async function CollectionPage({ params }: { params: { slug: strin
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       {/* 카테고리 배너 */}
-      <div className={`mb-8 overflow-hidden rounded-xl px-6 py-14 ${catRow.banner_path ? "text-white" : "bg-neutral-100"}`}
-        style={catRow.banner_path ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.4),rgba(0,0,0,0.4)), url(${catRow.banner_path})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
-        <h1 className="text-2xl font-bold">{locale === "en" && catRow.name_en ? catRow.name_en : catRow.name_ko}</h1>
-        <p className={`mt-1 text-sm ${catRow.banner_path ? "text-white/80" : "text-neutral-500"}`}>{products.length} items</p>
+      <div className={`mt-grid mb-8 overflow-hidden rounded-card border border-line px-6 py-16 ${catRow.banner_path ? "text-oat" : "bg-sand"}`}
+        style={catRow.banner_path ? { backgroundImage: `linear-gradient(rgba(60,53,44,0.5),rgba(60,53,44,0.5)), url(${catRow.banner_path})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+        <h1 className="text-3xl font-extrabold tracking-tight">{locale === "en" && catRow.name_en ? catRow.name_en : catRow.name_ko}</h1>
+        <p className={`mt-1 font-mono text-xs uppercase tracking-wider ${catRow.banner_path ? "text-oat/80" : "text-inkSoft"}`}>{products.length} items</p>
       </div>
       {products.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {products.map((p) => <ProductCard key={p.slug} p={p} locale={locale} />)}
         </div>
       ) : (
-        <p className="py-16 text-center text-neutral-400">해당 카테고리 상품을 준비 중입니다.</p>
+        <p className="py-16 text-center text-inkSoft">해당 카테고리 상품을 준비 중입니다.</p>
       )}
     </main>
   );

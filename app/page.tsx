@@ -68,7 +68,7 @@ export default async function Home() {
       <HeroSlideshow slides={slides} title={heroTitle} subtitle={heroSubtitle} />
 
       <div className="mx-auto max-w-6xl px-4">
-        <Link href="/collections/all" className="-mt-5 mb-4 inline-block rounded-full bg-ink px-6 py-2 text-sm font-medium text-white shadow">
+        <Link href="/collections/all" className="-mt-5 mb-4 inline-block rounded-card bg-ink px-6 py-2.5 text-sm font-semibold tracking-wide text-oat shadow-card hover:bg-[#4A443A]">
           {tt.shop}
         </Link>
       </div>
@@ -79,7 +79,7 @@ export default async function Home() {
         <div className="flex gap-3 overflow-x-auto pb-2">
           {shopCategories.map((c) => (
             <Link key={c.slug} href={`/collections/${c.slug}`}
-              className="whitespace-nowrap rounded-full border border-neutral-300 px-4 py-1.5 text-sm hover:bg-neutral-100">
+              className="whitespace-nowrap rounded-card border border-line bg-paper px-4 py-1.5 text-sm hover:bg-sand">
               {locale === "en" && c.name_en ? c.name_en : c.name_ko}
             </Link>
           ))}
@@ -116,10 +116,11 @@ export default async function Home() {
       ))}
 
       {/* About teaser */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="text-xl font-bold">{tt.about}</h2>
-        <p className="mt-3 max-w-2xl text-neutral-600">{locale === "en" ? brand.about.en : brand.about.ko}</p>
-        <Link href="/about" className="mt-3 inline-block text-sm text-neutral-500 hover:underline">{tt.viewAll} →</Link>
+      <section className="mt-grid-lg mx-auto mt-8 max-w-6xl border-y border-line px-4 py-16 text-center">
+        <p className="mt-tagline text-[10px]">everyday excellence</p>
+        <h2 className="mt-3 text-2xl font-bold">{tt.about}</h2>
+        <p className="prose-serif mx-auto mt-4 max-w-2xl text-[17px] text-ink/80">{locale === "en" ? brand.about.en : brand.about.ko}</p>
+        <Link href="/about" className="mt-4 inline-block font-mono text-xs uppercase tracking-wider text-clayDeep hover:underline">{tt.viewAll} →</Link>
       </section>
 
       {/* 정보 링크 (커피정보 · 블로그 · Contact) */}
@@ -129,9 +130,9 @@ export default async function Home() {
           { href: "/blogs/coffeelog", title: tt.blog, desc: "Coffeelog 커피 이야기" },
           { href: "/contact", title: tt.contact, desc: "납품·컨설팅·교육·제품 문의" },
         ].map((c) => (
-          <Link key={c.href} href={c.href} className="rounded-xl border p-6 hover:bg-neutral-50">
+          <Link key={c.href} href={c.href} className="rounded-card border border-line bg-paper p-6 hover:bg-warmPaper">
             <p className="font-bold">{c.title}</p>
-            <p className="mt-1 text-sm text-neutral-500">{c.desc}</p>
+            <p className="mt-1 text-sm text-inkSoft">{c.desc}</p>
           </Link>
         ))}
       </section>

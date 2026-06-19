@@ -1,0 +1,79 @@
+/* MTSPACE COFFEE — Design Tokens
+   Drop-in CSS custom properties. Pair with the Google Fonts + Pretendard imports below. */
+
+@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+KR:wght@300;400;500;600&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+:root {
+  /* ---- Color: core (brand-fixed) ---- */
+  --clay:       #C68D62;  /* KEY — accents/surfaces/keylines, NOT small text */
+  --clay-deep:  #B0764A;  /* text-safe accent / links */
+  --oat:        #F6F1E7;  /* primary background */
+  --sand:       #ECE2D1;  /* cards / panels */
+  --ink:        #3C352C;  /* body / headline / dark surface */
+  --ink-soft:   #8A8173;  /* muted text */
+  --border:     #E3DAC8;  /* hairline / card border */
+  --paper:      #FFFFFF;  /* elevated card */
+  --page-bg:    #E7E0D3;  /* canvas behind cards */
+  --note-panel: #F3EFE6;
+  --warm-paper: #FAF6EE;
+
+  /* ---- Color: product point (flavor × roast) ---- */
+  --p-chocolate-light: #A6794F; --p-chocolate-medium: #8B5E3C; --p-chocolate-dark: #5E3F2A;
+  --p-citrus-light:    #D2A84E; --p-citrus-medium:    #BC8E36; --p-citrus-dark:    #8A6526;
+  --p-peach-light:     #DCA07E; --p-peach-medium:     #C9825F; --p-peach-dark:     #9A5E42;
+  --p-berry-light:     #B27488; --p-berry-medium:     #9A5E72; --p-berry-dark:     #6E3E4E;
+  --p-tropical-light:  #AEAF5E; --p-tropical-medium:  #95964A; --p-tropical-dark:  #6B6B32;
+
+  /* ---- Type families ---- */
+  --font-sans:  'Helvetica Neue', Pretendard, Arial, sans-serif; /* info / wordmark / UI */
+  --font-serif: Spectral, 'Noto Serif KR', Georgia, serif;        /* emotion / headline */
+  --font-mono:  'IBM Plex Mono', monospace;                       /* data / spec */
+
+  /* ---- Type scale (desktop) ---- */
+  --fs-display: 56px; --lh-display: 1.1;
+  --fs-h1: 36px;      --lh-h1: 1.05;
+  --fs-h2: 24px;      --lh-h2: 1.2;
+  --fs-body: 16px;    --lh-body: 1.8;
+  --fs-caption: 13px; --lh-caption: 1.5;
+  --fs-spec: 12px;    --ls-spec: 1px;
+
+  /* ---- Spacing (8pt base) ---- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-6: 24px; --sp-8: 32px; --sp-12: 48px; --sp-16: 64px; --sp-24: 96px;
+
+  /* ---- Radius / border / shadow ---- */
+  --r-label: 2px; --r-card: 3px; --r-pill: 999px;
+  --bd: 1px solid var(--border);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.06);
+
+  /* ---- Layout ---- */
+  --content-max: 1200px;
+  --touch-min: 44px;
+}
+
+/* Mobile type scale */
+@media (max-width: 767px) {
+  :root {
+    --fs-display: 36px; --lh-display: 1.15;
+    --fs-h1: 26px;      --lh-h1: 1.1;
+    --fs-h2: 20px;      --lh-h2: 1.25;
+    --fs-body: 15px;    --lh-body: 1.75;
+    --fs-caption: 12px;
+    --fs-spec: 11px;
+  }
+}
+
+/* Hairline grid pattern (apply to hero / empty surfaces; clear behind text) */
+.mt-grid {
+  background-color: var(--oat);
+  background-image:
+    linear-gradient(#ECE0CB 1px, transparent 1px),
+    linear-gradient(90deg, #ECE0CB 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Wordmark */
+.mt-wordmark { font-family: var(--font-sans); font-weight: 800; letter-spacing: 0; }
+.mt-wordmark .light { font-weight: 200; }
+.mt-tagline { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 5px; color: var(--clay); }

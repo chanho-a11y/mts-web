@@ -33,3 +33,20 @@ export function pointColor(opts: { keyColor?: string | null; flavorNotes?: strin
   const idx = r === "light" ? 0 : r === "dark" ? 2 : 1;
   return MATRIX[fam][idx];
 }
+
+// 레이블 스튜디오 point 키 (chocolate-dark 등). 매트릭스에 정의된 7개 키로 스냅.
+const LABEL_KEYS = new Set([
+  "chocolate-dark", "chocolate-medium", "citrus-light", "citrus-medium", "peach-light", "berry-light", "tropical-light",
+]);
+export function pointKey(opts: { flavorNotes?: string[] | null; roast?: string | null }): string {
+  const fam = flavorFamily((opts.flavorNotes ?? []).join(", "));
+  const r = roastLevel(opts.roast);
+  let key = `${fam}-${r}`;
+  if (!LABEL_KEYS.has(key)) {
+    // 정의되지 않은 조합은 가장 가까운 정의 키로 폴백
+    if (fam === "chocolate") key = r === "dark" ? "chocolate-dark" : "chocolate-medium";
+    else if (fam === "citrus") key = r === "medium" ? "citrus-medium" : "citrus-light";
+    else key = `${fam}-light`;
+  }
+  return LABEL_KEYS.has(key) ? key : "chocolate-dark";
+}

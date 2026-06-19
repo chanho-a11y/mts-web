@@ -1,0 +1,48 @@
+{
+  "$comment": "MTSPACE COFFEE — 품목보고번호-keyed product presets. The studio's 품목보고번호 dropdown reads this; selecting a key fills the bound fields.",
+  "fixed": {
+    "maker": "경기도 가평군 청평면 톳골길 3, A동 B1호",
+    "ig": "IG: @mtspacecoffee",
+    "qrUrl": "https://mtspace.coffee",
+    "vol": "125 g",
+    "material_default": "커피원두 100% (에티오피아 100%)"
+  },
+  "pointColors": {
+    "chocolate-dark":   { "point": "#5E3F2A", "text": "#5E3F2A", "check": "rgba(255,255,255,.13)", "name": "CHOCOLATE · DARK" },
+    "chocolate-medium": { "point": "#8B5E3C", "text": "#8B5E3C", "check": "rgba(255,255,255,.13)", "name": "CHOCOLATE · MEDIUM" },
+    "citrus-light":     { "point": "#D2A84E", "text": "#8A6526", "check": "rgba(255,255,255,.20)", "name": "CITRUS · LIGHT" },
+    "citrus-medium":    { "point": "#BC8E36", "text": "#8A6526", "check": "rgba(255,255,255,.18)", "name": "CITRUS · MEDIUM" },
+    "peach-light":      { "point": "#DCA07E", "text": "#9A5E42", "check": "rgba(255,255,255,.22)", "name": "PEACH · LIGHT" },
+    "berry-light":      { "point": "#B27488", "text": "#6E3E4E", "check": "rgba(255,255,255,.20)", "name": "BERRY · LIGHT" },
+    "tropical-light":   { "point": "#AEAF5E", "text": "#6B6B32", "check": "rgba(255,255,255,.20)", "name": "TROPICAL · LIGHT" }
+  },
+  "products": {
+    "2022026 4913101": {
+      "tableName": "댐굳", "name_en": "damn good", "typeKr": "블렌드", "typeEn": "BLEND",
+      "notesEn": "Dark chocolate · Plum · Vanilla", "point": "chocolate-dark", "nameSize": 7.2, "enSize": 2.4,
+      "material": "커피원두 100% (에티오피아 100%)",
+      "desc": "댐굳은 깊고 부드러운 맛의 완성도를 추구하는 블렌드입니다. 다크 초콜릿, 자두, 카라멜의 풍미가 어우러져 누구나 쉽게 즐길 수 있는 균형 잡힌 맛을 선사합니다. 정교한 로스팅 기법으로 언제든지 최고의 맛을 느낄 수 있도록 가장 기본적인 블렌드로 완성되었습니다.",
+      "infoLabel": "coffee Information", "flavor": "다크 초콜렛 · 자두 · 바닐라",
+      "specs": [["ROAST","다크 로스트"],["ORIGIN","에티오피아"],["REGION","예가체프 · 시다모"],["LOT","코체레 · 아리차 · 아르베고나"],["VARIETAL","에티오피아 토착종 74110·74158·74148"],["PROCESS","내추럴 · 워시드"]],
+      "recipe": [["ESPRESSO","20g in, 40g out, 27s","(vst 20g 바스켓, 물 92도, 9bar 기준)"],["MILK","22g in, 40g out, 28s","(싱글샷 6oz 기준)"],["FILTER","15g in, 30g/45s blooming, 240g, 2:30-3:00","(v60, ufo 기준)"]]
+    },
+    "2022026 4913103": {
+      "tableName": "스팟라이트", "name_en": "spotlight", "typeKr": "블렌드", "typeEn": "BLEND",
+      "notesEn": "Tangerine · Grapefruit · Apricot", "point": "citrus-light", "nameSize": 6.0, "enSize": 2.4,
+      "material": "커피원두 100% (에티오피아 100%)",
+      "desc": "스팟라이트는 귤, 산딸기, 적포도의 달콤한 과일 노트가 어우러져 상쾌하고 활기찬 시작을 돕는 커피입니다. 밝고 깨끗한 맛으로 하루를 기분 좋게 열어주는 완벽한 커피입니다. 가벼운 과일 향미와 자연스러운 단맛이 특징으로 누구나 쉽게 즐길 수 있습니다.",
+      "infoLabel": "coffee Information", "flavor": "귤 · 자몽 · 적포도 · 살구",
+      "specs": [["ROAST","라이트 로스트"],["ORIGIN","에티오피아"],["REGION","예가체프 · 시다모"],["LOT","코체레 · 아르베고나"],["VARIETAL","에티오피아 토착종 74110·74158·74148"],["PROCESS","내추럴 · 워시드"]],
+      "recipe": [["ESPRESSO","18g in, 45g out, 25s","(vst 20g 바스켓, 물 93도, 9bar 기준)"],["MILK","22g in, 42g out, 27s","(싱글샷 6oz 기준)"],["FILTER","14g in, 36g/60s blooming, 224g, 2:00-2:30","(v60, ufo 기준)"]]
+    },
+    "2022026 491312": {
+      "tableName": "에티오피아 싱글오리진", "name_en": "ethiopia yirgacheffe aricha amy washed", "typeKr": "싱글 오리진", "typeEn": "SINGLE ORIGIN",
+      "notesEn": "Orange blossom · Peach · Blueberry", "point": "peach-light", "nameSize": 4.4, "enSize": 1.8,
+      "material": "커피원두 100% (에티오피아 100%)",
+      "desc": "아리차 워싱 스테이션은 100년이 넘는 시간 동안 꾸준히 좋은 품질의 커피를 재배해왔습니다. 약 800명의 소작농이 잘 익은 체리를 균일하게 가공해 매년 전 세계의 사랑을 받습니다. 약 100시간의 발효와 15일간의 고른 건조를 거쳐 훌륭한 클린컵과 플로럴함, 과일의 향미가 살아납니다.",
+      "infoLabel": "single origin Information", "flavor": "오렌지 블러썸 · 복숭아 · 블루베리 · 오렌지",
+      "specs": [["ROAST","라이트 로스트"],["ORIGIN","에티오피아 예가체프"],["FARM","아리차"],["ALTITUDE","1,950–2,100 masl"],["VARIETAL","74110 · 74158 · 74148"],["PROCESS","워시드"]],
+      "recipe": [["ESPRESSO","20g in, 48g out, 23s","(vst 20g 바스켓, 물 93도, 9bar 기준)"],["MILK","22g in, 42g out, 27s","(싱글샷 6oz 기준)"],["FILTER","12g in, 36g/60s blooming, 192g, 1:50-2:20","(v60, ufo, 찬호토네이도 기준)"]]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "MTSPACE label studio input schema v1",
+  "label": { "width_mm": 180, "height_mm": 130, "boxes": 3, "box_width_mm": 60, "ratio": "1:1:1" },
+  "fields": [
+    { "id": "reportNo", "label": "품목보고번호", "type": "select", "source": "presets", "binding": ["table.품목보고번호", "preset.trigger"],
+      "note": "사전 저장된 드롭다운. 선택 시 tableName·name_en·typeKr/En·notesEn·point·material·desc·infoLabel·flavor·specs·recipe 자동 채움." },
+    { "id": "tableName", "label": "제품명(국문)", "type": "text", "binding": ["box.mid.nameMid", "table.제품명"], "maxRecommendedChars": 12,
+      "note": "중앙 최대 글씨 = 품목보고 테이블 제품명과 반드시 동일." },
+    { "id": "name_en", "label": "제품명(영문)", "type": "text", "binding": ["box.mid.enMid"], "legal": true, "wrap": "single-line",
+      "note": "현행법상 영문 병기. 한 줄 유지 위해 enSize 자동/수동 축소." },
+    { "id": "typeKr", "label": "분류(국문)", "type": "text", "binding": [] },
+    { "id": "typeEn", "label": "분류(영문)", "type": "text", "binding": ["box.mid.typeMid"] },
+    { "id": "notesEn", "label": "플레이버 노트(영문)", "type": "text", "binding": ["box.mid.notesMid"] },
+    { "id": "point", "label": "포인트 컬러", "type": "enum", "options": ["chocolate-dark","chocolate-medium","citrus-light","citrus-medium","peach-light","berry-light","tropical-light"],
+      "binding": ["css.--point","css.--point-text","css.--check"], "note": "플레이버×로스팅 매트릭스. 중앙 블록 배경 + 모든 포인트 요소." },
+    { "id": "name_en2", "label": "영문 제품명(우측 헤더)", "type": "text", "binding": ["box.right.rname"] },
+    { "id": "desc", "label": "커피 소개", "type": "textarea", "binding": ["box.right.descLabel"] },
+    { "id": "specs", "label": "커피 정보", "type": "array", "item": ["key","value"], "binding": ["box.right.infoList"], "addRemove": true,
+      "note": "라인 없는 미니멀 2열(라벨|값) 테이블로 렌더." },
+    { "id": "flavor", "label": "FLAVOUR", "type": "text", "binding": ["box.right.infoList.flavour"] },
+    { "id": "recipe", "label": "추천 레시피", "type": "array", "item": ["method","numbers","condition"], "binding": ["box.right.recipeRender"], "addRemove": true,
+      "note": "커피 정보와 동일 타입(라벨|값 우정렬, 조건은 옅은 부기 1줄)." },
+    { "id": "material", "label": "원재료명", "type": "text", "binding": ["table.원재료명"] },
+    { "id": "maker", "label": "업소명 및 소재지", "type": "text", "binding": ["table.업소명"], "default": "경기도 가평군 청평면 톳골길 3, A동 B1호" },
+    { "id": "ig", "label": "인스타그램", "type": "text", "binding": ["box.left.ig"], "default": "IG: @mtspacecoffee" },
+    { "id": "qrUrl", "label": "QR 대상 URL", "type": "url", "binding": ["box.left.qr"], "default": "https://mtspace.coffee", "engine": "qrcodejs", "ecc": "M" },
+    { "id": "vol", "label": "용량", "type": "text", "binding": ["box.mid.vol","table.내용량"], "default": "125 g" }
+  ],
+  "typography_controls": [
+    { "id": "fs-name-mid", "label": "중앙 제품명", "unit": "mm", "min": 5, "max": 13, "default": 9, "css": "--fs-name-mid" },
+    { "id": "fs-en-mid", "label": "중앙 영문", "unit": "mm", "min": 2, "max": 5, "default": 3, "css": "--fs-en-mid" },
+    { "id": "fs-desc", "label": "소개 본문", "unit": "mm", "min": 1.6, "max": 3, "default": 2.1, "css": "--fs-desc" },
+    { "id": "fs-info", "label": "정보/레시피", "unit": "mm", "min": 1.6, "max": 2.6, "default": 2, "css": "--fs-info / --fs-recipe" },
+    { "id": "fs-brand", "label": "브랜드 소개", "unit": "mm", "min": 1.6, "max": 2.6, "default": 2, "css": "--fs-brand" },
+    { "id": "bar-w", "label": "컬러바 길이", "unit": "mm", "min": 20, "max": 56, "default": 50, "css": "--bar-w", "note": "좌·우 동일 길이 유지." }
+  ],
+  "editing": {
+    "direct": "라벨의 모든 텍스트 노드는 data-editable contenteditable — 클릭해 내용·줄바꿈 직접 수정.",
+    "lineBreak": "Enter 키로 수동 줄바꿈.",
+    "qr": "qrUrl 변경 시 즉시 재생성. 이미지 교체도 #qr 컨테이너 내용 치환으로 가능."
+  }
+}

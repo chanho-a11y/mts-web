@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTSPACE COFFEE · Label Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+<style>
+  /* ============================================================
+     MTSPACE COFFEE — LABEL STUDIO
+     180 x 130 mm · 3 boxes (60+60+60mm).
+     Defaults mirror the final design 1:1 (authored at 5px/mm → every value = DC_px / 5 mm).
+     Every editable text node carries data-field; the form binds to it.
+     ============================================================ */
+  :root{
+    --oat:#F6F1E7; --sand:#ECE2D1; --ink:#3C352C; --ink-soft:#8A8173;
+    --border:#E3DAC8; --hair:#EBE1CD; --paper:#FFFFFF; --page:#E7E0D3;
+    --point:#5E3F2A; --point-text:#5E3F2A; --check:rgba(255,255,255,.13);
+    /* zone sizes — DC-accurate defaults (mm) */
+    --fs-brand:1.68mm; --fs-desc:1.72mm; --fs-info:1.64mm; --fs-recipe:1.6mm;
+    --fs-name-mid:7.2mm; --fs-en-mid:2.4mm; --bar-w:40mm;
+    --scale:1;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#d9d3c7;font-family:'Helvetica Neue',Pretendard,Arial,sans-serif;color:#2c2720}
+  .app{display:flex;min-height:100vh}
+
+  /* ---------- form panel ---------- */
+  .panel{width:380px;flex:none;background:#fbf9f4;border-right:1px solid #d8cdb6;height:100vh;overflow:auto;padding:22px 22px 60px}
+  .panel h1{font-family:Spectral,serif;font-weight:500;font-size:19px;margin:0 0 2px}
+  .panel .sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:#9c8f78;margin-bottom:18px}
+  .grp{border:1px solid #e6ddca;border-radius:6px;background:#fff;padding:14px 14px 16px;margin-bottom:14px}
+  .grp h2{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#a08e6f;margin:0 0 12px;font-weight:700}
+  label.f{display:block;font-size:11px;color:#6b6356;margin:10px 0 4px;font-weight:600}
+  input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #ddd2bd;border-radius:4px;padding:7px 9px;font-size:12px;font-family:inherit;background:#fdfcf8;color:#2c2720}
+  textarea{resize:vertical;line-height:1.5;min-height:60px}
+  .row2{display:flex;gap:8px}
+  .row2>*{flex:1}
+  .rangewrap{display:flex;align-items:center;gap:8px;margin:8px 0}
+  .rangewrap label{flex:none;width:84px;font-size:10px;color:#6b6356}
+  input[type=range]{flex:1}
+  .rangewrap .val{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9c8f78;width:34px;text-align:right}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px #ddd2bd}
+  .sw.active{box-shadow:0 0 0 2px #3c352c}
+  .specrow,.reciperow{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}
+  .specrow input{flex:1}
+  .specrow .k,.reciperow .k{flex:none;width:84px}
+  .reciperow{flex-wrap:wrap}
+  .reciperow .full{width:100%}
+  .btn{border:none;border-radius:4px;padding:6px 11px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit}
+  .btn.add{background:#ece2d1;color:#3c352c}
+  .btn.del{background:#f0e3df;color:#b85c4a;padding:6px 9px}
+  .btn.primary{background:#3c352c;color:#f6f1e7}
+  .actions{display:flex;gap:8px;position:sticky;bottom:0;background:#fbf9f4;padding:12px 0 0;margin-top:6px}
+  .hint{font-size:10px;color:#a99;line-height:1.5;margin-top:6px}
+  .note{font-size:10.5px;color:#8a8173;line-height:1.6;background:#f3efe6;border-radius:5px;padding:9px 11px;margin-top:8px}
+
+  /* ---------- stage ---------- */
+  .stage{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:34px;overflow:auto}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6b6356}
+  .toolbar .tag{background:#fff;border:1px solid #ddd2bd;border-radius:99px;padding:4px 11px}
+
+  /* ============ THE LABEL (importable artifact) — DC-accurate ============ */
+  .labelScaler{transform:scale(var(--scale));transform-origin:top left}
+  .label{width:180mm;height:130mm;background:var(--oat);display:flex;box-shadow:0 2px 14px rgba(0,0,0,.14);font-family:'Helvetica Neue',Pretendard,Arial,sans-serif;color:var(--ink)}
+  .box{width:60mm;height:130mm;padding:10.2mm 8.8mm;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .box.left{border-right:.3mm solid var(--border);justify-content:space-between}
+  .box.mid{border-right:.3mm solid var(--border);justify-content:space-between;color:#fff;padding:12.4mm 7.8mm;
+    background-color:var(--point);
+    background-image:linear-gradient(var(--check) .2mm,transparent .2mm),linear-gradient(90deg,var(--check) .2mm,transparent .2mm);
+    background-size:4mm 4mm;}
+  .box.right{justify-content:space-between}
+  [data-editable]{outline:none}
+  [data-editable]:focus{box-shadow:0 0 0 1px #7c6, inset 0 0 0 100vmax rgba(124,160,110,.06)}
+
+  /* left */
+  .headzone{height:8.8mm;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+  .wm{font-weight:800;font-size:2.6mm;letter-spacing:0}
+  .wm .light{font-weight:200}
+  .tagline{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.3mm;letter-spacing:.6mm;text-transform:uppercase;color:var(--point-text);margin-top:1.4mm}
+  .barL{height:.4mm;width:var(--bar-w);background:var(--point);margin:2.4mm auto 2.8mm}
+  .brandtxt{font-family:'Noto Serif KR',serif;font-size:var(--fs-brand);line-height:1.74;color:#5c574e;font-weight:300;text-align:left}
+  .brandtxt.two{color:#7a7263;margin-top:2.2mm}
+  .ig{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.8mm;letter-spacing:.06mm;color:var(--ink);font-weight:500;margin-bottom:2.6mm}
+  .tbl{width:100%;border-top:.4mm solid var(--point)}
+  .tr{display:flex;font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.16mm;line-height:1.3;border-bottom:.1mm solid var(--hair);text-align:left;white-space:nowrap}
+  .tr.wrap{white-space:normal}
+  .tr .c{padding:.8mm 1mm;border-right:.1mm solid var(--hair)}
+  .tr .c:last-child{border-right:none}
+  .tr .k{color:var(--ink-soft)}
+  .clusterRow{display:flex;align-items:center;justify-content:center;gap:4.8mm;margin-top:3.6mm}
+  .cluster{text-align:center}
+  .iconArea{height:8.8mm;display:flex;align-items:center;justify-content:center}
+  #qr{width:8.4mm;height:8.4mm;background:#fff;border:.26mm solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #qr img,#qr canvas{width:100%!important;height:100%!important;display:block}
+  .recycle{font-size:8mm;line-height:1;color:var(--ink)}
+  .cap{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.2mm;letter-spacing:.16mm;color:var(--ink-soft);margin-top:1.2mm}
+
+  /* mid */
+  .wmMid{font-weight:800;font-size:4mm;line-height:1.05}
+  .wmMid .light{font-weight:200}
+  .taglineMid{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.4mm;letter-spacing:.8mm;text-transform:uppercase;color:rgba(255,255,255,.7);margin-top:2.2mm}
+  .midCenter{display:flex;flex-direction:column;align-items:center}
+  .hairW{width:6.8mm;height:.2mm;background:rgba(255,255,255,.5)}
+  .typeMid{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.5mm;letter-spacing:.5mm;color:rgba(255,255,255,.78)}
+  .nameMid{font-weight:800;line-height:1.12;font-size:var(--fs-name-mid);color:#fff}
+  .enMid{font-size:var(--fs-en-mid);letter-spacing:.08mm;color:rgba(255,255,255,.82)}
+  .notesMid{font-family:Spectral,serif;font-style:italic;font-size:2.6mm;color:#fff;line-height:1.4}
+  .volMid{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:2.2mm;letter-spacing:.3mm;color:#fff;white-space:nowrap}
+
+  /* right */
+  .rname{font-weight:700;font-size:var(--fs-en-mid);line-height:1.3}
+  .barR{height:.4mm;width:var(--bar-w);background:var(--point);margin:2.4mm auto 3.2mm}
+  .desc{font-family:'Noto Serif KR',serif;font-size:var(--fs-desc);line-height:1.74;color:#4a443a;font-weight:300;text-align:left}
+  .seclabel{display:flex;align-items:center;justify-content:center;gap:1.4mm;margin-bottom:2.2mm}
+  .seclabel .dot{width:1mm;height:1mm;border-radius:50%;background:var(--point)}
+  .seclabel .t{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.5mm;letter-spacing:.28mm;color:var(--ink-soft);text-transform:uppercase}
+  .infoRow{display:flex;justify-content:space-between;align-items:baseline;gap:2.4mm;padding:.5mm 0;text-align:left}
+  .infoRow .ik{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.32mm;letter-spacing:.2mm;color:#b0a690;flex:none}
+  .infoRow .iv{font-size:var(--fs-info);line-height:1.35;color:#4a443a;text-align:right}
+  .infoRow .iv.flavour{color:var(--point-text);font-weight:500}
+  .recRow{display:flex;justify-content:space-between;align-items:baseline;gap:2.4mm;padding:.6mm 0;text-align:left}
+  .recRow .rk{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.32mm;letter-spacing:.2mm;color:#b0a690;flex:none}
+  .recRow .rv{text-align:right}
+  .recRow .rn{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:var(--fs-recipe);line-height:1.35;color:#4a443a}
+  .recRow .rc{font-size:1.4mm;line-height:1.3;color:var(--ink-soft);margin-top:.2mm}
+
+  @media print{
+    @page{size:180mm 130mm;margin:0}
+    body{background:#fff}
+    .panel,.toolbar{display:none!important}
+    .stage{padding:0;overflow:visible}
+    .labelScaler{transform:none!important}
+    .label{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+<div id="__mtsBar" style="position:sticky;top:0;z-index:99999;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#3C352C;color:#F6F1E7;font:13px/1.4 'Helvetica Neue',Pretendard,sans-serif">
+  <strong style="font-size:12px;letter-spacing:1px">내부 제품 연동</strong>
+  <select id="__mtsLabelProduct" style="padding:4px 8px;border-radius:3px;border:none;max-width:280px"><option value="">기존 제품 불러오기…</option></select>
+  <button id="__mtsLabelSave" type="button" style="padding:5px 12px;border-radius:3px;border:none;background:#C68D62;color:#3C352C;font-weight:700;cursor:pointer">제품 라벨로 저장</button>
+  <span id="__mtsLabelStatus" style="opacity:.85;font-size:12px"></span>
+</div>
+
+<div class="app">
+
+  <!-- ================= INPUT PANEL ================= -->
+  <div class="panel">
+    <h1>Label Studio</h1>
+    <div class="sub">MTSPACE COFFEE · 180 × 130 mm</div>
+
+    <div class="grp">
+      <h2>품목보고번호 (사전 저장)</h2>
+      <label class="f">제품 선택 — 선택 시 관련 정보 자동 반영</label>
+      <select id="presetSelect"></select>
+      <div class="note">품목보고번호 데이터는 presets.json에 사전 저장됩니다. 선택하면 제품명·보고번호·원재료·소개·정보·레시피·포인트 컬러·글자 크기가 채워집니다.</div>
+    </div>
+
+    <div class="grp">
+      <h2>제품 기본정보</h2>
+      <label class="f">제품명 (국문) — 테이블·중앙 동일</label>
+      <input type="text" data-bind="tableName">
+      <label class="f">제품명 (영문, 현행법 표기)</label>
+      <input type="text" data-bind="name_en">
+      <div class="row2">
+        <div><label class="f">분류(국문)</label><input type="text" data-bind="typeKr"></div>
+        <div><label class="f">분류(영문)</label><input type="text" data-bind="typeEn"></div>
+      </div>
+      <label class="f">플레이버 노트 (영문, 중앙)</label>
+      <input type="text" data-bind="notesEn">
+      <label class="f">포인트 컬러 (플레이버×로스팅)</label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="grp">
+      <h2>커피 소개</h2>
+      <label class="f">영문 제품명 (우측 헤더)</label>
+      <input type="text" data-bind="name_en2">
+      <label class="f">소개 본문</label>
+      <textarea data-bind="desc"></textarea>
+    </div>
+
+    <div class="grp">
+      <h2>커피 정보 (specs)</h2>
+      <div id="specList"></div>
+      <button class="btn add" id="addSpec">+ 항목 추가</button>
+      <label class="f" style="margin-top:12px">FLAVOUR</label>
+      <input type="text" data-bind="flavor">
+    </div>
+
+    <div class="grp">
+      <h2>추천 레시피</h2>
+      <div id="recipeList"></div>
+      <button class="btn add" id="addRecipe">+ 레시피 추가</button>
+    </div>
+
+    <div class="grp">
+      <h2>품목제조보고 테이블</h2>
+      <label class="f">품목보고번호</label>
+      <input type="text" data-bind="reportNo">
+      <label class="f">원재료명</label>
+      <input type="text" data-bind="material">
+      <label class="f">업소명 및 소재지</label>
+      <input type="text" data-bind="maker">
+      <label class="f">인스타그램</label>
+      <input type="text" data-bind="ig">
+    </div>
+
+    <div class="grp">
+      <h2>QR 코드</h2>
+      <label class="f">QR 대상 URL</label>
+      <input type="url" data-bind="qrUrl">
+      <div class="hint">입력 즉시 QR이 재생성됩니다. (qrcodejs)</div>
+    </div>
+
+    <div class="grp">
+      <h2>타이포 · 레이아웃 조정</h2>
+      <div class="rangewrap"><label>중앙 제품명</label><input type="range" id="fsNameMid" min="4" max="10" step="0.1" value="7.2"><span class="val" id="fsNameMidV">7.2</span></div>
+      <div class="rangewrap"><label>중앙 영문</label><input type="range" id="fsEnMid" min="1.6" max="3.4" step="0.1" value="2.4"><span class="val" id="fsEnMidV">2.4</span></div>
+      <div class="rangewrap"><label>소개 본문</label><input type="range" id="fsDesc" min="1.4" max="2.6" step="0.05" value="1.72"><span class="val" id="fsDescV">1.72</span></div>
+      <div class="rangewrap"><label>정보/레시피</label><input type="range" id="fsInfo" min="1.3" max="2.4" step="0.05" value="1.64"><span class="val" id="fsInfoV">1.64</span></div>
+      <div class="rangewrap"><label>브랜드 소개</label><input type="range" id="fsBrand" min="1.4" max="2.4" step="0.05" value="1.68"><span class="val" id="fsBrandV">1.68</span></div>
+      <div class="rangewrap"><label>컬러바 길이</label><input type="range" id="barW" min="20" max="50" step="1" value="40"><span class="val" id="barWV">40</span></div>
+      <div class="hint">라벨 위 모든 텍스트는 <b>직접 클릭해 수정</b>할 수 있습니다(내용·줄바꿈). Enter로 줄바꿈. 디폴트는 최종 디자인과 동일합니다.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" onclick="window.print()">인쇄 / PDF</button>
+      <button class="btn add" id="exportJson">데이터 내보내기</button>
+    </div>
+  </div>
+
+  <!-- ================= STAGE ================= -->
+  <div class="stage">
+    <div class="stageInner">
+      <div class="toolbar">
+        <span class="tag">18 × 13 cm</span>
+        <span class="tag">6+6+6 · 1:1:1</span>
+        <span class="tag" id="pointTag">#5E3F2A</span>
+        <span>· 텍스트를 클릭해 직접 편집</span>
+      </div>
+
+      <div class="labelScaler">
+      <!-- ============ IMPORTABLE LABEL ============ -->
+      <div class="label" id="label" data-point="chocolate-dark">
+
+        <!-- LEFT -->
+        <div class="box left">
+          <div style="width:100%">
+            <div class="headzone">
+              <div class="wm" data-field="wordmark" data-editable contenteditable>MTSPACE <span class="light">COFFEE</span></div>
+              <div class="tagline" data-field="tagline" data-editable contenteditable>everyday excellence</div>
+            </div>
+            <div class="barL"></div>
+            <div class="brandtxt" data-field="brand1" data-editable contenteditable>매일의 커피는 우리의 삶을 만듭니다. 정교한 기술과 깊이 있는 탐구로, 일상 속 탁월한 순간을 완성합니다. MTSPACE COFFEE는 매일을 더 특별하게 만듭니다.</div>
+            <div class="brandtxt two" data-field="brand2" data-editable contenteditable>원두의 산지부터 로스팅까지 작은 차이를 끝까지 다듬어 매일의 한 잔에 깊이를 더합니다. 화려하지 않지만 빈틈없는 커피를 지향합니다.</div>
+          </div>
+          <div style="width:100%">
+            <div class="ig" data-field="ig" data-editable contenteditable>IG: @mtspacecoffee</div>
+            <div class="tbl" id="tbl"></div>
+            <div class="clusterRow">
+              <div class="cluster">
+                <div class="iconArea"><div id="qr"></div></div>
+                <div class="cap" data-field="scanCap" data-editable contenteditable>SCAN TO VISIT STORE</div>
+              </div>
+              <div class="cluster">
+                <div class="iconArea"><div class="recycle">&#9851;</div></div>
+                <div class="cap" data-field="petCap" data-editable contenteditable>PET 페트</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MIDDLE -->
+        <div class="box mid">
+          <div>
+            <div class="wmMid" data-field="wordmarkMid" data-editable contenteditable>MTSPACE <span class="light">COFFEE</span></div>
+            <div class="taglineMid" data-field="taglineMid" data-editable contenteditable>everyday excellence</div>
+          </div>
+          <div class="midCenter">
+            <div class="hairW" style="margin-bottom:4.4mm"></div>
+            <div class="typeMid" data-field="typeMid" data-editable contenteditable>BLEND</div>
+            <div class="nameMid" data-field="nameMid" data-editable contenteditable style="margin-top:2mm">댐굳</div>
+            <div class="enMid" data-field="enMid" data-editable contenteditable style="margin-top:2mm">damn good</div>
+            <div class="notesMid" data-field="notesMid" data-editable contenteditable style="margin-top:3mm">Dark chocolate · Plum · Vanilla</div>
+            <div class="hairW" style="margin-top:4.4mm"></div>
+          </div>
+          <div class="volMid" data-field="vol" data-editable contenteditable>125 g</div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="box right">
+          <div style="width:100%">
+            <div class="headzone">
+              <div class="rname" data-field="rname" data-editable contenteditable>damn good</div>
+            </div>
+            <div class="barR"></div>
+            <div class="desc" data-field="descLabel" data-editable contenteditable>댐굳은 깊고 부드러운 맛의 완성도를 추구하는 블렌드입니다. 다크 초콜릿, 자두, 카라멜의 풍미가 어우러져 누구나 쉽게 즐길 수 있는 균형 잡힌 맛을 선사합니다.</div>
+          </div>
+          <div style="width:100%">
+            <div class="seclabel"><span class="dot"></span><span class="t" data-field="infoLabel" data-editable contenteditable>coffee Information</span></div>
+            <div id="infoList"></div>
+            <div class="seclabel" style="margin-top:3mm"><span class="dot"></span><span class="t" data-field="recipeLabel" data-editable contenteditable>recommended Recipe</span></div>
+            <div id="recipeRender"></div>
+          </div>
+        </div>
+
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================ STUDIO LOGIC ============================================================ */
+const POINTS = {
+  'chocolate-dark':{point:'#5E3F2A',text:'#5E3F2A',check:'rgba(255,255,255,.13)',name:'CHOCOLATE · DARK'},
+  'chocolate-medium':{point:'#8B5E3C',text:'#8B5E3C',check:'rgba(255,255,255,.13)',name:'CHOCOLATE · MEDIUM'},
+  'citrus-light':{point:'#D2A84E',text:'#8A6526',check:'rgba(255,255,255,.20)',name:'CITRUS · LIGHT'},
+  'citrus-medium':{point:'#BC8E36',text:'#8A6526',check:'rgba(255,255,255,.18)',name:'CITRUS · MEDIUM'},
+  'peach-light':{point:'#DCA07E',text:'#9A5E42',check:'rgba(255,255,255,.22)',name:'PEACH · LIGHT'},
+  'berry-light':{point:'#B27488',text:'#6E3E4E',check:'rgba(255,255,255,.20)',name:'BERRY · LIGHT'},
+  'tropical-light':{point:'#AEAF5E',text:'#6B6B32',check:'rgba(255,255,255,.20)',name:'TROPICAL · LIGHT'}
+};
+
+/* per product: nameSize/enSize mirror the final design (DC bigSize/enSize ÷ 5 → mm) */
+const PRESETS = {
+  '2022026 4913101':{
+    tableName:'댐굳', name_en:'damn good', typeKr:'블렌드', typeEn:'BLEND',
+    notesEn:'Dark chocolate · Plum · Vanilla', point:'chocolate-dark', nameSize:7.2, enSize:2.4,
+    material:'커피원두 100% (에티오피아 100%)',
+    desc:'댐굳은 깊고 부드러운 맛의 완성도를 추구하는 블렌드입니다. 다크 초콜릿, 자두, 카라멜의 풍미가 어우러져 누구나 쉽게 즐길 수 있는 균형 잡힌 맛을 선사합니다. 정교한 로스팅 기법으로 언제든지 최고의 맛을 느낄 수 있도록 가장 기본적인 블렌드로 완성되었습니다.',
+    infoLabel:'coffee Information', flavor:'다크 초콜렛 · 자두 · 바닐라',
+    specs:[['ROAST','다크 로스트'],['ORIGIN','에티오피아'],['REGION','예가체프 · 시다모'],['LOT','코체레 · 아리차 · 아르베고나'],['VARIETAL','에티오피아 토착종 74110·74158·74148'],['PROCESS','내추럴 · 워시드']],
+    recipe:[['ESPRESSO','20g in, 40g out, 27s','(vst 20g 바스켓, 물 92도, 9bar 기준)'],['MILK','22g in, 40g out, 28s','(싱글샷 6oz 기준)'],['FILTER','15g in, 30g/45s blooming, 240g, 2:30-3:00','(v60, ufo 기준)']]
+  },
+  '2022026 4913103':{
+    tableName:'스팟라이트', name_en:'spotlight', typeKr:'블렌드', typeEn:'BLEND',
+    notesEn:'Tangerine · Grapefruit · Apricot', point:'citrus-light', nameSize:6.0, enSize:2.4,
+    material:'커피원두 100% (에티오피아 100%)',
+    desc:'스팟라이트는 귤, 산딸기, 적포도의 달콤한 과일 노트가 어우러져 상쾌하고 활기찬 시작을 돕는 커피입니다. 밝고 깨끗한 맛으로 하루를 기분 좋게 열어주는 완벽한 커피입니다. 가벼운 과일 향미와 자연스러운 단맛이 특징으로 누구나 쉽게 즐길 수 있습니다.',
+    infoLabel:'coffee Information', flavor:'귤 · 자몽 · 적포도 · 살구',
+    specs:[['ROAST','라이트 로스트'],['ORIGIN','에티오피아'],['REGION','예가체프 · 시다모'],['LOT','코체레 · 아르베고나'],['VARIETAL','에티오피아 토착종 74110·74158·74148'],['PROCESS','내추럴 · 워시드']],
+    recipe:[['ESPRESSO','18g in, 45g out, 25s','(vst 20g 바스켓, 물 93도, 9bar 기준)'],['MILK','22g in, 42g out, 27s','(싱글샷 6oz 기준)'],['FILTER','14g in, 36g/60s blooming, 224g, 2:00-2:30','(v60, ufo 기준)']]
+  },
+  '2022026 491312':{
+    tableName:'에티오피아 싱글오리진', name_en:'ethiopia yirgacheffe aricha amy washed', typeKr:'싱글 오리진', typeEn:'SINGLE ORIGIN',
+    notesEn:'Orange blossom · Peach · Blueberry', point:'peach-light', nameSize:4.4, enSize:1.8,
+    material:'커피원두 100% (에티오피아 100%)',
+    desc:'아리차 워싱 스테이션은 100년이 넘는 시간 동안 꾸준히 좋은 품질의 커피를 재배해왔습니다. 약 800명의 소작농이 잘 익은 체리를 균일하게 가공해 매년 전 세계의 사랑을 받습니다. 약 100시간의 발효와 15일간의 고른 건조를 거쳐 훌륭한 클린컵과 플로럴함, 과일의 향미가 살아납니다.',
+    infoLabel:'single origin Information', flavor:'오렌지 블러썸 · 복숭아 · 블루베리 · 오렌지',
+    specs:[['ROAST','라이트 로스트'],['ORIGIN','에티오피아 예가체프'],['FARM','아리차'],['ALTITUDE','1,950–2,100 masl'],['VARIETAL','74110 · 74158 · 74148'],['PROCESS','워시드']],
+    recipe:[['ESPRESSO','20g in, 48g out, 23s','(vst 20g 바스켓, 물 93도, 9bar 기준)'],['MILK','22g in, 42g out, 27s','(싱글샷 6oz 기준)'],['FILTER','12g in, 36g/60s blooming, 192g, 1:50-2:20','(v60, ufo, 찬호토네이도 기준)']]
+  }
+};
+const FIXED = { maker:'경기도 가평군 청평면 톳골길 3, A동 B1호', ig:'IG: @mtspacecoffee', qrUrl:'https://mtspace.coffee', vol:'125 g' };
+const DEFAULTS = { brand:1.68, desc:1.72, info:1.64, bar:40 };
+
+let state = {};
+
+function loadPreset(reportNo){
+  const p = PRESETS[reportNo];
+  state = {
+    reportNo,
+    tableName:p.tableName, name_en:p.name_en, name_en2:p.name_en,
+    typeKr:p.typeKr, typeEn:p.typeEn, notesEn:p.notesEn, point:p.point,
+    nameSize:p.nameSize, enSize:p.enSize,
+    material:p.material, desc:p.desc, infoLabel:p.infoLabel, flavor:p.flavor,
+    specs:p.specs.map(r=>r.slice()), recipe:p.recipe.map(r=>r.slice()),
+    maker:FIXED.maker, ig:FIXED.ig, qrUrl:FIXED.qrUrl, vol:FIXED.vol
+  };
+  // reset sliders to design defaults + per-preset name/en
+  setSlider('fsNameMid', p.nameSize); setSlider('fsEnMid', p.enSize);
+  setSlider('fsDesc', DEFAULTS.desc); setSlider('fsInfo', DEFAULTS.info);
+  setSlider('fsBrand', DEFAULTS.brand); setSlider('barW', DEFAULTS.bar);
+  applyVars();
+  syncFormFromState();
+  renderLabel();
+}
+
+function setSlider(id,val){ const r=document.getElementById(id); if(r){ r.value=val; const v=document.getElementById(id+'V'); if(v) v.textContent=val; } }
+function applyVars(){
+  const L=document.getElementById('label');
+  L.style.setProperty('--fs-name-mid',document.getElementById('fsNameMid').value+'mm');
+  L.style.setProperty('--fs-en-mid',document.getElementById('fsEnMid').value+'mm');
+  L.style.setProperty('--fs-desc',document.getElementById('fsDesc').value+'mm');
+  L.style.setProperty('--fs-info',document.getElementById('fsInfo').value+'mm');
+  L.style.setProperty('--fs-recipe',document.getElementById('fsInfo').value+'mm');
+  L.style.setProperty('--fs-brand',document.getElementById('fsBrand').value+'mm');
+  L.style.setProperty('--bar-w',document.getElementById('barW').value+'mm');
+}
+
+function setText(field,val){ const el=document.querySelector('[data-field="'+field+'"]'); if(el && el.textContent!==val) el.textContent=val; }
+
+function renderLabel(){
+  const pc = POINTS[state.point]||POINTS['chocolate-dark'];
+  const L = document.getElementById('label');
+  L.style.setProperty('--point',pc.point);
+  L.style.setProperty('--point-text',pc.text);
+  L.style.setProperty('--check',pc.check);
+  document.getElementById('pointTag').textContent = pc.point+'  ·  '+pc.name;
+  setText('nameMid', state.tableName);
+  setText('enMid', state.name_en);
+  setText('typeMid', state.typeEn);
+  setText('notesMid', state.notesEn);
+  setText('rname', state.name_en2);
+  setText('descLabel', state.desc);
+  setText('infoLabel', state.infoLabel);
+  setText('ig', state.ig);
+  setText('vol', state.vol);
+  buildTable(); buildInfo(); buildRecipe(); makeQR(state.qrUrl);
+  safetyFit();
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(safetyFit); }
+}
+
+/* SAFETY fit only — defaults already match the design; this only shrinks if USER edits overflow */
+function getScale(){ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale'))||1; }
+const MMPX=3.779527;
+function safetyFit(){
+  const L=document.getElementById('label'), sc=getScale();
+  // middle EN one line (only shrink below current if needed)
+  const en=document.querySelector('[data-field=enMid]'), midBox=document.querySelector('.box.mid');
+  let efs=parseFloat(document.getElementById('fsEnMid').value);
+  en.style.whiteSpace='nowrap'; L.style.setProperty('--fs-en-mid',efs+'mm');
+  const availEN=midBox.clientWidth-(2*7.8*MMPX)-2; let g=0;
+  while(en.scrollWidth>availEN && efs>1.6 && g++<60){ efs=+(efs-0.1).toFixed(2); L.style.setProperty('--fs-en-mid',efs+'mm'); }
+  // middle KR name <= 2 lines
+  const nm=document.querySelector('[data-field=nameMid]');
+  let nfs=parseFloat(document.getElementById('fsNameMid').value);
+  L.style.setProperty('--fs-name-mid',nfs+'mm');
+  const nmLines=()=>Math.round(nm.offsetHeight/(parseFloat(getComputedStyle(nm).fontSize)*1.12));
+  g=0; while(nmLines()>2 && nfs>4 && g++<60){ nfs=+(nfs-0.2).toFixed(2); L.style.setProperty('--fs-name-mid',nfs+'mm'); }
+  // right box within trim
+  const rbox=document.querySelector('.box.right');
+  let ifs=parseFloat(document.getElementById('fsInfo').value), dfs=parseFloat(document.getElementById('fsDesc').value);
+  const setInfo=v=>{L.style.setProperty('--fs-info',v+'mm');L.style.setProperty('--fs-recipe',v+'mm');};
+  setInfo(ifs); L.style.setProperty('--fs-desc',dfs+'mm');
+  const limit=()=> rbox.getBoundingClientRect().bottom - 10.2*MMPX*sc + 1.5;
+  const lastBottom=()=>{ const r=document.querySelectorAll('#recipeRender .recRow'); return r.length? r[r.length-1].getBoundingClientRect().bottom : 0; };
+  g=0; while(lastBottom()>limit() && g++<260){ if(ifs>1.3){ifs=+(ifs-0.05).toFixed(2);setInfo(ifs);} else if(dfs>1.5){dfs=+(dfs-0.05).toFixed(2);L.style.setProperty('--fs-desc',dfs+'mm');} else break; }
+}
+
+function buildTable(){
+  const t=document.getElementById('tbl'); t.innerHTML='';
+  const rows=[
+    [['제품명','k'],[state.tableName,''],['품목보고번호','k'],[state.reportNo,'wrapCell']],
+    [['내용량','k'],[state.vol,''],['포장재질','k'],['PET','']],
+    [['원재료명','k'],[state.material,'span']],
+    [['업소명 및 소재지','k nowrap'],[state.maker,'span wrapCell']],
+    [['제조일자','k'],['상단 표기',''],['소비기한','k'],['제조일로부터 1년','']],
+    [['보관방법','k'],['서늘하고 건조한 곳에 보관해주시기 바랍니다.','span']],
+  ];
+  rows.forEach(r=>{
+    const tr=document.createElement('div'); tr.className='tr'+(r.some(c=>c[1].includes('wrapCell'))?' wrap':'');
+    r.forEach(c=>{
+      const d=document.createElement('div'); d.className='c'+(c[1].includes('k')?' k':'');
+      d.style.flex = c[1].includes('span')?'4.4': (c[1].includes('k')? '0.85':'1.55');
+      if(c[1].includes('nowrap')) d.style.whiteSpace='nowrap';
+      if(c[1].includes('wrapCell')) d.style.whiteSpace='normal';
+      d.textContent=c[0]; tr.appendChild(d);
+    });
+    t.appendChild(tr);
+  });
+  const foot=document.createElement('div');
+  foot.className='c'; foot.style.cssText='font-family:"IBM Plex Mono",Pretendard,monospace;font-size:1.16mm;color:var(--ink-soft);padding:.8mm 1mm;white-space:nowrap';
+  foot.textContent='소비자 불만, 부정 및 불량식품 신고는 국번없이 1399';
+  t.appendChild(foot);
+}
+function buildInfo(){
+  const c=document.getElementById('infoList'); c.innerHTML='';
+  state.specs.forEach(s=>{ const r=document.createElement('div'); r.className='infoRow'; r.innerHTML='<span class="ik">'+esc(s[0])+'</span><span class="iv">'+esc(s[1])+'</span>'; c.appendChild(r); });
+  const fr=document.createElement('div'); fr.className='infoRow'; fr.innerHTML='<span class="ik">FLAVOUR</span><span class="iv flavour">'+esc(state.flavor)+'</span>'; c.appendChild(fr);
+}
+function buildRecipe(){
+  const c=document.getElementById('recipeRender'); c.innerHTML='';
+  state.recipe.forEach(r=>{ const row=document.createElement('div'); row.className='recRow'; row.innerHTML='<span class="rk">'+esc(r[0])+'</span><div class="rv"><div class="rn">'+esc(r[1])+'</div><div class="rc">'+esc(r[2])+'</div></div>'; c.appendChild(row); });
+}
+function makeQR(url){ const el=document.getElementById('qr'); el.innerHTML=''; try{ new QRCode(el,{text:url||' ',width:120,height:120,colorDark:'#3C352C',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='QR'; } }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+function attr(s){ return esc(s).replace(/"/g,'&quot;'); }
+
+function syncFormFromState(){
+  document.querySelectorAll('[data-bind]').forEach(inp=>{ const k=inp.getAttribute('data-bind'); if(state[k]!=null) inp.value=state[k]; });
+  document.getElementById('presetSelect').value = state.reportNo;
+  buildSpecForm(); buildRecipeForm(); markSwatch();
+}
+document.querySelectorAll('[data-bind]').forEach(inp=>{ inp.addEventListener('input',()=>{ state[inp.getAttribute('data-bind')]=inp.value; renderLabel(); }); });
+
+function buildSwatches(){
+  const w=document.getElementById('swatches'); w.innerHTML='';
+  Object.entries(POINTS).forEach(([key,v])=>{ const s=document.createElement('div'); s.className='sw'; s.style.background=v.point; s.title=v.name; s.dataset.key=key; s.onclick=()=>{ state.point=key; markSwatch(); renderLabel(); }; w.appendChild(s); });
+}
+function markSwatch(){ document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('active',s.dataset.key===state.point)); }
+
+function buildSpecForm(){
+  const c=document.getElementById('specList'); c.innerHTML='';
+  state.specs.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='specrow';
+    row.innerHTML='<input class="k" value="'+attr(s[0])+'" placeholder="LABEL"><input value="'+attr(s[1])+'" placeholder="값">';
+    const del=document.createElement('button'); del.className='btn del'; del.textContent='×'; del.onclick=()=>{ state.specs.splice(i,1); buildSpecForm(); renderLabel(); };
+    const ins=row.querySelectorAll('input');
+    ins[0].oninput=()=>{ state.specs[i][0]=ins[0].value; renderLabel(); };
+    ins[1].oninput=()=>{ state.specs[i][1]=ins[1].value; renderLabel(); };
+    row.appendChild(del); c.appendChild(row);
+  });
+}
+document.getElementById('addSpec').onclick=()=>{ state.specs.push(['LABEL','값']); buildSpecForm(); renderLabel(); };
+function buildRecipeForm(){
+  const c=document.getElementById('recipeList'); c.innerHTML='';
+  state.recipe.forEach((r,i)=>{
+    const row=document.createElement('div'); row.className='reciperow';
+    row.innerHTML='<input class="k" value="'+attr(r[0])+'" placeholder="방식"><input value="'+attr(r[1])+'" placeholder="수치"><input class="full" value="'+attr(r[2])+'" placeholder="(조건)">';
+    const del=document.createElement('button'); del.className='btn del'; del.textContent='×'; del.onclick=()=>{ state.recipe.splice(i,1); buildRecipeForm(); renderLabel(); };
+    const ins=row.querySelectorAll('input');
+    ins[0].oninput=()=>{ state.recipe[i][0]=ins[0].value; renderLabel(); };
+    ins[1].oninput=()=>{ state.recipe[i][1]=ins[1].value; renderLabel(); };
+    ins[2].oninput=()=>{ state.recipe[i][2]=ins[2].value; renderLabel(); };
+    row.appendChild(del); c.appendChild(row);
+  });
+}
+document.getElementById('addRecipe').onclick=()=>{ state.recipe.push(['METHOD','수치','(조건)']); buildRecipeForm(); renderLabel(); };
+
+const FIELD2STATE={ ig:'ig', nameMid:'tableName', enMid:'name_en', typeMid:'typeEn', notesMid:'notesEn', rname:'name_en2', descLabel:'desc', infoLabel:'infoLabel', vol:'vol' };
+document.querySelectorAll('[data-editable]').forEach(el=>{
+  el.addEventListener('input',()=>{ const f=el.getAttribute('data-field'); const k=FIELD2STATE[f]; if(k){ state[k]=el.textContent; const inp=document.querySelector('[data-bind="'+k+'"]'); if(inp) inp.value=state[k]; safetyFit(); } });
+});
+
+function bindRange(id,varName,unit){
+  const r=document.getElementById(id), v=document.getElementById(id+'V');
+  r.addEventListener('input',()=>{ document.getElementById('label').style.setProperty(varName, r.value+unit); v.textContent=r.value; safetyFit(); });
+}
+bindRange('fsNameMid','--fs-name-mid','mm');
+bindRange('fsEnMid','--fs-en-mid','mm');
+bindRange('fsDesc','--fs-desc','mm');
+bindRange('fsBrand','--fs-brand','mm');
+bindRange('barW','--bar-w','mm');
+document.getElementById('fsInfo').addEventListener('input',e=>{ const L=document.getElementById('label'); L.style.setProperty('--fs-info',e.target.value+'mm'); L.style.setProperty('--fs-recipe',e.target.value+'mm'); document.getElementById('fsInfoV').textContent=e.target.value; safetyFit(); });
+
+const sel=document.getElementById('presetSelect');
+Object.keys(PRESETS).forEach(rn=>{ const o=document.createElement('option'); o.value=rn; o.textContent=PRESETS[rn].tableName+'  ('+rn+')'; sel.appendChild(o); });
+sel.addEventListener('change',()=>loadPreset(sel.value));
+
+document.getElementById('exportJson').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(state.tableName||'label')+'.json'; a.click(); };
+
+const NAT_W=180*MMPX, NAT_H=130*MMPX;
+function fitScale(){
+  const avail=window.innerWidth-380-90;
+  const s=Math.max(0.5,Math.min(1.4, avail/NAT_W));
+  document.documentElement.style.setProperty('--scale',s);
+  document.querySelector('.stageInner').style.width=(NAT_W*s)+'px';
+  document.querySelector('.stageInner').style.height=(NAT_H*s+60)+'px';
+  safetyFit();
+}
+window.addEventListener('resize',fitScale);
+
+buildSwatches();
+loadPreset('2022026 4913101');
+fitScale();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+(function(){
+  var items=[];
+  function status(t){var s=document.getElementById('__mtsLabelStatus'); if(s) s.textContent=t;}
+  function load(d){
+    if(typeof state==='undefined') return;
+    window.__mtsLabelSlug=d.slug;
+    state={ reportNo:d.reportNo||'', tableName:d.tableName, name_en:d.name_en, name_en2:d.name_en2||d.name_en,
+      typeKr:d.typeKr||'', typeEn:d.typeEn||'', notesEn:d.notesEn||'', point:d.point||'chocolate-dark',
+      nameSize:d.nameSize||6, enSize:d.enSize||2.4, material:d.material||'커피원두 100%', desc:d.desc||'',
+      infoLabel:d.infoLabel||'coffee Information', flavor:d.flavor||'',
+      specs:(d.specs||[]).map(function(r){return r.slice();}), recipe:(d.recipe||[]).map(function(r){return r.slice();}),
+      maker:FIXED.maker, ig:FIXED.ig, qrUrl:FIXED.qrUrl, vol:d.vol||FIXED.vol };
+    setSlider('fsNameMid',state.nameSize); setSlider('fsEnMid',state.enSize);
+    setSlider('fsDesc',DEFAULTS.desc); setSlider('fsInfo',DEFAULTS.info); setSlider('fsBrand',DEFAULTS.brand); setSlider('barW',DEFAULTS.bar);
+    applyVars(); syncFormFromState(); renderLabel();
+    status('불러옴: '+d.tableName);
+  }
+  fetch('/api/studio/label-products',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
+    items=(d&&d.items)||[];
+    var sel=document.getElementById('__mtsLabelProduct');
+    items.forEach(function(it){ var o=document.createElement('option'); o.value=it.key; o.textContent=it.tableName; sel.appendChild(o); });
+    status(items.length?(items.length+'개 제품 로드됨'):'표시할 제품 없음');
+  }).catch(function(){ status('제품 로드 실패 — 관리자 로그인 필요'); });
+  document.addEventListener('change',function(e){
+    if(e.target&&e.target.id==='__mtsLabelProduct'){ var it=items.filter(function(x){return x.key===e.target.value;})[0]; if(it) load(it); }
+  });
+  document.addEventListener('click',function(e){
+    if(!(e.target&&e.target.id==='__mtsLabelSave')) return;
+    var slug=window.__mtsLabelSlug; if(!slug){ status('먼저 제품을 선택하세요'); return; }
+    (async function(){
+      status('라벨 캡처 중…');
+      try{
+        var docEl=document.documentElement;
+        var prev=docEl.style.getPropertyValue('--scale')||'';
+        docEl.style.setProperty('--scale','1');
+        await new Promise(function(r){setTimeout(r,180);});
+        var el=document.getElementById('label');
+        var canvas=await html2canvas(el,{scale:2,backgroundColor:'#F6F1E7',useCORS:true});
+        if(prev) docEl.style.setProperty('--scale',prev); if(typeof fitScale==='function') fitScale();
+        var url=canvas.toDataURL('image/jpeg',0.92);
+        status('저장 중…');
+        var r=await fetch('/api/studio/label-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:slug,label_dataurl:url})});
+        var d=await r.json();
+        status(d&&d.ok?'제품 라벨 저장 완료 ✓':('저장 실패: '+((d&&d.error)||'')));
+      }catch(err){ status('저장 오류'); }
+    })();
+  });
+})();
+</script>
+</body>
+</html>

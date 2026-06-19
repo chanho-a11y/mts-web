@@ -582,10 +582,15 @@ fitScale();
     applyVars(); syncFormFromState(); renderLabel();
     status('불러옴: '+d.tableName);
   }
+  function fillSelect(sel){ if(!sel) return; sel.innerHTML='<option value="">기존 제품 불러오기…</option>'; items.forEach(function(it){ var o=document.createElement('option'); o.value=it.key; o.textContent=it.tableName; sel.appendChild(o); }); }
   fetch('/api/studio/label-products',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
     items=(d&&d.items)||[];
-    var sel=document.getElementById('__mtsLabelProduct');
-    items.forEach(function(it){ var o=document.createElement('option'); o.value=it.key; o.textContent=it.tableName; sel.appendChild(o); });
+    fillSelect(document.getElementById('__mtsLabelProduct'));
+    // 킷 내장 드롭다운(presetSelect)도 내부 제품으로 통일 — 기존 하드코딩 리스너 제거 위해 clone 교체
+    var ps=document.getElementById('presetSelect');
+    if(ps){ var clone=ps.cloneNode(false); ps.parentNode.replaceChild(clone,ps); clone.id='presetSelect'; fillSelect(clone);
+      clone.addEventListener('change',function(){ var it=items.filter(function(x){return x.key===clone.value;})[0]; if(it) load(it); }); }
+    var note=document.querySelector('#presetSelect ~ .note'); if(note) note.textContent='기존 저장된 제품을 불러오면 제품명·품목보고번호·원재료·소개·정보·레시피·포인트 컬러가 자동으로 채워집니다.';
     status(items.length?(items.length+'개 제품 로드됨'):'표시할 제품 없음');
   }).catch(function(){ status('제품 로드 실패 — 관리자 로그인 필요'); });
   document.addEventListener('change',function(e){

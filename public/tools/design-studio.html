@@ -87,24 +87,42 @@ body{margin:0;background:#e7e3dc;color:var(--ink);font-family:var(--sans);font-s
 .mtpdp .end .lock{font-weight:800;font-size:16px}.mtpdp .end .lock .l{font-weight:200}
 .mtpdp .end .tg{font-family:var(--mono);font-size:9px;letter-spacing:4px;color:var(--point-text);text-transform:uppercase;margin-top:6px}
 
-/* THUMBNAIL 1:1 */
-.thumb{width:520px;height:520px;background:var(--oat);background-image:linear-gradient(#ECE0CB 1px,transparent 1px),linear-gradient(90deg,#ECE0CB 1px,transparent 1px);background-size:26px 26px;border:1px solid var(--line);position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:44px;text-align:center}
-.thumb .top{position:absolute;top:22px;left:26px;right:26px;display:flex;justify-content:space-between;align-items:center}
-.thumb .top .wm{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--mute)}
-.thumb .top .dot{width:11px;height:11px;border-radius:99px;background:var(--point)}
-.thumb h1{font-weight:800;font-size:44px;line-height:1.05;margin:0}
-.thumb .notes{font-family:Spectral,serif;font-style:italic;font-size:20px;color:var(--point-text);margin-top:12px}
-.thumb .foot{position:absolute;bottom:22px;left:26px;right:26px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--mute);border-top:1px solid var(--line);padding-top:10px}
+/* THUMBNAIL 1:1 (구 구성: 워드마크 락 + 이름블록) */
+.thumb{width:520px;height:520px;background:var(--oat);background-image:linear-gradient(#ECE0CB 1px,transparent 1px),linear-gradient(90deg,#ECE0CB 1px,transparent 1px);background-size:26px 26px;border:1px solid var(--line);position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48px;text-align:center}
+.thumb .t-lock{position:absolute;top:30px;left:0;right:0;display:flex;flex-direction:column;align-items:center}
+.thumb .t-lock .l1{font-weight:800;font-size:18px;letter-spacing:1px;line-height:1}
+.thumb .t-lock .l2{font-weight:200;font-size:18px;letter-spacing:7px;line-height:1.1}
+.thumb .t-lock .tg{font-family:var(--mono);font-size:8px;letter-spacing:4px;text-transform:uppercase;color:var(--point-text);margin-top:5px}
+.thumb .t-dot{position:absolute;top:34px;right:30px;width:11px;height:11px;border-radius:99px;background:var(--point)}
+.thumb h1{font-weight:800;font-size:40px;line-height:1.08;margin:0}
+.thumb .en{font-family:Spectral,serif;font-style:italic;font-size:18px;color:#6b6356;margin-top:6px}
+.thumb .notes{font-family:Spectral,serif;font-style:italic;font-size:19px;color:var(--point-text);margin-top:14px}
+.thumb .foot{position:absolute;bottom:26px;left:30px;right:30px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--mute);border-top:1px solid var(--line);padding-top:10px}
 
-/* CARDNEWS 1080x1350 (scaled 0.4) */
-.card{width:432px;height:540px;background:var(--oat);background-image:linear-gradient(#ECE0CB 1px,transparent 1px),linear-gradient(90deg,#ECE0CB 1px,transparent 1px);background-size:24px 24px;border:1px solid var(--line);position:relative;padding:38px}
-.card .wm{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--mute)}
-.card .dot{position:absolute;top:36px;right:38px;width:13px;height:13px;border-radius:99px;background:var(--point)}
-.card .bar{width:64px;height:4px;background:var(--point);margin:8px 0 0}
-.card h1{font-weight:800;font-size:40px;line-height:1.05;margin:150px 0 0}
-.card .notes{font-family:Spectral,serif;font-style:italic;font-size:19px;color:var(--point-text);margin-top:16px}
-.card .foot{position:absolute;bottom:34px;left:38px;right:38px;font-family:var(--mono);font-size:11px;color:var(--ink);border-top:1px solid var(--line);padding-top:12px}
-.card .foot .ig{color:var(--mute);font-size:9px;letter-spacing:1px;margin-top:6px}
+/* CARDNEWS · 3 PAGES (구 구성: Main / Flavour / Recipe) */
+.cardwrap{display:flex;gap:16px;flex-wrap:wrap}
+.card{width:336px;height:420px;background:var(--oat);background-image:linear-gradient(#ECE0CB 1px,transparent 1px),linear-gradient(90deg,#ECE0CB 1px,transparent 1px);background-size:24px 24px;border:1px solid var(--line);position:relative;padding:30px}
+.card .lock{display:flex;flex-direction:column}
+.card .lock .l1{font-weight:800;font-size:15px;letter-spacing:.5px;line-height:1}
+.card .lock .l2{font-weight:200;font-size:15px;letter-spacing:5px;line-height:1.1}
+.card .lock .tg{font-family:var(--mono);font-size:7px;letter-spacing:3px;text-transform:uppercase;color:var(--point-text);margin-top:3px}
+.card .dot{position:absolute;top:30px;right:30px;width:11px;height:11px;border-radius:99px;background:var(--point)}
+.card .sep{width:46px;height:3px;background:var(--point);margin:18px 0}
+.card h1{font-weight:800;font-size:29px;line-height:1.08;margin:0}
+.card .en{font-family:Spectral,serif;font-style:italic;font-size:15px;color:#6b6356;margin-top:6px}
+.card .hash{font-family:var(--mono);font-size:11px;color:var(--mute);margin-top:14px}
+.card .ltag{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mute)}
+.card .flav-stack{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.card .flav-stack span{font-family:Spectral,serif;font-size:21px;color:var(--point-text)}
+.card .flav-stack span.solid{font-weight:600}
+.card .mini{font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:16px}
+.card .ttl{font-weight:800;font-size:21px;margin:0 0 12px}
+.card .rgrp{margin-bottom:13px}
+.card .rgrp .nm{font-family:var(--mono);font-size:11px;color:var(--point-text)}
+.card .rgrp .ref{font-size:10px;color:var(--faint);margin-top:1px}
+.card .rgrp .rcp{font-family:var(--mono);font-size:11.5px;margin-top:2px}
+.card .ig{position:absolute;bottom:22px;left:30px;font-family:var(--mono);font-size:8px;letter-spacing:1px;color:var(--mute)}
+.card .pageno{position:absolute;bottom:22px;right:30px;font-family:var(--mono);font-size:10px;color:var(--mute)}
 
 /* BLOG */
 .blogprev{max-width:680px;margin:0 auto;background:var(--paper);border:1px solid var(--line);padding:40px 46px}
@@ -135,6 +153,7 @@ body{margin:0;background:#e7e3dc;color:var(--ink);font-family:var(--sans);font-s
     <label>제품명(영문)<input id="f_en"></label>
     <div class="row"><label>분류<input id="f_type" placeholder="블렌드"></label><label>로스팅<input id="f_roast"></label></div>
     <label>플레이버 노트(쉼표)<input id="f_flavor"></label>
+    <label>해시태그(공백 구분)<input id="f_hash" placeholder="#프루티 #깔끔한 #라이트"></label>
     <label>한 줄 리드(소개)<textarea id="f_lead" rows="3"></textarea></label>
     <div class="row"><label>용량(g)<input id="f_weight"></label><label>가격(원)<input id="f_price"></label></div>
     <h3>커피 정보</h3>
@@ -187,19 +206,35 @@ body{margin:0;background:#e7e3dc;color:var(--ink);font-family:var(--sans);font-s
 
     <div class="maker" id="m_thumb">
       <div class="thumb" id="thumbPrev">
-        <div class="top"><span class="wm">MTSPACE COFFEE</span><span class="dot"></span></div>
+        <div class="t-lock"><span class="l1">MTSPACE</span><span class="l2">COFFEE</span><span class="tg">everyday excellence</span></div>
+        <span class="t-dot"></span>
         <h1 id="t_name">제품</h1>
+        <div class="en" id="t_en"></div>
         <div class="notes" id="t_notes"></div>
         <div class="foot"><span id="t_type">SINGLE ORIGIN</span><span id="t_price"></span></div>
       </div>
     </div>
 
     <div class="maker" id="m_card">
-      <div class="card" id="cardPrev">
-        <div class="wm">MTSPACE COFFEE</div><div class="dot"></div><div class="bar"></div>
-        <h1 id="c_name">제품</h1>
-        <div class="notes" id="c_notes"></div>
-        <div class="foot"><span id="c_flavor"></span><div class="ig">@mtspacecoffee · EVERYDAY EXCELLENCE</div></div>
+      <div class="cardwrap">
+        <div class="card" id="cardP1">
+          <div class="lock"><span class="l1">MTSPACE</span><span class="l2">COFFEE</span><span class="tg">everyday excellence</span></div><div class="dot"></div>
+          <div class="sep"></div>
+          <h1 id="c1_ko">제품</h1><div class="en" id="c1_en"></div><div class="hash" id="c1_hash"></div>
+          <div class="ig">@mtspacecoffee</div><div class="pageno">01 / 03</div>
+        </div>
+        <div class="card" id="cardP2">
+          <div class="lock"><span class="l1">MTSPACE</span><span class="l2">COFFEE</span><span class="tg">everyday excellence</span></div><div class="dot"></div>
+          <div class="sep"></div>
+          <div class="ltag">flavour notes</div><div class="flav-stack" id="c2_flav"></div><div class="mini" id="c2_ko"></div>
+          <div class="ig">@mtspacecoffee</div><div class="pageno">02 / 03</div>
+        </div>
+        <div class="card" id="cardP3">
+          <div class="lock"><span class="l1">MTSPACE</span><span class="l2">COFFEE</span><span class="tg">everyday excellence</span></div><div class="dot"></div>
+          <div class="sep"></div>
+          <div class="ttl">추천 레시피</div><div id="c3_rec"></div>
+          <div class="ig">@mtspacecoffee</div><div class="pageno">03 / 03</div>
+        </div>
       </div>
     </div>
 
@@ -281,10 +316,16 @@ function render(){
   $('d_faq').innerHTML=faqs.map(f=>`<div class="faq"><div class="q">Q. ${esc(f[0])}</div><div class="a">${esc(f[1])}</div></div>`).join('');
   if(cur.image){$('d_img').innerHTML=`<img src="${cur.image}" alt="">`;}else{$('d_img').textContent='IMAGE · 1:1';}
 
-  $('t_name').textContent=ko;$('t_notes').textContent=notes.slice(0,3).join(' · ');
+  // THUMBNAIL
+  $('t_name').textContent=ko;$('t_en').textContent=enLine;$('t_notes').textContent=notes.slice(0,3).join(' · ');
   $('t_type').textContent=(type||'COFFEE').toUpperCase();$('t_price').textContent=price?('KRW '+Number(price).toLocaleString()):'';
 
-  $('c_name').textContent=ko;$('c_notes').textContent=notes.slice(0,3).join(' · ');$('c_flavor').textContent=notes.join('  ·  ');
+  // CARDNEWS 3 pages
+  $('c1_ko').textContent=ko;$('c1_en').textContent=enLine;
+  $('c1_hash').textContent=val('f_hash')||notes.slice(0,3).map(n=>'#'+n.replace(/\s+/g,'')).join(' ');
+  $('c2_flav').innerHTML=notes.slice(0,4).map((n,i)=>`<span class="${i%2?'':'solid'}">${esc(n)}</span>`).join('');
+  $('c2_ko').textContent=ko;
+  $('c3_rec').innerHTML=rec.length?rec.map(r=>`<div class="rgrp"><div class="nm">${esc(r[0])}</div><div class="rcp">${esc(r[1])}</div></div>`).join(''):'<div class="rgrp"><div class="nm">BREW</div><div class="rcp">에스프레소 · V60 · 콜드브루 추천</div></div>';
 
   let blog=val('f_blog');
   if(!blog){blog=`## ${ko}, 어떻게 즐기면 좋을까\n${lead||''}\n\n## 풍미\n${notes.length?notes.join(' · ')+'의 향미가 특징입니다.':'균형 잡힌 향미가 특징입니다.'}\n\n## 추천 추출\n${rec.length?rec.map(r=>r[0]+': '+r[1]).join('\n'):'에스프레소·핸드드립(V60)·콜드브루를 추천합니다.'}\n\n## 신선도\nMTSPACE COFFEE는 가평 청평 자체 로스터리에서 매주 월·화 로스팅하여 화·수 출고합니다.`;}
@@ -292,7 +333,7 @@ function render(){
   $('b_body').innerHTML=esc(blog).replace(/^##\s*(.+)$/gm,'<h2>$1</h2>');
 }
 
-['f_ko','f_en','f_type','f_roast','f_flavor','f_lead','f_weight','f_price','f_country','f_region','f_farm','f_variety','f_altitude','f_process','f_es','f_milk','f_fil','f_more','f_blog'].forEach(id=>$(id).addEventListener('input',render));
+['f_ko','f_en','f_type','f_roast','f_flavor','f_hash','f_lead','f_weight','f_price','f_country','f_region','f_farm','f_variety','f_altitude','f_process','f_es','f_milk','f_fil','f_more','f_blog'].forEach(id=>$(id).addEventListener('input',render));
 
 let maker='detail';
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -308,7 +349,7 @@ fetch('/api/studio/products',{credentials:'same-origin'}).then(r=>r.json()).then
 $('pSel').addEventListener('change',e=>{
   const it=items[parseInt(e.target.value,10)];if(!it)return;cur={slug:it.slug,image:it.image||null};
   $('f_ko').value=it.ko||'';$('f_en').value=it.en||'';$('f_type').value=it.typeKr||it.type||'';$('f_roast').value=it.roast||'';
-  $('f_flavor').value=it.flavor||'';$('f_lead').value=it.story||'';$('f_weight').value=it.weight||'';$('f_price').value=it.price||'';
+  $('f_flavor').value=it.flavor||'';$('f_hash').value=it.hash||'';$('f_lead').value=it.story||'';$('f_weight').value=it.weight||'';$('f_price').value=it.price||'';
   $('f_country').value=it.country||'';$('f_region').value=it.region||'';$('f_farm').value=it.farm||'';$('f_variety').value=it.variety||'';$('f_altitude').value=it.altitude||'';$('f_process').value=it.process||'';
   $('f_es').value=it.rcp_es||'';$('f_milk').value=it.rcp_milk||'';$('f_fil').value=it.rcp_fil||'';
   $('f_more').value=DEFAULT_MORE.join('\n');$('f_blog').value='';
@@ -329,11 +370,18 @@ $('btnSave').addEventListener('click',async()=>{
       const html='<p>'+$('b_body').innerHTML+'</p>';
       const r=await fetch('/api/studio/asset-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:cur.slug,kind:'blog',blogHtml:html,blogTitle:val('f_ko')+' 이야기'})});
       const d=await r.json();status(d&&d.ok?'블로그 초안 저장 완료':'실패: '+((d&&d.error)||''));
+    } else if(maker==='thumb'){
+      status('캡처 중…');const dataurl=await capture($('thumbPrev'));
+      status('저장 중…');const r=await fetch('/api/studio/asset-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:cur.slug,kind:'thumbnail',dataurl})});
+      const d=await r.json();status(d&&d.ok?'썸네일 저장 완료':'실패: '+((d&&d.error)||''));
     } else {
-      const kind=maker==='thumb'?'thumbnail':'cardnews';const el=maker==='thumb'?$('thumbPrev'):$('cardPrev');
-      status('캡처 중…');const dataurl=await capture(el);
-      status('저장 중…');const r=await fetch('/api/studio/asset-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:cur.slug,kind,dataurl})});
-      const d=await r.json();status(d&&d.ok?(kind+' 저장 완료'):'실패: '+((d&&d.error)||''));
+      let n=0;
+      for(const id of ['cardP1','cardP2','cardP3']){
+        status('카드뉴스 캡처 '+(n+1)+'/3…');const dataurl=await capture($(id));
+        const r=await fetch('/api/studio/asset-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:cur.slug,kind:'cardnews',dataurl})});
+        const d=await r.json();if(d&&d.ok)n++;
+      }
+      status('카드뉴스 '+n+'/3 저장 완료');
     }
   }catch(e){status('오류: '+e.message);}
 });

@@ -63,6 +63,25 @@ export async function upsertProductAction(formData: FormData) {
   redirect(`/admin/products/${slug}`);
 }
 
+export async function archiveProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") || "").trim();
+  if (!slug) redirect("/admin/products?error=slug");
+  const supabase = createClient();
+  // 소프트 삭제: status=archived 로 전환(주문·재고 FK 보존, 스토어프론트 자동 숨김)
+  await supabase.from("product").update({ status: "archived" }).eq("slug", slug);
+  revalidatePath("/admin/products");
+  redirect("/admin/products");
+}
+
+export async function restoreProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") || "").trim();
+  if (!slug) redirect("/admin/products?error=slug");
+  const supabase = createClient();
+  await supabase.from("product").update({ status: "active" }).eq("slug", slug);
+  revalidatePath("/admin/products");
+  redirect("/admin/products");
+}
+
 export async function generateDraftsAction(formData: FormData) {
   const productId = String(formData.get("product_id") || "");
   const slug = String(formData.get("slug") || "");

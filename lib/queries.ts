@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export interface VariantLite {
@@ -61,7 +62,10 @@ const SELECT = `slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_co
   product_categories(category(slug,name_ko,name_en,position)),
   product_storefronts!inner(storefront_id,is_visible)`;
 
-export async function getStorefrontProducts(storefrontId: string | null): Promise<ProductCardData[]> {
+// cache(): 동일 요청 내 중복 호출(예: 홈의 카테고리 + 베스트셀러) 시 제품 조회 1회로 합침.
+export const getStorefrontProducts = cache(async function getStorefrontProducts(
+  storefrontId: string | null,
+): Promise<ProductCardData[]> {
   if (!storefrontId) return [];
   const supabase = createClient();
   const { data, error } = await supabase
@@ -72,7 +76,7 @@ export async function getStorefrontProducts(storefrontId: string | null): Promis
     .eq("product_storefronts.is_visible", true);
   if (error || !data) return [];
   return data.map(shape);
-}
+});
 
 export interface ProductDetail extends ProductCardData {
   id: string;
@@ -89,7 +93,8 @@ export interface ProductDetail extends ProductCardData {
   images: { storage_path: string; alt: string | null }[];
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+// cache(): generateMetadata + 페이지 본문에서 같은 slug를 두 번 호출해도 조회 1회로 합침.
+export const getProductBySlug = cache(async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("product")
@@ -126,7 +131,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     variants,
     images,
   };
-}
+});
 
 export async function getCategories(storefrontId: string | null) {
   const products = await getStorefrontProducts(storefrontId);

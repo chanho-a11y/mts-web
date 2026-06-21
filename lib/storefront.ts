@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { brandForHost, type Brand } from "@/lib/brands";
 import { type Locale } from "@/lib/i18n";
@@ -10,7 +11,8 @@ export interface StorefrontContext {
 }
 
 // Resolve the current storefront (brand + storefront row id) for this request.
-export async function getStorefrontContext(): Promise<StorefrontContext> {
+// cache(): 한 요청 안에서 여러 번 호출돼도 storefront 조회는 1회만 수행.
+export const getStorefrontContext = cache(async function getStorefrontContext(): Promise<StorefrontContext> {
   const h = headers();
   const brand = brandForHost(h.get("host"));
   const locale: Locale = h.get("x-locale") === "en" ? "en" : "ko";
@@ -27,4 +29,4 @@ export async function getStorefrontContext(): Promise<StorefrontContext> {
     storefrontId = null;
   }
   return { brand, storefrontId, locale };
-}
+});

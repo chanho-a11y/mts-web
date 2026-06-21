@@ -15,35 +15,19 @@ const BUSINESS_ORDER = ["wholesale", "blends", "single-origins", "decaf"];
 export default async function Home() {
   const { brand, locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
-  const categories = await getCategories(storefrontId);
 
-  // 로그인 역할 (쇼핑을 등급별로 다르게)
-  let role: string | null = null;
-  try {
-    const supabase0 = createClient();
-    const { data: { user } } = await supabase0.auth.getUser();
-    if (user) {
-      const { data: prof } = await supabase0.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      role = prof?.role ?? "individual";
-    }
-  } catch {}
+  // storefront 확인 후 독립적인 3개 조회를 병렬 실행(순차 → 동시).
+  const [categories, role, settingsMap] = await Promise.all([
+    getCategories(storefrontId),
+    fetchRole(),
+    fetchSiteSettings(brand.code),
+  ]);
   const isBusiness = role === "business";
 
   // CMS 사이트 설정(히어로 + 이미지 슬라이드)
-  let heroTitle = brand.name;
-  let heroSubtitle = locale === "en" ? brand.philosophy.en : brand.philosophy.ko;
-  let slideRaw = "";
-  try {
-    const supabase = createClient();
-    const { data: b } = await supabase.from("brand").select("id").eq("code", brand.code).maybeSingle();
-    if (b) {
-      const { data: settings } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id);
-      const map = Object.fromEntries((settings ?? []).map((r) => [r.key, r.value]));
-      if (map.hero_title) heroTitle = map.hero_title;
-      if (map.hero_subtitle) heroSubtitle = map.hero_subtitle;
-      if (map.home_slides) slideRaw = map.home_slides;
-    }
-  } catch {}
+  const heroTitle = settingsMap.hero_title || brand.name;
+  const heroSubtitle = settingsMap.hero_subtitle || (locale === "en" ? brand.philosophy.en : brand.philosophy.ko);
+  const slideRaw = settingsMap.home_slides || "";
 
   // 이미지 슬라이드(상품 아님): CMS 경로 우선, 없으면 기본 이미지
   const defaultSlides = ["/images/hero.jpg", "/images/cat-single-origins.jpg", "/images/about-roastery.jpg", "/images/cat-blends.jpg"];
@@ -138,4 +122,30 @@ export default async function Home() {
       </section>
     </main>
   );
+}
+
+// 로그인 사용자 역할(개인/사업자) 조회 — 실패해도 비로그인으로 처리.
+async function fetchRole(): Promise<string | null> {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    return prof?.role ?? "individual";
+  } catch {
+    return null;
+  }
+}
+
+// CMS 사이트 설정(히어로/슬라이드) 조회 — 실패 시 빈 맵.
+async function fetchSiteSettings(brandCode: string): Promise<Record<string, string>> {
+  try {
+    const supabase = createClient();
+    const { data: b } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
+    if (!b) return {};
+    const { data: settings } = await supabase.from("site_setting").select("key,value").eq("brand_id", b.id);
+    return Object.fromEntries((settings ?? []).map((r) => [r.key, r.value])) as Record<string, string>;
+  } catch {
+    return {};
+  }
 }

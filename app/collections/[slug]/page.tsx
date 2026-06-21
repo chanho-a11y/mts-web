@@ -21,13 +21,14 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     );
   }
 
-  // 카테고리는 카탈로그 테이블에서 직접 조회(제품이 없어도 페이지 노출)
+  // 카테고리 메타 조회 + 제품 목록 조회를 병렬 실행(서로 독립).
   const supabase = createClient();
-  const { data: catRow } = await supabase
-    .from("category").select("slug,name_ko,name_en,banner_path").eq("slug", params.slug).maybeSingle();
+  const [{ data: catRow }, categories] = await Promise.all([
+    supabase.from("category").select("slug,name_ko,name_en,banner_path").eq("slug", params.slug).maybeSingle(),
+    getCategories(storefrontId),
+  ]);
   if (!catRow) notFound();
 
-  const categories = await getCategories(storefrontId);
   const products = categories.find((c) => c.slug === params.slug)?.products ?? [];
 
   return (

@@ -84,7 +84,7 @@ export default async function Home() {
       <div className="mx-auto max-w-6xl px-4 pt-4">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold">{isBusiness ? "사업자 전용 쇼핑" : "쇼핑"}</h2>
-          {isBusiness && <span className="rounded-full bg-brandBlue/10 px-2 py-0.5 text-[11px] text-brandBlue">기업회원 가격 적용</span>}
+          {isBusiness && <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[11px] text-clayDeep">기업회원 가격 적용</span>}
         </div>
       </div>
       {shopCategories.map((c) => (

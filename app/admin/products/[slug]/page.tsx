@@ -81,7 +81,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
       <section className="rounded-xl border p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-bold">디자인 스튜디오 저장 자산</h2>
-          <a href="/admin/studio" className="rounded border px-3 py-1.5 text-xs text-brandBlue hover:bg-neutral-100">스튜디오에서 편집</a>
+          <a href="/admin/studio" className="rounded border px-3 py-1.5 text-xs text-clayDeep hover:bg-neutral-100">스튜디오에서 편집</a>
         </div>
         {studioAssets && studioAssets.length > 0 ? (
           <div className="flex flex-wrap gap-4">

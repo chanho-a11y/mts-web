@@ -1,7 +1,7 @@
 import type { Brand } from "@/lib/brands";
 import { subscribeNewsletterAction } from "@/app/newsletter-action";
 
-// 법정 판매자 정보 (공통). 로스터리는 가평이나 사업자 주소/통신판매업은 별도 등록정보.
+// 법정 판매자 정보 (공통). 로스터리·사업자 등록지 모두 경기도 가평 청평으로 통일(2026-06 결정).
 export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; bg?: string; phone?: string; email?: string }) {
   const tel = phone || "010-4972-2312";
   const mail = email || "hello@mtspace.coffee";
@@ -23,7 +23,7 @@ export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; 
         </div>
         <p>
           (주)엠티에스솔루션스 MTS Solutions Co., Ltd. · 대표 홍찬호 · 사업자등록번호 653-81-02761 ·
-          통신판매업 신고 제2022-인천부평-2097호 · 소재지 인천시 부평구 부평대로 337, 1031호 ·
+          통신판매업 신고 제2026-경기가평-129호 · 소재지 경기도 가평군 청평면 톳골길 3 ·
           개인정보관리책임자 홍찬호 · 대표번호 {tel} · {mail}
         </p>
         <div className="mt-3 flex flex-wrap gap-3">

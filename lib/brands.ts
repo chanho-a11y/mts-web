@@ -27,8 +27,8 @@ export const BRANDS: Record<BrandCode, Brand> = {
       en: "Everyday Excellence — we believe the coffee you drink every day should be exceptional, not just on special occasions.",
     },
     about: {
-      ko: "MTSPACE COFFEE는 경기도 가평 청평에 자체 로스터리를 운영하는 한국 스페셜티 커피 브랜드입니다. 경쟁 바리스타 홍찬호 대표가 호주 시드니에서 공동 창업한 Normcore Coffee(2016)의 경험을 바탕으로, 한국 시장에 맞춘 시그니쳐 블렌드와 세계 각지 싱글 오리진을 매주 화·수·목 로스팅하고 화·수 출고합니다.",
-      en: "MTSPACE COFFEE is a Korean specialty coffee brand with its own roastery in Cheongpyeong, Gapyeong. Founded on the Sydney experience of Normcore Coffee (2016) by competition barista Chanho Hong, we roast signature blends and single origins every Tue–Thu and ship Tue–Wed.",
+      ko: "MTSPACE COFFEE는 경기도 가평 청평에 자체 로스터리를 운영하는 한국 스페셜티 커피 브랜드입니다. 경쟁 바리스타 홍찬호 대표가 호주 시드니에서 공동 창업한 Normcore Coffee(2016)의 경험을 바탕으로, 한국 시장에 맞춘 시그니쳐 블렌드와 세계 각지 싱글 오리진을 매주 월·화 로스팅하고 화·수 출고합니다.",
+      en: "MTSPACE COFFEE is a Korean specialty coffee brand with its own roastery in Cheongpyeong, Gapyeong. Founded on the Sydney experience of Normcore Coffee (2016) by competition barista Chanho Hong, we roast signature blends and single origins every Mon–Tue and ship Tue–Wed.",
     },
   },
   normcore: {

@@ -33,8 +33,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {nav.map((n) => <Link key={n.href} href={n.href} className="block rounded px-2 py-1.5 hover:bg-neutral-100">{n.label}</Link>)}
         </nav>
         <div className="mt-4 border-t pt-3">
-          <Link href="/admin/studio" className="block rounded px-2 py-1.5 text-sm font-medium text-brandBlue hover:bg-neutral-100">디자인 스튜디오</Link>
-          <Link href="/admin/label-studio" className="mt-1 block rounded px-2 py-1.5 text-sm font-medium text-brandBlue hover:bg-neutral-100">레이블 스튜디오</Link>
+          <Link href="/admin/studio" className="block rounded px-2 py-1.5 text-sm font-medium text-clayDeep hover:bg-neutral-100">디자인 스튜디오</Link>
+          <Link href="/admin/label-studio" className="mt-1 block rounded px-2 py-1.5 text-sm font-medium text-clayDeep hover:bg-neutral-100">레이블 스튜디오</Link>
           <p className="mt-1 px-2 text-[10px] text-neutral-400">내부 제품 연동 · 라벨(180×130)·카드뉴스·썸네일·상세·블로그</p>
         </div>
       </aside>

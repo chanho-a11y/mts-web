@@ -52,9 +52,11 @@ export default function AboutPage() {
         <p>
           한국·호주 양국의 스페셜티 커피 안에서 14회의 경쟁 수상 경험을 가진 바리스타입니다. 2018 Central Regional
           Brewers Cup 우승, 2025 Australian Coffee in Good Spirits 3위 등을 보유하고 있으며, V60 추출의 고유 방법인
-          ‘Chanho-Tornado’로 알려져 있습니다. 광고학 학사와 MBA(데이터 기반 마케팅·운영·창업) 학위를 가지고 있습니다.
+          ‘Chanho-Tornado’로 알려져 있습니다. 광고학 학사와 MBA(데이터 기반 마케팅·운영·창업) 학위를 가지고 있으며,
+          2021 서울카페쇼에서 주한 호주대사관 대표로 참여했습니다.
         </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-600">
+        <p className="text-sm font-medium text-ink">주요 수상</p>
+        <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-600">
           {AWARDS.map((a) => <li key={a}>{a}</li>)}
         </ul>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -77,6 +79,19 @@ export default function AboutPage() {
           <li><b>사업자 전용 도매</b> — 카페·레스토랑·호텔 B2B 1kg 포장</li>
           <li><b>Normcore Coffee 2.0</b> — 호주 시드니 창업 브랜드의 새로운 챕터</li>
         </ul>
+      </section>
+
+      {/* Consulting CTA */}
+      <section className="mt-12 rounded-card border border-line bg-sand px-6 py-8 text-center">
+        <p className="mt-tagline text-[10px]">consulting &amp; partnership</p>
+        <h2 className="mt-3 text-lg font-bold text-ink">커피 비즈니스 파트너십</h2>
+        <p className="prose-serif mx-auto mt-2 max-w-xl text-[15px] text-ink/80">
+          브랜드 전략·데이터 분석·운영 SOP부터 계약 로스팅·매장 운영 대행·바리스타 코칭까지.
+          데이터로 설계하는 커피 비즈니스 파트너를 만나보세요.
+        </p>
+        <a href="/consulting" className="mt-5 inline-block rounded-card bg-ink px-6 py-2.5 text-sm font-semibold text-oat hover:bg-[#4A443A]">
+          컨설팅 · 파트너십 보기 →
+        </a>
       </section>
 
       <section className="mt-10 border-t pt-6 text-sm text-neutral-600">

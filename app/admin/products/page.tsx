@@ -4,7 +4,7 @@ import { archiveProductAction, restoreProductAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string } }) {
+export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string; bulk?: string; ok?: string; fail?: string; failmsg?: string } }) {
   const showArchived = searchParams.show === "archived";
   const supabase = createClient();
   const { data: products } = await supabase
@@ -25,10 +25,20 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             {showArchived ? "← 활성 제품" : "보관함 보기"}
           </Link>
           {!showArchived && (
-            <Link href="/admin/products/new" className="rounded-full bg-black px-4 py-2 text-sm text-white">+ 제품 등록</Link>
+            <>
+              <Link href="/admin/products/bulk" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-100">⬆ 일괄 등록</Link>
+              <Link href="/admin/products/new" className="rounded-full bg-black px-4 py-2 text-sm text-white">+ 제품 등록</Link>
+            </>
           )}
         </div>
       </div>
+      {searchParams.bulk === "done" && (
+        <div className="mb-4 rounded-card border border-line bg-paper px-4 py-3 text-sm">
+          일괄 등록 완료 — 성공 <b className="text-green-700">{searchParams.ok ?? 0}</b>건
+          {Number(searchParams.fail ?? 0) > 0 && <> · 실패 <b className="text-red-600">{searchParams.fail}</b>건</>}
+          {searchParams.failmsg && <p className="mt-1 text-xs text-red-600">{searchParams.failmsg}</p>}
+        </div>
+      )}
       <p className="mb-4 text-sm text-neutral-500">
         {products?.length ?? 0}개 · {showArchived ? "보관된(삭제) 제품 — 복구 가능" : "수정·삭제 버튼으로 관리"}
       </p>

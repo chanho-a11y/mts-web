@@ -63,6 +63,83 @@ export async function upsertProductAction(formData: FormData) {
   redirect(`/admin/products/${slug}`);
 }
 
+/** 일괄 등록용 1행 저장 — 단건 폼과 동일 규칙으로 product/variant/category/storefront upsert.
+ *  redirect 없이 결과만 반환(여러 행을 순차 처리하기 위함). */
+async function saveProductRow(
+  supabase: ReturnType<typeof createClient>,
+  d: Record<string, string>,
+): Promise<{ slug: string; ok: boolean; error?: string }> {
+  const slug = String(d.slug || "").trim();
+  const brandCode = String(d.brand || "mtspace").trim() || "mtspace";
+  if (!slug) return { slug, ok: false, error: "슬러그 누락" };
+
+  const { data: brand } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
+  if (!brand) return { slug, ok: false, error: `브랜드 코드 오류(${brandCode})` };
+
+  const isTrue = (v: string) => /^(y|yes|true|1|o|on)$/i.test(String(v || "").trim());
+  const row = {
+    slug,
+    brand_id: brand.id,
+    title_ko: String(d.title_ko || ""),
+    one_liner: String(d.one_liner || ""),
+    product_type: String(d.product_type || "블렌드"),
+    status: String(d.status || "active"),
+    is_b2b_only: isTrue(d.is_b2b_only),
+    roast_level: String(d.roast_level || ""),
+    flavor_notes: csv(String(d.flavor_notes || "")),
+    origin: { country: String(d.origin_country || "") },
+    variety: String(d.variety || "") || null,
+    process: String(d.process || "") || null,
+    weight_g: parseInt(String(d.weight_g || "0"), 10) || null,
+    key_color: String(d.key_color || "") || null,
+    report_no: String(d.report_no || "") || null,
+    material: String(d.material || "") || null,
+  };
+  const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
+  if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };
+
+  const sku = String(d.sku || "").trim();
+  const price = parseInt(String(d.base_price || "0"), 10) || 0;
+  if (sku && price > 0) {
+    await supabase.from("product_variant").upsert(
+      { product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 },
+      { onConflict: "sku" },
+    );
+  }
+  const catSlug = String(d.category || "").trim();
+  if (catSlug) {
+    const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
+    if (cat) await supabase.from("product_categories").upsert({ product_id: prod.id, category_id: cat.id });
+  }
+  const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
+  if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
+
+  if (isTrue(d.auto_content)) {
+    try { await generateForProduct(prod.id); } catch {}
+  }
+  return { slug, ok: true };
+}
+
+/** 일괄 등록 — 클라이언트에서 검증·미리보기 후 확정한 행(JSON)을 받아 순차 저장. */
+export async function bulkUpsertProductsAction(formData: FormData) {
+  const raw = String(formData.get("rows") || "[]");
+  let rows: Record<string, string>[] = [];
+  try { rows = JSON.parse(raw); } catch { redirect("/admin/products/bulk?error=" + encodeURIComponent("데이터 파싱 실패")); }
+  if (!Array.isArray(rows) || rows.length === 0) redirect("/admin/products/bulk?error=" + encodeURIComponent("등록할 행이 없습니다"));
+
+  const supabase = createClient();
+  let ok = 0;
+  const fails: string[] = [];
+  for (const r of rows) {
+    const res = await saveProductRow(supabase, r);
+    if (res.ok) ok++; else fails.push(`${res.slug || "(슬러그없음)"}: ${res.error}`);
+  }
+  revalidatePath("/admin/products");
+  const params = new URLSearchParams({ bulk: "done", ok: String(ok), fail: String(fails.length) });
+  if (fails.length) params.set("failmsg", fails.slice(0, 10).join(" / "));
+  redirect("/admin/products?" + params.toString());
+}
+
 export async function archiveProductAction(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   if (!slug) redirect("/admin/products?error=slug");

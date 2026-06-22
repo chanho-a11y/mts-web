@@ -18,6 +18,7 @@ const config: Config = {
       colors: {
         clay: "#C68D62",
         clayDeep: "#B0764A",
+        bg: "#FEFDFB",
         oat: "#F6F1E7",
         oatLight: "#FBF8F1",
         sand: "#ECE2D1",
@@ -28,8 +29,6 @@ const config: Config = {
         pageBg: "#E7E0D3",
         warmPaper: "#FAF6EE",
         notePanel: "#F3EFE6",
-        // legacy aliases → on-brand
-        brandBlue: "#B0764A",
       },
       borderColor: {
         DEFAULT: "#E3DAC8", // 하드라인 기본값 = warm border

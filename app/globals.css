@@ -10,6 +10,7 @@
   :root {
     --clay: #C68D62; --clay-deep: #B0764A;
     --oat: #F6F1E7; --sand: #ECE2D1; --ink: #3C352C; --ink-soft: #8A8173;
+    --bg: #FEFDFB; /* page canvas — near-white subtle oat (oat은 키 컬러로 유지) */
     --line: #E3DAC8; --paper: #FFFFFF; --page-bg: #E7E0D3; --warm-paper: #FAF6EE; --note-panel: #F3EFE6;
     --brand-blue: #B0764A; /* legacy alias → clay-deep */
     --font-sans: "Helvetica Neue", Pretendard, Arial, sans-serif;
@@ -22,7 +23,7 @@
     font-weight: 400;
     line-height: 1.7;
     color: var(--ink);
-    background: var(--oat);
+    background: var(--bg);
   }
   h1, h2, h3, h4 { font-weight: 700; letter-spacing: 0; line-height: 1.15; }
 }

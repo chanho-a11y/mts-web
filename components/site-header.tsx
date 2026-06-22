@@ -16,6 +16,7 @@ export default function SiteHeader({
     { href: "/about", label: tt.about },
     { href: "/coffee-info", label: tt.coffeeInfo },
     { href: "/blogs/coffeelog", label: tt.blog },
+    { href: "/consulting", label: tt.consulting },
     { href: "/contact", label: tt.contact },
   ];
   // 상단 고정 쇼핑 메뉴 (역할별)
@@ -39,7 +40,7 @@ export default function SiteHeader({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-oat/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
+    <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
       <div className="border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-4">
@@ -50,21 +51,19 @@ export default function SiteHeader({
                 {burgerSections.map((sec) => (
                   <div key={sec.title} className="mb-3 last:mb-0">
                     <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{sec.title}</p>
-                    {sec.links.map((n) => <Link key={n.href} href={n.href} className="block py-1 hover:text-brandBlue">{n.label}</Link>)}
+                    {sec.links.map((n) => <Link key={n.href} href={n.href} className="block py-1 hover:text-clayDeep">{n.label}</Link>)}
                   </div>
                 ))}
                 {isAdmin && (
                   <div className="mt-2 border-t pt-2">
-                    <Link href="/admin" className="block py-1 font-bold text-brandBlue">관리자</Link>
+                    <Link href="/admin" className="block py-1 font-bold text-clayDeep">관리자</Link>
                   </div>
                 )}
               </nav>
             </details>
-            <Link href="/" className="mt-wordmark text-lg text-ink">
-              {logo
-                /* eslint-disable-next-line @next/next/no-img-element */
-                ? <img src={logo} alt={brand.name} className="h-7 w-auto" />
-                : <span>MTSPACE<span className="light"> COFFEE</span></span>}
+            <Link href="/" aria-label={brand.name} className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logo || "/images/mtspace-logo.png"} alt={brand.name} className="h-6 w-auto md:h-7" />
             </Link>
           </div>
 
@@ -94,14 +93,6 @@ export default function SiteHeader({
             <Link href="/cart" className="hover:opacity-70">{tt.cart}</Link>
           </div>
         </div>
-      </div>
-
-      {/* 상단 고정 쇼핑 메뉴 */}
-      <div className="border-b border-line bg-sand">
-        <nav className="mx-auto flex max-w-6xl items-center gap-5 overflow-x-auto px-4 py-2 font-mono text-[11px] uppercase tracking-wide text-inkSoft">
-          {shopNav.map((n) => <Link key={n.href} href={n.href} className="whitespace-nowrap hover:text-clayDeep">{n.label}</Link>)}
-          {isBusiness && <span className="ml-auto rounded-full bg-clay/15 px-2 py-0.5 text-[10px] tracking-normal text-clayDeep">기업회원</span>}
-        </nav>
       </div>
     </header>
   );

@@ -15,3 +15,7 @@ next-env.d.ts
 npm-debug.log*
 .vercel
 .env*
+
+# proprietary font used only for local logo rendering — never deploy
+/public/HelveticaNeue.ttc
+*.ttc

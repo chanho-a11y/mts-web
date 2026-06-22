@@ -5,12 +5,24 @@ export const metadata = {
 };
 
 const AWARDS = [
-  "2025 Australian Coffee In Good Spirits 3rd Place",
-  "2025 Korea National Barista Championship Semi-finalist",
+  "2025 Australian Coffee In Good Spirits Championship 3rd Place",
+  "2025 Korea National Barista Championship Semifinalist",
   "2022 Hario Cup International Brewing Competition 2nd Place",
+  "2019 Central Regional Brewers Cup 3rd Place",
+  "2018 Australian Brewers Cup 4th Place",
   "2018 Central Regional Brewers Cup CHAMPION",
   "2018 Australian Coffee In Good Spirits Championship 3rd Place",
-  "2017 Australian Golden Bean — Silver (Single Origin Espresso / Pourover)",
+  "2017 Australian Brewers Cup 3rd Place",
+  "2017 Central Regional Brewers Cup 2nd Place",
+  "2017 Central Regional Barista Championship 6th Place",
+  "2017 Australian Golden Bean Award — Silver, Single Origin Espresso",
+  "2017 Australian Golden Bean Award — Silver, Pourover Filter",
+  "2016 Australian Golden Bean Award — Bronze, Single Origin Espresso",
+  "2016 Central Regional Barista Championship 5th Place",
+  "2015 NSW Regional Barista Championship 3rd Place",
+  "2015 NSW Regional Brewers Cup 4th Place",
+  "2014 Australian Golden Bean Award — Bronze, Single Origin Espresso",
+  "2014 Australian Golden Bean Award — Bronze, Pourover Filter",
   "2014 Korean Brewers Cup 3rd Place",
 ];
 
@@ -50,7 +62,7 @@ export default function AboutPage() {
       <section className="prose-serif mt-8 space-y-3 text-ink/85">
         <h2 className="text-lg font-bold text-ink">대표 — 홍찬호 (Chanho Hong)</h2>
         <p>
-          한국·호주 양국의 스페셜티 커피 안에서 14회의 경쟁 수상 경험을 가진 바리스타입니다. 2018 Central Regional
+          한국·호주 양국의 스페셜티 커피 안에서 19회의 경쟁 수상 경험을 가진 바리스타입니다. 2018 Central Regional
           Brewers Cup 우승, 2025 Australian Coffee in Good Spirits 3위 등을 보유하고 있으며, V60 추출의 고유 방법인
           ‘Chanho-Tornado’로 알려져 있습니다. 광고학 학사와 MBA(데이터 기반 마케팅·운영·창업) 학위를 가지고 있으며,
           2021 서울카페쇼에서 주한 호주대사관 대표로 참여했습니다.

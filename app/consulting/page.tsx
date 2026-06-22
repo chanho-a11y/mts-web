@@ -42,7 +42,7 @@ export default function ConsultingPage() {
       <section className="prose-serif mt-8 space-y-3 text-ink/85">
         <p>
           MTSPACE COFFEE는 자체 로스터리와 경쟁 바리스타의 기술 토대 위에서, 커피 비즈니스의 시작과 성장을
-          함께하는 파트너입니다. 대표 홍찬호는 한·호주 양국 14회 수상 경력과 광고학 학사·MBA(데이터 기반
+          함께하는 파트너입니다. 대표 홍찬호는 한·호주 양국 19회 수상 경력과 광고학 학사·MBA(데이터 기반
           운영·창업)를 바탕으로, 브랜드부터 운영까지 데이터로 설계합니다.
         </p>
       </section>

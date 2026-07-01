@@ -5,6 +5,7 @@ import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import PromoBanner from "@/components/promo-banner";
 import { CartProvider } from "@/components/cart-provider";
+import GoogleAnalytics from "@/components/google-analytics";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,6 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale}>
       <body style={bodyStyle}>
+        <GoogleAnalytics />
         <CartProvider>
           <PromoBanner message={promo} />
           <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} logo={cms.logo_path || undefined} />

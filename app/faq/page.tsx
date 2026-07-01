@@ -1,14 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
+import { getStorefrontContext } from "@/lib/storefront";
+import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "자주 묻는 질문 (FAQ)" };
 
-const CAT_LABEL: Record<string, string> = {
-  shipping: "배송", return: "교환·환불", product: "제품", wholesale: "사업자(도매)",
-  order: "주문", account: "계정", general: "일반",
-};
-
 export default async function FaqPage() {
+  const { locale } = await getStorefrontContext();
+  const tt = t(locale);
+  const CAT_LABEL: Record<string, string> = {
+    shipping: tt.faqCatShipping, return: tt.faqCatReturn, product: tt.faqCatProduct,
+    wholesale: tt.faqCatWholesale, order: tt.faqCatOrder, account: tt.faqCatAccount, general: tt.faqCatGeneral,
+  };
   const supabase = createClient();
   const { data: faqs } = await supabase
     .from("faq")
@@ -37,7 +40,7 @@ export default async function FaqPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <h1 className="text-2xl font-bold">자주 묻는 질문</h1>
+      <h1 className="text-2xl font-bold">{tt.faqTitle}</h1>
       {[...groups.entries()].map(([cat, list]) => (
         <section key={cat} className="mt-8">
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-neutral-500">{CAT_LABEL[cat] ?? cat}</h2>
@@ -51,7 +54,7 @@ export default async function FaqPage() {
           </div>
         </section>
       ))}
-      {(!faqs || faqs.length === 0) && <p className="mt-8 text-neutral-500">등록된 FAQ가 없습니다.</p>}
+      {(!faqs || faqs.length === 0) && <p className="mt-8 text-neutral-500">{tt.faqEmpty}</p>}
     </main>
   );
 }

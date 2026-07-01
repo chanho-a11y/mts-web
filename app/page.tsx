@@ -9,7 +9,7 @@ import { t } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 // 역할별 카테고리 노출 순서
-const CONSUMER_ORDER = ["blends", "single-origins", "decaf", "normcore", "merch", "subscription"];
+const CONSUMER_ORDER = ["blends", "single-origins", "decaf", "normcore", "merch"];
 const BUSINESS_ORDER = ["wholesale", "blends", "single-origins", "decaf"];
 
 export default async function Home() {
@@ -40,7 +40,7 @@ export default async function Home() {
   // 등급별 쇼핑 카테고리
   const order = isBusiness ? BUSINESS_ORDER : CONSUMER_ORDER;
   const shopCategories = [...categories]
-    .filter((c) => (isBusiness ? c.slug !== "subscription" : c.slug !== "wholesale"))
+    .filter((c) => c.slug !== "subscription" && (isBusiness ? true : c.slug !== "wholesale"))
     .sort((a, b) => {
       const ia = order.indexOf(a.slug); const ib = order.indexOf(b.slug);
       return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
@@ -49,7 +49,7 @@ export default async function Home() {
   return (
     <main>
       {/* 이미지 슬라이드 (실제 이미지) */}
-      <HeroSlideshow slides={slides} title={heroTitle} subtitle={heroSubtitle} />
+      <HeroSlideshow slides={slides} title={heroTitle} subtitle={heroSubtitle} locale={locale} />
 
       <div className="mx-auto max-w-6xl px-4">
         <Link href="/collections/all" className="-mt-5 mb-4 inline-block rounded-card bg-ink px-6 py-2.5 text-sm font-semibold tracking-wide text-oat shadow-card hover:bg-[#4A443A]">
@@ -83,8 +83,8 @@ export default async function Home() {
       {/* 등급별 쇼핑 (회원 역할에 따라 다르게) */}
       <div className="mx-auto max-w-6xl px-4 pt-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold">{isBusiness ? "사업자 전용 쇼핑" : "쇼핑"}</h2>
-          {isBusiness && <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[11px] text-clayDeep">기업회원 가격 적용</span>}
+          <h2 className="text-2xl font-bold">{isBusiness ? tt.businessShop : tt.shop}</h2>
+          {isBusiness && <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[11px] text-clayDeep">{tt.businessPricing}</span>}
         </div>
       </div>
       {shopCategories.map((c) => (
@@ -110,8 +110,8 @@ export default async function Home() {
       {/* 정보 링크 (블로그 · Contact) — 커피 정보 메뉴는 향후 재설정 예정으로 제거 */}
       <section className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 md:grid-cols-2">
         {[
-          { href: "/blogs/coffeelog", title: tt.blog, desc: "Coffeelog 커피 이야기" },
-          { href: "/contact", title: tt.contact, desc: "납품·컨설팅·교육·제품 문의" },
+          { href: "/blogs/coffeelog", title: tt.blog, desc: tt.coffeelogDesc },
+          { href: "/contact", title: tt.contact, desc: tt.contactDesc },
         ].map((c) => (
           <Link key={c.href} href={c.href} className="rounded-card border border-line bg-paper p-6 hover:bg-warmPaper">
             <p className="font-bold">{c.title}</p>

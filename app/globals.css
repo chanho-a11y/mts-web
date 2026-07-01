@@ -26,11 +26,15 @@
     background: var(--bg);
   }
   h1, h2, h3, h4 { font-weight: 700; letter-spacing: 0; line-height: 1.15; }
+  /* 문단 사이 여백을 전역적으로 넉넉하게 (인접 문단에만 적용 → 레이아웃 안전) */
+  p + p { margin-top: 1em; }
 }
 
 @layer utilities {
   .font-serif { font-family: var(--font-serif); }
   .font-mono { font-family: var(--font-mono); }
+  /* 콘텐츠 섹션 문단 리듬 확대 */
+  .prose-serif p + p { margin-top: 1.35em; }
   .prose-serif { font-family: var(--font-serif); font-weight: 400; line-height: 1.85; }
 
   /* 헤어라인 그리드 (히어로/빈 표면용; 텍스트 뒤에는 끄기) */

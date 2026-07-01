@@ -8,9 +8,10 @@ export default function SiteHeader({
   brand, locale, signedIn, role, bg, logo,
 }: { brand: Brand; locale: Locale; signedIn: boolean; role: string | null; bg?: string; logo?: string }) {
   const tt = t(locale);
-  const isAdmin = role === "admin";
   const isBusiness = role === "business";
 
+  // 사업자 전용은 사업자 회원에게만 유효하나, 헤더 주 메뉴는 브랜드 내비게이션 사용
+  void isBusiness;
   const mainNav = [
     { href: "/collections/all", label: tt.shop },
     { href: "/about", label: tt.about },
@@ -18,46 +19,12 @@ export default function SiteHeader({
     { href: "/consulting", label: tt.consulting },
     { href: "/contact", label: tt.contact },
   ];
-  // 상단 고정 쇼핑 메뉴 (역할별) — 사업자 전용은 사업자 회원에게만 노출
-  const shopNav = isBusiness
-    ? [
-        { href: "/collections/wholesale", label: "사업자 전용" },
-        { href: "/collections/blends", label: "블렌드" },
-        { href: "/collections/single-origins", label: "싱글 오리진" },
-        { href: "/collections/normcore", label: "Normcore Coffee" },
-      ]
-    : [
-        { href: "/collections/blends", label: "블렌드" },
-        { href: "/collections/single-origins", label: "싱글 오리진" },
-        { href: "/collections/normcore", label: "Normcore Coffee" },
-      ];
-
-  // 버거 메뉴: 역할별 전체 네비게이션 트리(전 뷰포트 공통)
-  const burgerSections = [
-    { title: "쇼핑", links: shopNav },
-    { title: "브랜드", links: mainNav },
-    { title: "내 계정", links: signedIn
-        ? [{ href: "/account", label: "마이페이지" }, { href: "/account/orders", label: "구매내역" }]
-        : [{ href: "/account/login", label: tt.login }, { href: "/account/signup", label: tt.signup }] },
-  ];
 
   return (
     <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur" style={bg ? { background: bg } : undefined}>
       <div className="border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-4">
-            {/* 버거 버튼 — 데스크톱·모바일 공통 주 네비게이션 */}
-            <details className="relative">
-              <summary className="cursor-pointer list-none text-xl leading-none" aria-label="메뉴">☰</summary>
-              <nav className="absolute left-0 top-9 z-40 w-64 border bg-white p-4 text-sm shadow-lg">
-                {burgerSections.map((sec) => (
-                  <div key={sec.title} className="mb-3 last:mb-0">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{sec.title}</p>
-                    {sec.links.map((n) => <Link key={n.href} href={n.href} className="block py-1 hover:text-clayDeep">{n.label}</Link>)}
-                  </div>
-                ))}
-              </nav>
-            </details>
             <Link href="/" aria-label={brand.name} className="flex shrink-0 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {/* 로고: 높이 고정 + w-auto + object-contain 으로 원본 비율 유지(세로 늘어짐 방지) */}
@@ -72,8 +39,8 @@ export default function SiteHeader({
             </Link>
           </div>
 
-          <nav className="hidden items-center gap-6 text-sm md:flex">
-            {mainNav.map((n) => <Link key={n.href} href={n.href} className="hover:opacity-70">{n.label}</Link>)}
+          <nav className="flex items-center gap-4 overflow-x-auto text-sm md:gap-6">
+            {mainNav.map((n) => <Link key={n.href} href={n.href} className="whitespace-nowrap hover:opacity-70">{n.label}</Link>)}
           </nav>
 
           <div className="flex items-center gap-3 text-sm">
@@ -97,15 +64,6 @@ export default function SiteHeader({
           </div>
         </div>
       </div>
-
-      {/* 관리자 진입 버튼 — 좌측 상단이 아닌 우측 하단 고정 위치 */}
-      <Link
-        href="/admin"
-        aria-label="관리자"
-        className="fixed bottom-4 right-4 z-50 rounded-full border border-line bg-ink/90 px-3 py-2 text-[11px] font-medium text-oat shadow-lg backdrop-blur transition hover:bg-ink"
-      >
-        {isAdmin ? "관리자" : "관리자 로그인"}
-      </Link>
     </header>
   );
 }

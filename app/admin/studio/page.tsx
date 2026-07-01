@@ -41,8 +41,8 @@ export default async function AdminStudioPage() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">통합 스튜디오</h1>
         <p className="text-sm text-neutral-500">
-          제품 정보를 한 번 입력하면 <b>레이블 · 상세페이지 · 블로그 · 카드뉴스 · 인스타그램</b> 콘텐츠가 한 곳에서 생성됩니다.
-          (기존 디자인 스튜디오 + 레이블 스튜디오 통합)
+          제품 관리에서 입력한 정보를 불러와 <b>상세페이지 · 블로그 · 카드뉴스 · 레이블 · 썸네일</b>을 작업합니다.
+          스튜디오에서는 제품 정보를 입력하지 않으며(읽기전용), 정보 수정은 <a href="/admin/products" className="underline">제품 수정</a>에서 합니다.
         </p>
       </div>
       <UnifiedStudio items={items} />

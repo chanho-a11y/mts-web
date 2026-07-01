@@ -6,14 +6,15 @@ import { pointColor } from "@/lib/point-color";
 
 // 1:1 카드 (DESIGN_SYSTEM §9): oat 표면, 상단 MTSPACE COFFEE(mono)+point dot, 패크샷,
 // 제품명(Helvetica 800), 컵노트(Spectral italic, clay-deep), 하단 카테고리·가격(mono)
-export default function ProductCard({ p, locale }: { p: ProductCardData; locale: Locale }) {
+export default function ProductCard({ p, locale, compact }: { p: ProductCardData; locale: Locale; compact?: boolean }) {
   const tt = t(locale);
   const title = (locale === "en" && p.title_en ? p.title_en : p.title_ko).replace(/\[.*?\]\s*/g, "");
   const dot = pointColor({ keyColor: p.key_color, flavorNotes: p.flavor_notes, roast: p.roast_level });
   const series = p.is_b2b_only ? "WHOLESALE" : (p.product_type === "merch" ? "MERCH" : "SINGLE ORIGIN");
   return (
     <Link href={`/products/${p.slug}`} className="group block">
-      <div className="mt-grid relative aspect-square w-full overflow-hidden rounded-card border border-line shadow-card">
+      {/* 쇼핑 썸네일은 현재의 75% 크기(compact) — 셀 중앙 정렬 */}
+      <div className={`mt-grid relative aspect-square overflow-hidden rounded-card border border-line shadow-card ${compact ? "mx-auto w-3/4" : "w-full"}`}>
         {/* 상단: 워드마크(mono) + 포인트 dot */}
         <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 py-2">
           <span className="font-mono text-[9px] uppercase tracking-wider text-inkSoft">MTSPACE COFFEE</span>

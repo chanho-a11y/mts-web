@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatKRW } from "@/lib/i18n";
+import { periodRevenue, kstPeriodBounds, PAID_STATUSES } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
-const PAID = ["paid", "preparing", "shipped", "in_transit", "delivered", "confirmed"];
+const PAID = PAID_STATUSES;
 const TYPE_LABEL: Record<string, string> = {
   guest: "비회원", individual: "일반회원", business: "기업회원", influencer: "인플루언서", admin: "관리자",
 };
@@ -22,6 +23,34 @@ export default async function AdminAnalyticsPage() {
   const sales = paid.reduce((s, o) => s + o.grand_total, 0);
   const paidCount = paid.length;
   const avg = paidCount ? Math.round(sales / paidCount) : 0;
+
+  // 기간별 매출(오늘/이번주/이번달/올해)
+  const rev = periodRevenue(rows);
+
+  // 기간별 gross profit — order_item(line_total) − 제조원가(product.cost × qty)
+  const { data: items } = await supabase
+    .from("order_item")
+    .select("qty,line_total,order:orders(status,currency,placed_at),variant:product_variant(product:product(cost))")
+    .limit(10000);
+  const bounds = kstPeriodBounds();
+  const grossFrom = (fromMs: number) => {
+    let r = 0, cogs = 0;
+    for (const it of (items ?? []) as any[]) {
+      const o = it.order;
+      if (!o || o.currency !== "KRW" || !PAID.includes(o.status) || !o.placed_at) continue;
+      if (new Date(o.placed_at).getTime() < fromMs) continue;
+      r += it.line_total || 0;
+      cogs += (it.qty || 0) * (it.variant?.product?.cost ?? 0);
+    }
+    return { rev: r, cogs, gross: r - cogs };
+  };
+  const gp = {
+    today: grossFrom(bounds.startOfDayUTC),
+    week: grossFrom(bounds.startOfWeekUTC),
+    month: grossFrom(bounds.startOfMonthUTC),
+    year: grossFrom(bounds.startOfYearUTC),
+  };
+  const gaEnabled = !!process.env.NEXT_PUBLIC_GA_ID;
 
   const byStatus = new Map<string, number>();
   rows.forEach((o) => byStatus.set(o.status, (byStatus.get(o.status) ?? 0) + 1));
@@ -71,6 +100,48 @@ export default async function AdminAnalyticsPage() {
   return (
     <main className="space-y-8">
       <h1 className="text-2xl font-bold">분석</h1>
+
+      {/* 기간별 매출 */}
+      <section>
+        <h2 className="mb-3 font-bold">기간별 매출 <span className="text-xs font-normal text-neutral-400">(KRW · 결제완료 기준)</span></h2>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {([["오늘", rev.today], ["이번주", rev.week], ["이번달", rev.month], ["올해", rev.year]] as [string, number][]).map(([lbl, v]) => (
+            <div key={lbl} className="rounded-xl border p-5">
+              <p className="text-sm text-neutral-500">{lbl}</p>
+              <p className="mt-1 text-xl font-bold">{formatKRW(v)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 기간별 Gross Profit */}
+      <section>
+        <h2 className="mb-1 font-bold">기간별 총이익 (Gross Profit) <span className="text-xs font-normal text-neutral-400">= 상품매출 − 제조원가</span></h2>
+        <p className="mb-3 text-xs text-neutral-400">제품별 제조원가는 <a href="/admin/products" className="underline">제품 관리</a>에서 입력합니다. 원가 미입력 제품은 원가 0으로 계산됩니다.</p>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {([["오늘", gp.today], ["이번주", gp.week], ["이번달", gp.month], ["올해", gp.year]] as [string, { rev: number; cogs: number; gross: number }][]).map(([lbl, v]) => (
+            <div key={lbl} className="rounded-xl border p-5">
+              <p className="text-sm text-neutral-500">{lbl}</p>
+              <p className="mt-1 text-xl font-bold">{formatKRW(v.gross)}</p>
+              <p className="mt-1 text-[11px] text-neutral-400">매출 {formatKRW(v.rev)} · 원가 {formatKRW(v.cogs)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Google Analytics 연동 */}
+      <section className="rounded-xl border p-5">
+        <h2 className="mb-1 font-bold">Google Analytics (트래픽·매출 분석)</h2>
+        {gaEnabled ? (
+          <p className="text-sm text-green-700">GA4 연동됨 (측정 ID: {process.env.NEXT_PUBLIC_GA_ID}). 상세 리포트는 GA 대시보드에서 확인하세요.</p>
+        ) : (
+          <p className="text-sm text-neutral-500">
+            GA4 연동 자리(코드)가 준비되어 있습니다. 환경변수 <code className="rounded bg-neutral-100 px-1">NEXT_PUBLIC_GA_ID</code>에 측정 ID(G-XXXXXXXXXX)를 설정하면
+            전 페이지에 GA 태그가 자동 삽입되고, 트래픽·매출 데이터가 GA 대시보드에 수집됩니다.
+          </p>
+        )}
+      </section>
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {cards.map((c) => (
           <div key={c.label} className="rounded-xl border p-5">

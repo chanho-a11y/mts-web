@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
 import { getReorderItems } from "@/app/account/reorder-action";
+import { t, type Locale } from "@/lib/i18n";
 
-export default function ReorderButton({ orderNo }: { orderNo: string }) {
+export default function ReorderButton({ orderNo, locale = "ko" }: { orderNo: string; locale?: Locale }) {
   const { add } = useCart();
+  const tt = t(locale);
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   async function reorder() {
@@ -17,7 +19,7 @@ export default function ReorderButton({ orderNo }: { orderNo: string }) {
   }
   return (
     <button onClick={reorder} disabled={busy} className="rounded-full border px-4 py-1.5 text-sm disabled:opacity-50">
-      {busy ? "담는 중…" : "재주문 (장바구니에 담기)"}
+      {busy ? tt.addingToCart : tt.reorder}
     </button>
   );
 }

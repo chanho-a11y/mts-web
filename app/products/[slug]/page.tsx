@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
-import { createSubscriptionAction } from "@/app/products/subscribe-action";
 import { addReviewAction } from "@/app/products/review-action";
 import { pointTheme } from "@/lib/point-color";
 
@@ -81,6 +80,11 @@ const CSS = `
 .mtpdp .faq{padding:13px 0;border-bottom:1px solid var(--hair)}
 .mtpdp .faq .q{font-weight:700;font-size:13.5px}
 .mtpdp .faq .a{font-family:'Noto Serif KR',serif;font-weight:300;font-size:13px;line-height:1.82;color:var(--ink-soft);margin-top:7px}
+.mtpdp .more{list-style:none;margin:0;padding:0}
+.mtpdp .more li{position:relative;padding:11px 0 11px 26px;border-bottom:1px solid var(--hair2);font-size:13px;line-height:1.75;color:var(--ink-soft)}
+.mtpdp .more li:last-child{border-bottom:none}
+.mtpdp .more li::before{content:"❗";position:absolute;left:0;top:11px;font-size:12px;color:var(--point-text)}
+.mtpdp .more li b{color:var(--ink);font-weight:700}
 .mtpdp .fine{border-top:1px solid var(--hair);padding:18px 34px;font-size:9px;color:var(--faint);line-height:1.7}
 .mtpdp .rev{padding:10px 0;border-bottom:1px solid var(--hair2)}
 .mtpdp .frm input,.mtpdp .frm textarea,.mtpdp .frm select{border:1px solid var(--hair);background:#fff;border-radius:3px;padding:8px;font-size:13px}
@@ -139,12 +143,19 @@ export default async function ProductPage({ params }: { params: { slug: string }
   if (r.filter || r.fil) recipe.push(["FILTER", r.filter ?? r.fil]);
 
   // FAQ (제품 데이터에서 생성 — AIEO)
-  const faqs: { q: string; a: string }[] = [
-    { q: `${title}은(는) 어떤 맛인가요?`, a: `${p.flavor_notes.join(" · ") || "균형 잡힌 향미"}의 특징을 지닌 ${p.roast_level || ""} 커피입니다. ${p.one_liner ?? ""}`.trim() },
-    { q: "어떤 추출에 잘 어울리나요?", a: recipe.length ? `${recipe.map((x) => x[0]).join(" · ")} 등으로 안정적으로 즐기실 수 있습니다.` : "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다." },
-    { q: "로스팅과 배송은 언제 되나요?", a: "경기도 가평 청평 자체 로스터리에서 매주 월·화 로스팅하여 화·수에 신선하게 발송합니다." },
-    { q: "보관은 어떻게 하나요?", a: "개봉 후 밀폐하여 직사광선을 피해 상온 보관하고 2~3주 내 소비를 권장합니다." },
-  ];
+  const faqs: { q: string; a: string }[] = locale === "en"
+    ? [
+        { q: `What does ${title} taste like?`, a: `A ${p.roast_level || ""} coffee with notes of ${p.flavor_notes.join(" · ") || "balanced flavour"}. ${p.one_liner ?? ""}`.trim() },
+        { q: "Which brew methods suit it best?", a: recipe.length ? `It shines with ${recipe.map((x) => x[0]).join(" · ")}.` : "It works beautifully across espresso, pour-over (V60), and cold brew." },
+        { q: "When is it roasted and shipped?", a: "Roasted every Monday & Tuesday at our own roastery in Cheongpyeong, Gapyeong, and shipped fresh on Tuesday & Wednesday." },
+        { q: "How should I store it?", a: "After opening, seal it and keep it at room temperature away from direct sunlight, and enjoy within 2–3 weeks." },
+      ]
+    : [
+        { q: `${title}은(는) 어떤 맛인가요?`, a: `${p.flavor_notes.join(" · ") || "균형 잡힌 향미"}의 특징을 지닌 ${p.roast_level || ""} 커피입니다. ${p.one_liner ?? ""}`.trim() },
+        { q: "어떤 추출에 잘 어울리나요?", a: recipe.length ? `${recipe.map((x) => x[0]).join(" · ")} 등으로 안정적으로 즐기실 수 있습니다.` : "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다." },
+        { q: "로스팅과 배송은 언제 되나요?", a: "경기도 가평 청평 자체 로스터리에서 매주 월·화 로스팅하여 화·수에 신선하게 발송합니다." },
+        { q: "보관은 어떻게 하나요?", a: "개봉 후 밀폐하여 직사광선을 피해 상온 보관하고 2~3주 내 소비를 권장합니다." },
+      ];
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -202,10 +213,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <h1>{title}</h1>
             <div className="en">{en}{weightTxt ? ` · ${weightTxt}` : ""}</div>
             <div className="price">{p.minPrice > 0 ? formatKRW(p.minPrice) : "-"} <span className="cur">KRW</span></div>
-            {!p.is_b2b_only && <div className="tax">세금 포함 · 배송비 결제 시 계산</div>}
+            {!p.is_b2b_only && <div className="tax">{locale === "en" ? "Tax included · shipping calculated at checkout" : "세금 포함 · 배송비 결제 시 계산"}</div>}
             <div style={{ marginTop: 12 }}>
               <AddToCart
-                slug={p.slug} title={title} image={p.image} label={tt.addToCart}
+                slug={p.slug} title={title} image={p.image} label={tt.addToCart} locale={locale}
                 variants={p.variants.map((v) => ({ id: v.id, base_price: v.base_price, option: (v.option_values as { option?: string })?.option ?? null }))}
               />
             </div>
@@ -232,7 +243,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {flavCards.length > 0 && (
               <section className="sec">
-                <h2 className="head">Flavour Notes · 플레이버 노트</h2>
+                <h2 className="head">{locale === "en" ? "Flavour Notes" : "Flavour Notes · 플레이버 노트"}</h2>
                 <div className="flav">
                   {flavCards.map((n) => <div className="card" key={n}><div className="ft">{n}</div></div>)}
                 </div>
@@ -240,7 +251,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             )}
 
             <section className="sec">
-              <h2 className="head">About MTSPACE COFFEE · 엠티스페이스 커피 소개</h2>
+              <h2 className="head">{locale === "en" ? "About MTSPACE COFFEE" : "About MTSPACE COFFEE · 엠티스페이스 커피 소개"}</h2>
               <div className="about">
                 <div className="txt">
                   <p>{locale === "en" ? pBrand.philosophy.en : pBrand.philosophy.ko}</p>
@@ -255,7 +266,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {infoRows.length > 0 && (
               <section className="sec">
-                <h2 className="head">Coffee Information · 커피 정보</h2>
+                <h2 className="head">{locale === "en" ? "Coffee Information" : "Coffee Information · 커피 정보"}</h2>
                 <div className="grid2">
                   {infoRows.map(([k, v]) => (
                     <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v}</span></div>
@@ -266,29 +277,15 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {recipe.length > 0 && (
               <section className="sec">
-                <h2 className="head">Recommended Recipe · 추출 레시피</h2>
+                <h2 className="head">{locale === "en" ? "Recommended Recipe" : "Recommended Recipe · 추출 레시피"}</h2>
                 {recipe.map(([k, v]) => (
                   <div className="rec" key={k}><span className="rk">{k}</span><div style={{ textAlign: "right" }}><div className="rn">{v}</div></div></div>
                 ))}
               </section>
             )}
 
-            {/* 정기구독 (B2C) — 디자인 톤 유지 */}
-            {!p.is_b2b_only && p.variants[0] && (
-              <section className="sec">
-                <h2 className="head">Subscribe · 정기구독</h2>
-                <form action={createSubscriptionAction} className="frm" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                  <input type="hidden" name="variant_id" value={p.variants[0].id} />
-                  <select name="interval"><option value="2w">2주마다</option><option value="4w">4주마다</option><option value="8w">8주마다</option></select>
-                  <select name="grind"><option value="whole">홀빈</option><option value="drip">드립 분쇄</option><option value="espresso">에스프레소 분쇄</option></select>
-                  <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12 }}>구독 신청</button>
-                  <span style={{ fontSize: 10, color: "var(--faint)" }}>로그인 필요 · 마이페이지에서 관리</span>
-                </form>
-              </section>
-            )}
-
             <section className="sec">
-              <h2 className="head">FAQ · 자주 묻는 질문</h2>
+              <h2 className="head">{locale === "en" ? "FAQ" : "FAQ · 자주 묻는 질문"}</h2>
               {faqs.map((f, i) => (
                 <div className="faq" key={i}><div className="q">Q. {f.q}</div><div className="a">{f.a}</div></div>
               ))}
@@ -296,26 +293,62 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {/* 리뷰 — 디자인 톤 유지 */}
             <section className="sec" style={{ paddingBottom: 8 }}>
-              <h2 className="head">Reviews · 리뷰 {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
+              <h2 className="head">{locale === "en" ? "Reviews" : "Reviews · 리뷰"} {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
               {(reviews ?? []).map((rv, i) => (
                 <div className="rev" key={i}>
                   <div style={{ fontSize: 12 }}><span style={{ color: "var(--point-text)" }}>{"★".repeat(rv.rating)}{"☆".repeat(5 - rv.rating)}</span> <b>{rv.title}</b> <span style={{ color: "var(--faint)", fontSize: 11 }}>{rv.author_name}</span></div>
                   {rv.body && <div className="serif" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 4 }}>{rv.body}</div>}
                 </div>
               ))}
-              {revCount === 0 && <p style={{ fontSize: 12, color: "var(--faint)" }}>첫 리뷰를 남겨주세요.</p>}
+              {revCount === 0 && <p style={{ fontSize: 12, color: "var(--faint)" }}>{tt.firstReview}</p>}
               <form action={addReviewAction} className="frm" style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 460 }}>
                 <input type="hidden" name="product_id" value={p.id} />
                 <input type="hidden" name="slug" value={p.slug} />
-                <select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}점</option>)}</select>
-                <input name="title" placeholder="제목" />
-                <textarea name="body" placeholder="후기를 남겨주세요" rows={2} />
-                <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>리뷰 등록 (로그인 필요)</button>
+                <select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{locale === "en" ? `${n} ★` : `${n}점`}</option>)}</select>
+                <input name="title" placeholder={tt.reviewTitlePlaceholder} />
+                <textarea name="body" placeholder={tt.reviewBodyPlaceholder} rows={2} />
+                <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>{tt.submitReview}</button>
               </form>
             </section>
 
+            {/* more information — 전 제품 공통 구매·신선도·정책 안내 (정본: 월·화 로스팅 / 화·수 출고) */}
+            <section className="sec" style={{ paddingBottom: 8 }}>
+              <h2 className="head">{locale === "en" ? "more information" : "more information · 구매 안내"}</h2>
+              {locale === "en" ? (
+                <ul className="more">
+                  <li>MTSPACE COFFEE is at its best when enjoyed <b>14–28 days after roasting</b>, on average.</li>
+                  <li>That said, we design our coffees so their character comes through beautifully before and after that window too, depending on your brew method.</li>
+                  <li>Apart from our blends (dark · medium · light), we do not roast single origins separately for espresso and filter. We prefer to express the coffee's inherent flavour rather than flavour developed through sugar browning during the roast.</li>
+                  <li>We roast <b>every Monday & Tuesday</b>.</li>
+                  <li>Online orders ship <b>every Tuesday & Wednesday</b>.</li>
+                  <li>If an item is out of stock, it is roasted fresh on the next roast day before shipping.</li>
+                  <li>In that case, please allow roughly <b>3–5 additional business days</b>.</li>
+                  <li>Orders are filled with the earliest-roasted coffee first (up to 7 days after roasting). If you'd prefer a fresher batch, please leave a note with your order.</li>
+                  <li>Courier: <b>Lotte Global Logistics</b></li>
+                  <li>Refunds or exchanges are possible only when the contents and packaging remain intact (whole bean, not ground, unopened, undamaged).</li>
+                  <li>MTSPACE COFFEE complies with consumer protection law.</li>
+                </ul>
+              ) : (
+                <ul className="more">
+                  <li>엠티스페이스 커피 제품은 평균적으로 <b>로스팅 후 14–28일</b> 구간에 사용하는 것이 가장 이상적입니다.</li>
+                  <li>하지만 그 전이나 후에도 추출 방법에 따라 본연의 맛이 잘 나올 수 있게끔 디자인했습니다.</li>
+                  <li>블렌드(다크·미디엄·라이트)를 제외한 싱글 오리진은 에스프레소와 필터를 별도로 로스팅하지 않습니다. 이는 엠티스페이스 커피가 추구하는 방향이 커피 고유의 향미를 표현하는 것이 로스팅 중 sugar browning에 의한 향미 표현보다 저희 취향에 더 잘 맞기 때문입니다.</li>
+                  <li>엠티스페이스 커피는 <b>매주 월·화요일에 로스팅</b>합니다.</li>
+                  <li>온라인 주문은 <b>매주 화·수요일에 출고</b>됩니다.</li>
+                  <li>재고가 없을 시 다음 로스팅일에 새로 로스팅되어 출고됩니다.</li>
+                  <li>이 경우 영업일 기준 약 <b>3–5일</b> 정도 추가 소요될 수 있습니다.</li>
+                  <li>주문 후 가장 먼저 로스팅된 커피(최장 로스팅 후 7일)가 발송되며, 더 신선한 제품을 원하시면 별도의 요청사항을 남겨주세요.</li>
+                  <li>택배사: <b>롯데택배</b></li>
+                  <li>제품의 환불 혹은 교환은 제품의 내용물과 포장이 온전한 상태(홀빈, 분쇄없음, 미개봉, 미손상)일 때 가능합니다.</li>
+                  <li>엠티스페이스 커피는 소비자 보호법을 준수합니다.</li>
+                </ul>
+              )}
+            </section>
+
             <footer className="fine">
-              MTSPACE COFFEE · 경기도 가평 청평 로스터리 · 매주 월·화 로스팅, 화·수 출고 · everyday excellence
+              {locale === "en"
+                ? "MTSPACE COFFEE · Cheongpyeong, Gapyeong roastery · roasted Mon & Tue, shipped Tue & Wed · everyday excellence"
+                : "MTSPACE COFFEE · 경기도 가평 청평 로스터리 · 매주 월·화 로스팅, 화·수 출고 · everyday excellence"}
               <br /><a href={`https://instagram.com/${pBrand.instagram.replace("@", "")}`} target="_blank" rel="noreferrer" style={{ color: "var(--point-text)" }}>Instagram {pBrand.instagram}</a>
             </footer>
           </main>

@@ -6,10 +6,12 @@ export default function HeroSlideshow({
   slides,
   title,
   subtitle,
+  locale = "ko",
 }: {
   slides: { src: string; alt?: string; href?: string }[];
   title?: string;
   subtitle?: string;
+  locale?: "ko" | "en";
 }) {
   const [i, setI] = useState(0);
   const n = slides.length;
@@ -49,7 +51,7 @@ export default function HeroSlideshow({
             <button
               key={idx}
               onClick={() => setI(idx)}
-              aria-label={`슬라이드 ${idx + 1}`}
+              aria-label={locale === "en" ? `Slide ${idx + 1}` : `슬라이드 ${idx + 1}`}
               className={`h-1.5 rounded-full transition-all ${idx === i ? "w-6 bg-white" : "w-1.5 bg-white/50"}`}
             />
           ))}

@@ -8,8 +8,8 @@ const COLUMNS: { key: string; label: string; required?: boolean; hint?: string }
   { key: "brand", label: "브랜드", hint: "mtspace 또는 normcore (기본 mtspace)" },
   { key: "title_ko", label: "제품명", required: true },
   { key: "one_liner", label: "한줄키워드" },
-  { key: "product_type", label: "유형", hint: "블렌드/싱글 오리진/디카페인/머천다이즈" },
-  { key: "category", label: "카테고리", hint: "blends/single-origins/decaf/merch/wholesale/normcore" },
+  { key: "category", label: "카테고리", hint: "blends/single-origins/wholesale/normcore (유형=카테고리 통합)" },
+  { key: "status", label: "상태", hint: "published/draft" },
   { key: "roast_level", label: "로스팅" },
   { key: "origin_country", label: "원산지" },
   { key: "weight_g", label: "중량(g)" },
@@ -22,7 +22,8 @@ const COLUMNS: { key: string; label: string; required?: boolean; hint?: string }
   { key: "sku", label: "SKU" },
   { key: "base_price", label: "가격(원)" },
   { key: "is_b2b_only", label: "사업자전용", hint: "Y/N" },
-  { key: "auto_content", label: "콘텐츠자동생성", hint: "Y/N" },
+  { key: "cost", label: "제조원가(원)" },
+  { key: "story", label: "커피스토리" },
 ];
 
 // 한글 라벨 → key 역매핑(양식이 한글 헤더여도 인식)

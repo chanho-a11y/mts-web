@@ -8,6 +8,15 @@ function csv(v: string): string[] {
   return v.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
 }
 
+// 카테고리 → 제품 유형(통합: 유형/카테고리 단일화). 저장 시 서버에서 파생.
+const CAT_TYPE: Record<string, string> = {
+  blends: "블렌드", "single-origins": "싱글 오리진", wholesale: "블렌드",
+  normcore: "블렌드", decaf: "디카페인", merch: "merch", limited: "블렌드",
+};
+function typeFromCategory(cat: string): string { return CAT_TYPE[cat] ?? "블렌드"; }
+// 발행(published) → active(스토어프론트 노출), 초안(draft) → draft(숨김)
+function mapStatus(s: string): string { return s === "draft" ? "draft" : "active"; }
+
 export async function upsertProductAction(formData: FormData) {
   const supabase = createClient();
   const slug = String(formData.get("slug") || "").trim();
@@ -15,14 +24,16 @@ export async function upsertProductAction(formData: FormData) {
   const { data: brand } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
   if (!slug || !brand) redirect("/admin/products?error=slug/brand");
 
-  const is_b2b = formData.get("is_b2b_only") === "on";
+  const catSlug = String(formData.get("category") || "");
+  // 카테고리 wholesale(사업자 전용)이면 자동으로 B2B 전용 처리
+  const is_b2b = formData.get("is_b2b_only") === "on" || catSlug === "wholesale";
   const row = {
     slug,
     brand_id: brand.id,
     title_ko: String(formData.get("title_ko") || ""),
     one_liner: String(formData.get("one_liner") || ""),
-    product_type: String(formData.get("product_type") || "블렌드"),
-    status: String(formData.get("status") || "active"),
+    product_type: typeFromCategory(catSlug),
+    status: mapStatus(String(formData.get("status") || "published")),
     is_b2b_only: is_b2b,
     roast_level: String(formData.get("roast_level") || ""),
     flavor_notes: csv(String(formData.get("flavor_notes") || "")),
@@ -33,6 +44,8 @@ export async function upsertProductAction(formData: FormData) {
     key_color: String(formData.get("key_color") || "") || null,
     report_no: String(formData.get("report_no") || "") || null,
     material: String(formData.get("material") || "") || null,
+    story: String(formData.get("story") || "") || null,
+    cost: parseInt(String(formData.get("cost") || ""), 10) || null,
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);
@@ -47,7 +60,6 @@ export async function upsertProductAction(formData: FormData) {
     );
   }
   // 카테고리·스토어프론트 연결
-  const catSlug = String(formData.get("category") || "");
   if (catSlug) {
     const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
     if (cat) await supabase.from("product_categories").upsert({ product_id: prod.id, category_id: cat.id });
@@ -55,9 +67,6 @@ export async function upsertProductAction(formData: FormData) {
   // MTSPACE 단일 사이트 — 모든 제품을 mtspace.coffee 스토어프론트에 노출(B2B 여부는 RLS·역할로 제어)
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
-
-  // 자동 콘텐츠 초안 생성 (체크 시)
-  if (formData.get("auto_content") === "on") await generateForProduct(prod.id);
 
   revalidatePath("/admin/products");
   redirect(`/admin/products/${slug}`);
@@ -77,14 +86,15 @@ async function saveProductRow(
   if (!brand) return { slug, ok: false, error: `브랜드 코드 오류(${brandCode})` };
 
   const isTrue = (v: string) => /^(y|yes|true|1|o|on)$/i.test(String(v || "").trim());
+  const catSlugRow = String(d.category || "").trim();
   const row = {
     slug,
     brand_id: brand.id,
     title_ko: String(d.title_ko || ""),
     one_liner: String(d.one_liner || ""),
-    product_type: String(d.product_type || "블렌드"),
-    status: String(d.status || "active"),
-    is_b2b_only: isTrue(d.is_b2b_only),
+    product_type: d.product_type ? String(d.product_type) : typeFromCategory(catSlugRow),
+    status: mapStatus(String(d.status || "published")),
+    is_b2b_only: isTrue(d.is_b2b_only) || catSlugRow === "wholesale",
     roast_level: String(d.roast_level || ""),
     flavor_notes: csv(String(d.flavor_notes || "")),
     origin: { country: String(d.origin_country || "") },
@@ -94,6 +104,8 @@ async function saveProductRow(
     key_color: String(d.key_color || "") || null,
     report_no: String(d.report_no || "") || null,
     material: String(d.material || "") || null,
+    story: String(d.story || "") || null,
+    cost: parseInt(String(d.cost || ""), 10) || null,
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };
@@ -164,6 +176,38 @@ export async function generateDraftsAction(formData: FormData) {
   const slug = String(formData.get("slug") || "");
   await generateForProduct(productId);
   revalidatePath(`/admin/products/${slug}`);
+}
+
+// 사업자 전용 — 고객별 납품가 저장 (customer_variant_prices). 납품가=절대가(원).
+export async function saveCustomerPriceAction(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const profileId = String(formData.get("profile_id") || "");
+  const variantId = String(formData.get("variant_id") || "");
+  const price = parseInt(String(formData.get("price") || ""), 10);
+  const slug = String(formData.get("slug") || "");
+  const note = String(formData.get("note") || "") || null;
+  if (!profileId || !variantId || !price || price <= 0) redirect(`/admin/products/${slug}?error=${encodeURIComponent("고객·변형·납품가를 확인하세요")}`);
+  // (profile, variant) 유일 — 수동 upsert
+  const { data: existing } = await supabase
+    .from("customer_variant_prices").select("id")
+    .eq("profile_id", profileId).eq("variant_id", variantId).maybeSingle();
+  if (existing) {
+    await supabase.from("customer_variant_prices").update({ price, note, updated_at: new Date().toISOString() }).eq("id", existing.id);
+  } else {
+    await supabase.from("customer_variant_prices").insert({ profile_id: profileId, variant_id: variantId, price, note, created_by: user?.id ?? null });
+  }
+  revalidatePath(`/admin/products/${slug}`);
+  redirect(`/admin/products/${slug}?priced=1`);
+}
+
+export async function deleteCustomerPriceAction(formData: FormData) {
+  const supabase = createClient();
+  const id = String(formData.get("id") || "");
+  const slug = String(formData.get("slug") || "");
+  if (id) await supabase.from("customer_variant_prices").delete().eq("id", id);
+  revalidatePath(`/admin/products/${slug}`);
+  redirect(`/admin/products/${slug}`);
 }
 
 export async function adjustInventoryAction(formData: FormData) {

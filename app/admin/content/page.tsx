@@ -17,7 +17,8 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   return (
     <main className="max-w-2xl">
-      <h1 className="mb-2 text-2xl font-bold">콘텐츠 관리 · 사이트 설정</h1>
+      <h1 className="mb-2 text-2xl font-bold">사이트 관리자 · 사이트 설정</h1>
+      <p className="mb-4 text-sm text-neutral-500">개별 페이지의 사진·글은 <a href="/admin/content/pages" className="underline">페이지 수정</a>에서, 관리자 역할은 <a href="/admin/content/roles" className="underline">관리자 역할지정</a>에서 관리합니다.</p>
       <div className="mb-5 flex gap-2 text-sm">
         <a href="/admin/content?brand=mtspace" className={`rounded border px-3 py-1 ${code === "mtspace" ? "bg-black text-white" : ""}`}>MTSPACE</a>
         <a href="/admin/content?brand=normcore" className={`rounded border px-3 py-1 ${code === "normcore" ? "bg-black text-white" : ""}`}>NORMCORE</a>

@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import {
-  saveDomesticRateAction, addDomesticRateAction, saveEmsRateAction, saveTaxAction, setUserRoleAction,
+  saveDomesticRateAction, addDomesticRateAction, saveEmsRateAction, saveTaxAction,
 } from "@/app/admin/store/actions";
-import { formatKRW } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +12,6 @@ export default async function AdminStorePage() {
   const { data: ems } = await supabase
     .from("ems_rate").select("id,country_code,weight_g,price").order("country_code").order("weight_g");
   const { data: vat } = await supabase.from("site_setting").select("value").eq("key", "vat_rate").limit(1).maybeSingle();
-  const { data: admins } = await supabase.from("profiles").select("name,email,role").eq("role", "admin");
 
   // EMS 국가별 그룹
   const byCountry = new Map<string, { id: string; weight_g: number; price: number }[]>();
@@ -25,8 +23,8 @@ export default async function AdminStorePage() {
   const input = "rounded border px-2 py-1 text-sm";
   return (
     <main className="max-w-3xl space-y-10">
-      <h1 className="text-2xl font-bold">스토어 정보 관리</h1>
-      <p className="text-sm text-neutral-500">연락처·이메일·배경·폰트는 <a href="/admin/content" className="underline">콘텐츠 관리</a>에서 편집합니다. 여기서는 배송비·세금·관리자를 관리합니다.</p>
+      <h1 className="text-2xl font-bold">배송 관리</h1>
+      <p className="text-sm text-neutral-500">연락처·이메일·배경·폰트는 <a href="/admin/content" className="underline">사이트 관리자</a>에서, 관리자 역할지정은 <a href="/admin/content/roles" className="underline">사이트 관리자 &gt; 관리자 역할지정</a>에서 관리합니다. 여기서는 국내·해외 배송비와 세금을 관리합니다.</p>
 
       {/* 세금 */}
       <section className="rounded-xl border p-5">
@@ -85,30 +83,6 @@ export default async function AdminStorePage() {
         </div>
       </section>
 
-      {/* 관리자/역할 */}
-      <section className="rounded-xl border p-5">
-        <h2 className="mb-3 font-bold">관리자 · 역할 지정</h2>
-        <p className="mb-3 text-xs text-neutral-500">가입된 사용자의 이메일로 역할을 지정합니다. (일반/기업/인플루언서/관리자 — 인플루언서·관리자 지정은 여기서만 가능)</p>
-        <form action={setUserRoleAction} className="flex flex-wrap items-end gap-2 text-sm">
-          <label>이메일<input name="email" type="email" placeholder="user@example.com" className={`mt-1 block ${input} w-64`} /></label>
-          <label>역할
-            <select name="role" className={`mt-1 block ${input}`}>
-              <option value="individual">일반회원</option>
-              <option value="business">기업회원</option>
-              <option value="influencer">인플루언서</option>
-              <option value="admin">관리자</option>
-            </select>
-          </label>
-          <button className="rounded-full bg-black px-4 py-1.5 text-white">적용</button>
-        </form>
-        <div className="mt-4">
-          <p className="mb-1 text-xs font-bold uppercase text-neutral-400">현재 관리자</p>
-          <ul className="text-sm">
-            {(admins ?? []).map((a) => <li key={a.email}>{a.name || "-"} · {a.email}</li>)}
-            {(!admins || admins.length === 0) && <li className="text-neutral-400">없음</li>}
-          </ul>
-        </div>
-      </section>
     </main>
   );
 }

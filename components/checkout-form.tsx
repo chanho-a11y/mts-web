@@ -1,11 +1,16 @@
 "use client";
 import { useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
 import { subtotal } from "@/lib/cart";
 import { formatKRW } from "@/lib/i18n";
 import { createOrderAction } from "@/app/checkout/actions";
 import type { Provider } from "@/lib/payments";
+
+declare global {
+  interface Window { daum?: any }
+}
 
 const METHODS: { p: Provider; label: string }[] = [
   { p: "inicis", label: "신용카드·계좌이체 (이니시스)" },
@@ -20,7 +25,20 @@ export default function CheckoutForm({ tip, email = "" }: { tip: number; email?:
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [country, setCountry] = useState("KR");
+  const [zipcode, setZipcode] = useState("");
+  const [addr1, setAddr1] = useState("");
   const sub = subtotal(items);
+
+  function searchKR() {
+    if (!window.daum?.Postcode) return;
+    new window.daum.Postcode({
+      oncomplete: (data: any) => {
+        setZipcode(data.zonecode);
+        setAddr1(data.roadAddress || data.jibunAddress);
+      },
+    }).open();
+  }
 
   async function submit(formData: FormData) {
     setBusy(true); setMsg(null);
@@ -62,13 +80,25 @@ export default function CheckoutForm({ tip, email = "" }: { tip: number; email?:
         <h2 className="font-bold">주문자 정보</h2>
         <label className="block text-sm">이메일(주문 확인)<input type="email" name="email" defaultValue={email} required className={input} /></label>
         <h2 className="pt-2 font-bold">배송지</h2>
+        <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
         <label className="block text-sm">받는 분<input name="recipient" required className={input} /></label>
         <label className="block text-sm">전화번호<input name="phone" required className={input} /></label>
         <label className="block text-sm">국가
-          <select name="country" className={input}><option value="KR">대한민국</option><option value="US">United States</option><option value="OTHER">Other</option></select>
+          <select name="country" value={country} onChange={(e) => setCountry(e.target.value)} className={input}>
+            <option value="KR">대한민국</option><option value="US">United States</option><option value="OTHER">Other</option>
+          </select>
         </label>
-        <div className="flex gap-2"><input name="zipcode" placeholder="우편번호" className={input} /></div>
-        <input name="addr1" placeholder="기본 주소" required className={input} />
+        <div className="flex items-end gap-2">
+          <label className="block flex-1 text-sm">우편번호
+            <input name="zipcode" value={zipcode} onChange={(e) => setZipcode(e.target.value)} className={input} />
+          </label>
+          {country === "KR" && (
+            <button type="button" onClick={searchKR} className="mb-0.5 rounded border px-3 py-2 text-sm hover:bg-neutral-50">
+              우편번호 검색
+            </button>
+          )}
+        </div>
+        <input name="addr1" placeholder="기본 주소" value={addr1} onChange={(e) => setAddr1(e.target.value)} required className={input} />
         <input name="addr2" placeholder="상세 주소" className={input} />
 
         <h2 className="pt-4 font-bold">결제 수단</h2>

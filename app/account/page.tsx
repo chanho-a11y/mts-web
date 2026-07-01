@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOutAction } from "@/app/account/actions";
+import { signOutAction, deleteAddressAction, setDefaultAddressAction } from "@/app/account/actions";
+import AddressBookForm from "@/components/address-book-form";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,13 @@ export default async function AccountPage() {
     .select("company_name,biz_reg_no,status")
     .eq("profile_id", user.id)
     .maybeSingle();
+
+  const { data: addresses } = await supabase
+    .from("addresses")
+    .select("id,recipient,phone,country,zipcode,addr1,addr2,entrance_memo,is_default")
+    .eq("profile_id", user.id)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false });
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
@@ -56,6 +64,42 @@ export default async function AccountPage() {
           </dl>
         </section>
       )}
+
+      <section className="mt-4 rounded-xl border p-5 text-sm">
+        <h2 className="mb-3 font-bold">배송지 주소록</h2>
+        {addresses && addresses.length ? (
+          <ul className="mb-4 space-y-3">
+            {addresses.map((a) => (
+              <li key={a.id} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">
+                    {a.recipient} {a.is_default && <span className="ml-1 rounded bg-ink px-1.5 py-0.5 text-[10px] text-oat">기본</span>}
+                  </p>
+                  <div className="flex gap-2 text-xs">
+                    {!a.is_default && (
+                      <form action={setDefaultAddressAction}>
+                        <input type="hidden" name="id" value={a.id} />
+                        <button className="text-neutral-500 hover:underline">기본으로</button>
+                      </form>
+                    )}
+                    <form action={deleteAddressAction}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <button className="text-red-500 hover:underline">삭제</button>
+                    </form>
+                  </div>
+                </div>
+                <p className="mt-1 text-neutral-600">
+                  ({a.zipcode}) {a.addr1} {a.addr2}
+                </p>
+                <p className="text-neutral-400">{a.phone}{a.entrance_memo ? ` · ${a.entrance_memo}` : ""}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mb-4 text-neutral-500">저장된 배송지가 없습니다. 아래에서 추가하세요.</p>
+        )}
+        <AddressBookForm defaultName={profile?.name ?? ""} defaultPhone={profile?.phone ?? ""} />
+      </section>
 
       <Orders userId={user.id} />
       <Subs userId={user.id} />

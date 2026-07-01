@@ -14,20 +14,22 @@ export default function SiteHeader({
   const mainNav = [
     { href: "/collections/all", label: tt.shop },
     { href: "/about", label: tt.about },
-    { href: "/coffee-info", label: tt.coffeeInfo },
     { href: "/blogs/coffeelog", label: tt.blog },
     { href: "/consulting", label: tt.consulting },
     { href: "/contact", label: tt.contact },
   ];
-  // 상단 고정 쇼핑 메뉴 (역할별)
+  // 상단 고정 쇼핑 메뉴 (역할별) — 사업자 전용은 사업자 회원에게만 노출
   const shopNav = isBusiness
-    ? [{ href: "/collections/wholesale", label: "사업자 전용" }, { href: "/collections/blends", label: "블렌드" }, { href: "/collections/single-origins", label: "싱글 오리진" }]
+    ? [
+        { href: "/collections/wholesale", label: "사업자 전용" },
+        { href: "/collections/blends", label: "블렌드" },
+        { href: "/collections/single-origins", label: "싱글 오리진" },
+        { href: "/collections/normcore", label: "Normcore Coffee" },
+      ]
     : [
         { href: "/collections/blends", label: "블렌드" },
         { href: "/collections/single-origins", label: "싱글 오리진" },
-        { href: "/collections/decaf", label: "디카페인" },
-        { href: "/collections/normcore", label: "Normcore" },
-        { href: "/collections/merch", label: "머천다이즈" },
+        { href: "/collections/normcore", label: "Normcore Coffee" },
       ];
 
   // 버거 메뉴: 역할별 전체 네비게이션 트리(전 뷰포트 공통)
@@ -54,16 +56,19 @@ export default function SiteHeader({
                     {sec.links.map((n) => <Link key={n.href} href={n.href} className="block py-1 hover:text-clayDeep">{n.label}</Link>)}
                   </div>
                 ))}
-                {isAdmin && (
-                  <div className="mt-2 border-t pt-2">
-                    <Link href="/admin" className="block py-1 font-bold text-clayDeep">관리자</Link>
-                  </div>
-                )}
               </nav>
             </details>
-            <Link href="/" aria-label={brand.name} className="flex items-center">
+            <Link href="/" aria-label={brand.name} className="flex shrink-0 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo || "/images/mtspace-logo.png"} alt={brand.name} className="h-6 w-auto md:h-7" />
+              {/* 로고: 높이 고정 + w-auto + object-contain 으로 원본 비율 유지(세로 늘어짐 방지) */}
+              <img
+                src={logo || "/images/mtspace-logo.png"}
+                alt={brand.name}
+                width={160}
+                height={28}
+                className="block h-7 w-auto max-w-[160px] shrink-0 object-contain"
+                style={{ height: "1.75rem", width: "auto" }}
+              />
             </Link>
           </div>
 
@@ -77,8 +82,6 @@ export default function SiteHeader({
             </form>
             <LangToggle locale={locale} />
             <a href="https://instagram.com/mtspacecoffee" target="_blank" rel="noreferrer" className="hidden hover:opacity-70 sm:inline" aria-label="Instagram MTSPACE">@mtspacecoffee</a>
-            <a href="https://instagram.com/normcorecoffee_official" target="_blank" rel="noreferrer" className="hidden hover:opacity-70 lg:inline" aria-label="Instagram Normcore">@normcorecoffee_official</a>
-            {isAdmin && <Link href="/admin" className="rounded bg-ink px-2 py-1 text-xs text-white">관리자</Link>}
             {signedIn ? (
               <>
                 <Link href="/account" className="hover:opacity-70">마이페이지</Link>
@@ -94,6 +97,15 @@ export default function SiteHeader({
           </div>
         </div>
       </div>
+
+      {/* 관리자 진입 버튼 — 좌측 상단이 아닌 우측 하단 고정 위치 */}
+      <Link
+        href="/admin"
+        aria-label="관리자"
+        className="fixed bottom-4 right-4 z-50 rounded-full border border-line bg-ink/90 px-3 py-2 text-[11px] font-medium text-oat shadow-lg backdrop-blur transition hover:bg-ink"
+      >
+        {isAdmin ? "관리자" : "관리자 로그인"}
+      </Link>
     </header>
   );
 }

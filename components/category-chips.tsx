@@ -12,17 +12,16 @@ export default function CategoryChips({
     { href: "/collections/all", slug: "all", label: "전체" },
     { href: "/collections/blends", slug: "blends", label: "블렌드" },
     { href: "/collections/single-origins", slug: "single-origins", label: "싱글 오리진" },
-    { href: "/collections/decaf", slug: "decaf", label: "디카페인" },
-    { href: "/collections/normcore", slug: "normcore", label: "Normcore" },
-    { href: "/collections/merch", slug: "merch", label: "머천다이즈" },
+    { href: "/collections/normcore", slug: "normcore", label: "Normcore Coffee" },
   ];
+  // 사업자 전용 카테고리는 사업자 회원에게만 노출
   const chips = isBusiness
     ? [
         { href: "/collections/all", slug: "all", label: "전체" },
         { href: "/collections/wholesale", slug: "wholesale", label: "사업자 전용" },
         { href: "/collections/blends", slug: "blends", label: "블렌드" },
         { href: "/collections/single-origins", slug: "single-origins", label: "싱글 오리진" },
-        { href: "/collections/decaf", slug: "decaf", label: "디카페인" },
+        { href: "/collections/normcore", slug: "normcore", label: "Normcore Coffee" },
       ]
     : base;
 

@@ -19,7 +19,6 @@ export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; 
         </form>
         <div className="mb-4 flex gap-4">
           <a href="https://instagram.com/mtspacecoffee" target="_blank" rel="noreferrer">@mtspacecoffee</a>
-          <a href="https://instagram.com/normcorecoffee_official" target="_blank" rel="noreferrer">@normcorecoffee_official</a>
         </div>
         <p>
           (주)엠티에스솔루션스 MTS Solutions Co., Ltd. · 대표 홍찬호 · 사업자등록번호 653-81-02761 ·

@@ -44,11 +44,15 @@ export default function SignupPage({ searchParams }: { searchParams: { error?: s
         {role === "business" && (
           <fieldset className="space-y-3 rounded border p-3">
             <legend className="px-1 text-sm font-medium">사업자 정보 (승인 후 도매가 적용)</legend>
-            <label className="block text-sm">상호 *<input name="company_name" className={input} /></label>
-            <label className="block text-sm">사업자등록번호 *<input name="biz_reg_no" className={input} /></label>
+            <label className="block text-sm">상호 *<input name="company_name" required className={input} /></label>
+            <label className="block text-sm">사업자등록번호 *<input name="biz_reg_no" required className={input} /></label>
             <label className="block text-sm">대표자명<input name="representative" className={input} /></label>
             <label className="block text-sm">세금계산서 이메일<input name="tax_invoice_email" className={input} /></label>
-            <p className="text-xs text-neutral-500">※ 사업자등록증 파일 업로드는 가입 후 마이페이지에서 진행합니다.</p>
+            <label className="block text-sm">사업자등록증 첨부 * (PDF/이미지, 최대 10MB)
+              <input type="file" name="biz_reg_file" required accept=".pdf,image/png,image/jpeg,image/webp"
+                className="mt-1 w-full rounded border px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-100 file:px-3 file:py-1 file:text-sm" />
+            </label>
+            <p className="text-xs text-neutral-500">※ 사업자 회원은 사업자등록증 첨부가 필수입니다. 관리자 승인 후 도매가가 적용됩니다.</p>
           </fieldset>
         )}
 

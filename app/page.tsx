@@ -107,10 +107,9 @@ export default async function Home() {
         <Link href="/about" className="mt-4 inline-block font-mono text-xs uppercase tracking-wider text-clayDeep hover:underline">{tt.viewAll} →</Link>
       </section>
 
-      {/* 정보 링크 (커피정보 · 블로그 · Contact) */}
-      <section className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 md:grid-cols-3">
+      {/* 정보 링크 (블로그 · Contact) — 커피 정보 메뉴는 향후 재설정 예정으로 제거 */}
+      <section className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 md:grid-cols-2">
         {[
-          { href: "/coffee-info", title: tt.coffeeInfo, desc: "농장·플레이버·추천 레시피·인포카드" },
           { href: "/blogs/coffeelog", title: tt.blog, desc: "Coffeelog 커피 이야기" },
           { href: "/contact", title: tt.contact, desc: "납품·컨설팅·교육·제품 문의" },
         ].map((c) => (

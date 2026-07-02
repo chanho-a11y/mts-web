@@ -2,28 +2,53 @@
 import { useRef, useState } from "react";
 import { bulkUpsertProductsAction } from "@/app/admin/products/actions";
 
-// 일괄 등록 컬럼 정의 — 단건 폼 필드와 1:1. (양식 세부는 추후 확정)
-const COLUMNS: { key: string; label: string; required?: boolean; hint?: string }[] = [
-  { key: "slug", label: "슬러그(URL)", required: true, hint: "영문/하이픈, 고유" },
-  { key: "brand", label: "브랜드", hint: "mtspace 또는 normcore (기본 mtspace)" },
-  { key: "title_ko", label: "제품명", required: true },
-  { key: "one_liner", label: "한줄키워드" },
-  { key: "category", label: "카테고리", hint: "blends/single-origins/wholesale/normcore (유형=카테고리 통합)" },
-  { key: "status", label: "상태", hint: "published/draft" },
-  { key: "roast_level", label: "로스팅" },
-  { key: "origin_country", label: "원산지" },
-  { key: "weight_g", label: "중량(g)" },
-  { key: "variety", label: "품종" },
-  { key: "process", label: "가공" },
-  { key: "flavor_notes", label: "플레이버노트", hint: "쉼표 구분" },
+// 일괄 등록 컬럼 정의 — 단건 폼 필드와 1:1. 노출 텍스트는 한/영 이중, 레시피(필터/에스프레소/밀크) 포함.
+const COLUMNS: { key: string; label: string; required?: boolean; hint?: string; sample?: string }[] = [
+  { key: "slug", label: "슬러그(URL)", required: true, hint: "영문/하이픈, 고유", sample: "ethiopia-yirgacheffe" },
+  { key: "brand", label: "브랜드", hint: "mtspace 또는 normcore (기본 mtspace)", sample: "mtspace" },
+  { key: "title_ko", label: "제품명(KO)", required: true, sample: "에티오피아 예가체프" },
+  { key: "title_en", label: "제품명(EN)", sample: "Ethiopia Yirgacheffe" },
+  { key: "one_liner", label: "한줄키워드(KO)", sample: "플로럴·시트러스" },
+  { key: "one_liner_en", label: "한줄키워드(EN)", sample: "Floral & citrus" },
+  { key: "category", label: "카테고리", hint: "blends/single-origins/wholesale/normcore", sample: "single-origins" },
+  { key: "status", label: "상태", hint: "published/draft", sample: "published" },
+  { key: "roast_level", label: "로스팅(KO)", sample: "미디엄" },
+  { key: "roast_level_en", label: "로스팅(EN)", sample: "Medium" },
+  { key: "origin_country", label: "원산지(KO)", sample: "에티오피아" },
+  { key: "origin_country_en", label: "원산지(EN)", sample: "Ethiopia" },
+  { key: "weight_g", label: "중량(g)", sample: "200" },
+  { key: "variety", label: "품종(KO)", sample: "재래종" },
+  { key: "variety_en", label: "품종(EN)", sample: "Heirloom" },
+  { key: "process", label: "가공(KO)", sample: "워시드" },
+  { key: "process_en", label: "가공(EN)", sample: "Washed" },
+  { key: "flavor_notes", label: "플레이버노트(KO)", hint: "쉼표 구분", sample: "자스민, 베르가못, 복숭아" },
+  { key: "flavor_notes_en", label: "플레이버노트(EN)", hint: "쉼표 구분", sample: "Jasmine, Bergamot, Peach" },
   { key: "report_no", label: "품목보고번호" },
-  { key: "material", label: "원재료명" },
-  { key: "key_color", label: "키컬러(HEX)" },
-  { key: "sku", label: "SKU" },
-  { key: "base_price", label: "가격(원)" },
-  { key: "is_b2b_only", label: "사업자전용", hint: "Y/N" },
-  { key: "cost", label: "제조원가(원)" },
-  { key: "story", label: "커피스토리" },
+  { key: "material", label: "원재료명", sample: "커피원두 100% (에티오피아 100%)" },
+  { key: "key_color", label: "키컬러(HEX)", hint: "비우면 자동", sample: "#D2A84E" },
+  { key: "sku", label: "SKU", sample: "MTS-ETH-YIRGA-200" },
+  { key: "base_price", label: "가격(원)", sample: "18000" },
+  { key: "is_b2b_only", label: "사업자전용", hint: "Y/N", sample: "N" },
+  { key: "cost", label: "제조원가(원)", sample: "7000" },
+  { key: "story", label: "커피스토리(KO)" },
+  { key: "story_en", label: "커피스토리(EN)" },
+  // 레시피 — 필터
+  { key: "rcp_filter_dose_g", label: "필터_도징(g)", sample: "20" },
+  { key: "rcp_filter_grind", label: "필터_분쇄도(KO)", sample: "중간" },
+  { key: "rcp_filter_grind_en", label: "필터_분쇄도(EN)", sample: "Medium" },
+  { key: "rcp_filter_bloom_g", label: "필터_블루밍(g)", sample: "40" },
+  { key: "rcp_filter_bloom_time_s", label: "필터_블루밍시간(s)", sample: "40" },
+  { key: "rcp_filter_pour_g", label: "필터_푸어링(g)", sample: "300" },
+  { key: "rcp_filter_total_time", label: "필터_전체시간", sample: "2:30" },
+  // 레시피 — 에스프레소
+  { key: "rcp_espresso_dose_g", label: "에스프레소_도징(g)", sample: "18" },
+  { key: "rcp_espresso_yield_g", label: "에스프레소_추출량(g)", sample: "40" },
+  { key: "rcp_espresso_time", label: "에스프레소_추출시간", sample: "28s" },
+  // 레시피 — 밀크
+  { key: "rcp_milk_dose_g", label: "밀크_도징(g)", sample: "18" },
+  { key: "rcp_milk_yield_g", label: "밀크_추출량(g)", sample: "36" },
+  { key: "rcp_milk_time", label: "밀크_추출시간", sample: "27s" },
+  { key: "rcp_milk_ml", label: "밀크_우유양(ml)", sample: "150" },
 ];
 
 // 한글 라벨 → key 역매핑(양식이 한글 헤더여도 인식)
@@ -61,12 +86,7 @@ export default function BulkProductUpload() {
     try {
       const XLSX = await loadSheetJS();
       const header = COLUMNS.map((c) => c.label);
-      const example = [
-        "ethiopia-yirgacheffe", "mtspace", "에티오피아 예가체프", "플로럴·시트러스",
-        "싱글 오리진", "single-origins", "미디엄", "에티오피아", "200", "Heirloom",
-        "워시드", "자스민, 베르가못, 복숭아", "", "커피원두 100% (에티오피아 100%)",
-        "#D2A84E", "MTS-ETH-YIRGA-200", "18000", "N", "N",
-      ];
+      const example = COLUMNS.map((c) => c.sample ?? "");
       const guide = COLUMNS.map((c) => (c.required ? "필수 · " : "") + (c.hint ?? ""));
       const ws = XLSX.utils.aoa_to_sheet([header, guide, example]);
       ws["!cols"] = COLUMNS.map(() => ({ wch: 16 }));

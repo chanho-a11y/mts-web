@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getStorefrontContext } from "@/lib/storefront";
-import { getCategories } from "@/lib/queries";
+import { getCategories, getBestsellers, getNewArrivals } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import ProductCard from "@/components/product-card";
 import HeroSlideshow from "@/components/hero-slideshow";
@@ -16,11 +16,13 @@ export default async function Home() {
   const { brand, locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
 
-  // storefront 확인 후 독립적인 3개 조회를 병렬 실행(순차 → 동시).
-  const [categories, role, settingsMap] = await Promise.all([
+  // storefront 확인 후 독립적인 조회를 병렬 실행(순차 → 동시).
+  const [categories, role, settingsMap, bestsellers, newArrivals] = await Promise.all([
     getCategories(storefrontId),
     fetchRole(),
     fetchSiteSettings(brand.code),
+    getBestsellers(storefrontId, 4),
+    getNewArrivals(storefrontId, 4),
   ]);
   const isBusiness = role === "business";
 
@@ -34,10 +36,23 @@ export default async function Home() {
   const slides = (slideRaw ? slideRaw.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean) : defaultSlides)
     .map((src) => ({ src, alt: brand.name }));
 
-  const allProducts = categories.flatMap((c) => c.products);
-  const bestsellers = allProducts.slice(0, 8);
+  // 홈 제품 썸네일 4구성: 베스트 · 이달의 신상품 · 블렌드 · 싱글오리진
+  const catBySlug = (slug: string) => categories.find((c) => c.slug === slug);
+  const blendsCat = catBySlug("blends");
+  const singlesCat = catBySlug("single-origins");
+  const catName = (c: typeof blendsCat, fallback: string) =>
+    c ? (locale === "en" && c.name_en ? c.name_en : c.name_ko) : fallback;
 
-  // 등급별 쇼핑 카테고리
+  // 사업자 전용 제품은 사업자 회원에게만 노출(4구성 통일 유지)
+  const vis = (arr: typeof bestsellers) => arr.filter((p) => isBusiness || !p.is_b2b_only);
+  const homeSections: { key: string; title: string; href: string; products: typeof bestsellers }[] = [
+    { key: "best", title: locale === "en" ? "Best" : "베스트", href: "/collections/all", products: vis(bestsellers).slice(0, 4) },
+    { key: "new", title: locale === "en" ? "New This Month" : "이달의 신상품", href: "/collections/all", products: vis(newArrivals).slice(0, 4) },
+    { key: "blends", title: catName(blendsCat, locale === "en" ? "Blends" : "블렌드"), href: "/collections/blends", products: vis(blendsCat?.products ?? []).slice(0, 4) },
+    { key: "singles", title: catName(singlesCat, locale === "en" ? "Single Origins" : "싱글 오리진"), href: "/collections/single-origins", products: vis(singlesCat?.products ?? []).slice(0, 4) },
+  ].filter((s) => s.products.length > 0);
+
+  // 카테고리 칩 슬라이더(내비게이션)
   const order = isBusiness ? BUSINESS_ORDER : CONSUMER_ORDER;
   const shopCategories = [...categories]
     .filter((c) => c.slug !== "subscription" && (isBusiness ? true : c.slug !== "wholesale"))
@@ -48,14 +63,8 @@ export default async function Home() {
 
   return (
     <main>
-      {/* 이미지 슬라이드 (실제 이미지) */}
+      {/* 이미지 슬라이드 (실제 이미지) — 하단 쇼핑 버튼 제거(D-031) */}
       <HeroSlideshow slides={slides} title={heroTitle} subtitle={heroSubtitle} locale={locale} />
-
-      <div className="mx-auto max-w-6xl px-4">
-        <Link href="/collections/all" className="-mt-5 mb-4 inline-block rounded-card bg-ink px-6 py-2.5 text-sm font-semibold tracking-wide text-oat shadow-card hover:bg-[#4A443A]">
-          {tt.shop}
-        </Link>
-      </div>
 
       {/* 카테고리 슬라이드 */}
       <section className="mx-auto max-w-6xl px-4 py-4">
@@ -70,31 +79,23 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 판매 상위 제품 슬라이드 */}
-      {bestsellers.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 py-4">
-          <h2 className="mb-4 text-xl font-bold">{tt.bestsellers}</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {bestsellers.map((p) => <ProductCard key={p.slug} p={p} locale={locale} />)}
+      {/* 제품 썸네일 4구성: 베스트 · 이달의 신상품 · 블렌드 · 싱글오리진 (D-031) */}
+      {isBusiness && (
+        <div className="mx-auto max-w-6xl px-4 pt-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold">{tt.businessShop}</h2>
+            <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[11px] text-clayDeep">{tt.businessPricing}</span>
           </div>
-        </section>
-      )}
-
-      {/* 등급별 쇼핑 (회원 역할에 따라 다르게) */}
-      <div className="mx-auto max-w-6xl px-4 pt-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold">{isBusiness ? tt.businessShop : tt.shop}</h2>
-          {isBusiness && <span className="rounded-full bg-clay/10 px-2 py-0.5 text-[11px] text-clayDeep">{tt.businessPricing}</span>}
         </div>
-      </div>
-      {shopCategories.map((c) => (
-        <section key={c.slug} className="mx-auto max-w-6xl px-4 py-6">
+      )}
+      {homeSections.map((s) => (
+        <section key={s.key} className="mx-auto max-w-6xl px-4 py-6">
           <div className="mb-4 flex items-baseline justify-between">
-            <h3 className="text-xl font-bold">{locale === "en" && c.name_en ? c.name_en : c.name_ko}</h3>
-            <Link href={`/collections/${c.slug}`} className="text-sm text-neutral-500 hover:underline">{tt.viewAll}</Link>
+            <h3 className="text-xl font-bold">{s.title}</h3>
+            <Link href={s.href} className="text-sm text-neutral-500 hover:underline">{tt.viewAll}</Link>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {c.products.slice(0, 4).map((p) => <ProductCard key={p.slug} p={p} locale={locale} />)}
+            {s.products.map((p) => <ProductCard key={p.slug} p={p} locale={locale} />)}
           </div>
         </section>
       ))}

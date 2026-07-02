@@ -39,12 +39,30 @@ function kst(iso: string | null | undefined): string {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} +0900`;
 }
 
-export async function GET() {
+// 기간 정규화 — 최대 62일. 잘못된 값이면 최근 30일. (orders 페이지 resolveRange와 동일 규칙)
+const DAY = 86400000, MAX_DAYS = 62;
+const fmt = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+function valid(s: string | null): s is string { return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + "T00:00:00+09:00").getTime()); }
+function resolveRange(fromRaw: string | null, toRaw: string | null): { from: string; to: string } {
+  let to = valid(toRaw) ? toRaw : fmt(new Date());
+  let from = valid(fromRaw) ? fromRaw : fmt(new Date(Date.now() - 29 * DAY));
+  if (from > to) [from, to] = [to, from];
+  const span = Math.round((new Date(to + "T00:00:00+09:00").getTime() - new Date(from + "T00:00:00+09:00").getTime()) / DAY);
+  if (span > MAX_DAYS - 1) from = fmt(new Date(new Date(to + "T00:00:00+09:00").getTime() - (MAX_DAYS - 1) * DAY));
+  return { from, to };
+}
+
+export async function GET(req: Request) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (prof?.role !== "admin") return new NextResponse("Forbidden", { status: 403 });
+
+  const url = new URL(req.url);
+  const { from, to } = resolveRange(url.searchParams.get("from"), url.searchParams.get("to"));
+  const fromIso = `${from}T00:00:00+09:00`;
+  const toIso = `${to}T23:59:59.999+09:00`;
 
   const { data: orders } = await supabase
     .from("orders")
@@ -53,6 +71,8 @@ export async function GET() {
       order_item(sku,title_snapshot,unit_price,qty,line_total),
       payment(method,provider,pg_tid,capture_id,status,amount),
       shipment(status,shipped_at,tracking_no)`)
+    .gte("placed_at", fromIso)
+    .lte("placed_at", toIso)
     .order("placed_at", { ascending: false });
 
   const lines: string[] = [HEADERS.join(",")];
@@ -131,7 +151,7 @@ export async function GET() {
 
   // UTF-8 BOM 추가 — Excel 한글 깨짐 방지
   const csv = "﻿" + lines.join("\r\n");
-  const fname = `orders_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  const fname = `orders_export_${from}_to_${to}.csv`;
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

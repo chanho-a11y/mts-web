@@ -10,16 +10,16 @@ export default function AboutMoreModal({ awards, media, label = "대표 약력 �
         modalAria: "Founder bio and awards",
         close: "Close",
         bio: "Chanho Hong is a coffee professional with 16 years of experience who has earned numerous awards on the specialty coffee competition stage across Korea and Australia. He is known for ‘Chanho-Tornado’, his own V60 brewing method, and holds a bachelor's degree in advertising and an MBA (data-driven marketing, operations, and entrepreneurship). He is the founder of MTSPACE COFFEE, Normcore Coffee, and RoasteryFlow.",
-        awardsH: "Awards",
-        mediaH: "Media · Activities",
+        awardsH: "Barista Awards",
+        mediaH: "Media · Seminars · Events",
       }
     : {
         modalTitle: "대표 약력 · 수상 · 미디어",
         modalAria: "대표 약력 및 수상내역",
         close: "닫기",
         bio: "홍찬호(Chanho Hong)는 경력 16년의 커피 전문가로, 한국·호주 양국의 스페셜티 커피 경쟁 무대에서 다수의 수상 경험을 쌓았습니다. V60 추출의 고유 방법인 ‘Chanho-Tornado’로 알려져 있으며, 광고학 학사와 MBA(데이터 기반 마케팅·운영·창업) 학위를 보유하고 있습니다. MTSPACE COFFEE · Normcore Coffee · RoasteryFlow의 창업자입니다.",
-        awardsH: "수상 내역",
-        mediaH: "미디어 · 활동",
+        awardsH: "수상 내역 (Barista Awards)",
+        mediaH: "미디어 · 세미나 · 이벤트",
       };
 
   useEffect(() => {

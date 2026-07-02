@@ -3,10 +3,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateDrafts, buildDesignedDetailHtml } from "@/lib/content-gen";
+import { buildRecipeFromForm } from "@/lib/recipe";
 
 function csv(v: string): string[] {
   return v.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
 }
+function orNull(v: string): string | null { return v.trim() ? v.trim() : null; }
+function csvOrNull(v: string): string[] | null { const a = csv(v); return a.length ? a : null; }
 
 // 카테고리 → 제품 유형(통합: 유형/카테고리 단일화). 저장 시 서버에서 파생.
 const CAT_TYPE: Record<string, string> = {
@@ -27,25 +30,34 @@ export async function upsertProductAction(formData: FormData) {
   const catSlug = String(formData.get("category") || "");
   // 카테고리 wholesale(사업자 전용)이면 자동으로 B2B 전용 처리
   const is_b2b = formData.get("is_b2b_only") === "on" || catSlug === "wholesale";
+  const g = (n: string) => String(formData.get(n) || "");
   const row = {
     slug,
     brand_id: brand.id,
-    title_ko: String(formData.get("title_ko") || ""),
-    one_liner: String(formData.get("one_liner") || ""),
+    title_ko: g("title_ko"),
+    title_en: orNull(g("title_en")),
+    one_liner: g("one_liner"),
+    one_liner_en: orNull(g("one_liner_en")),
     product_type: typeFromCategory(catSlug),
-    status: mapStatus(String(formData.get("status") || "published")),
+    status: mapStatus(g("status") || "published"),
     is_b2b_only: is_b2b,
-    roast_level: String(formData.get("roast_level") || ""),
-    flavor_notes: csv(String(formData.get("flavor_notes") || "")),
-    origin: { country: String(formData.get("origin_country") || "") },
-    variety: String(formData.get("variety") || "") || null,
-    process: String(formData.get("process") || "") || null,
-    weight_g: parseInt(String(formData.get("weight_g") || "0"), 10) || null,
-    key_color: String(formData.get("key_color") || "") || null,
-    report_no: String(formData.get("report_no") || "") || null,
-    material: String(formData.get("material") || "") || null,
-    story: String(formData.get("story") || "") || null,
-    cost: parseInt(String(formData.get("cost") || ""), 10) || null,
+    roast_level: g("roast_level"),
+    roast_level_en: orNull(g("roast_level_en")),
+    flavor_notes: csv(g("flavor_notes")),
+    flavor_notes_en: csvOrNull(g("flavor_notes_en")),
+    origin: { country: g("origin_country"), country_en: g("origin_country_en") || null },
+    variety: orNull(g("variety")),
+    variety_en: orNull(g("variety_en")),
+    process: orNull(g("process")),
+    process_en: orNull(g("process_en")),
+    weight_g: parseInt(g("weight_g") || "0", 10) || null,
+    key_color: orNull(g("key_color")),
+    report_no: orNull(g("report_no")),
+    material: orNull(g("material")),
+    story: orNull(g("story")),
+    story_en: orNull(g("story_en")),
+    cost: parseInt(g("cost"), 10) || null,
+    recipe: buildRecipeFromForm(g),
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);
@@ -87,25 +99,34 @@ async function saveProductRow(
 
   const isTrue = (v: string) => /^(y|yes|true|1|o|on)$/i.test(String(v || "").trim());
   const catSlugRow = String(d.category || "").trim();
+  const gd = (n: string) => String(d[n] || "");
   const row = {
     slug,
     brand_id: brand.id,
-    title_ko: String(d.title_ko || ""),
-    one_liner: String(d.one_liner || ""),
+    title_ko: gd("title_ko"),
+    title_en: orNull(gd("title_en")),
+    one_liner: gd("one_liner"),
+    one_liner_en: orNull(gd("one_liner_en")),
     product_type: d.product_type ? String(d.product_type) : typeFromCategory(catSlugRow),
-    status: mapStatus(String(d.status || "published")),
+    status: mapStatus(gd("status") || "published"),
     is_b2b_only: isTrue(d.is_b2b_only) || catSlugRow === "wholesale",
-    roast_level: String(d.roast_level || ""),
-    flavor_notes: csv(String(d.flavor_notes || "")),
-    origin: { country: String(d.origin_country || "") },
-    variety: String(d.variety || "") || null,
-    process: String(d.process || "") || null,
-    weight_g: parseInt(String(d.weight_g || "0"), 10) || null,
-    key_color: String(d.key_color || "") || null,
-    report_no: String(d.report_no || "") || null,
-    material: String(d.material || "") || null,
-    story: String(d.story || "") || null,
-    cost: parseInt(String(d.cost || ""), 10) || null,
+    roast_level: gd("roast_level"),
+    roast_level_en: orNull(gd("roast_level_en")),
+    flavor_notes: csv(gd("flavor_notes")),
+    flavor_notes_en: csvOrNull(gd("flavor_notes_en")),
+    origin: { country: gd("origin_country"), country_en: gd("origin_country_en") || null },
+    variety: orNull(gd("variety")),
+    variety_en: orNull(gd("variety_en")),
+    process: orNull(gd("process")),
+    process_en: orNull(gd("process_en")),
+    weight_g: parseInt(gd("weight_g") || "0", 10) || null,
+    key_color: orNull(gd("key_color")),
+    report_no: orNull(gd("report_no")),
+    material: orNull(gd("material")),
+    story: orNull(gd("story")),
+    story_en: orNull(gd("story_en")),
+    cost: parseInt(gd("cost"), 10) || null,
+    recipe: buildRecipeFromForm(gd),
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };

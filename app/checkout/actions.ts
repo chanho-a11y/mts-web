@@ -32,7 +32,14 @@ async function resolveDiscount(supabase: any, code: string, subtotal: number): P
   const amount = src.type === "percent" ? Math.round((subtotal * src.value) / 100) : Math.min(src.value, subtotal);
   return { amount, label: code };
 }
-export interface CheckoutResult { ok: boolean; orderNo?: string; message: string; pgReady?: boolean; redirectUrl?: string | null }
+export interface CheckoutResult {
+  ok: boolean;
+  orderNo?: string;
+  message: string;
+  pgReady?: boolean;
+  redirectUrl?: string | null;
+  form?: { sdk: "inicis"; fields: Record<string, string> } | null;
+}
 
 export async function createOrderAction(payload: CheckoutPayload): Promise<CheckoutResult> {
   const supabase = createClient();
@@ -117,14 +124,19 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   );
 
   const adapter = getAdapter(payload.provider);
-  const init = await adapter.init({ orderId: order.id, orderNo, amount: grand, currency, returnUrl: "/checkout/complete" });
+  const init = await adapter.init({
+    orderId: order.id, orderNo, amount: grand, currency, returnUrl: "/checkout/complete",
+    buyerName: payload.shipping.recipient, buyerTel: payload.shipping.phone,
+    buyerEmail: user?.email ?? payload.email ?? "",
+  });
   await db.from("payment").insert({
     order_id: order.id, provider: payload.provider, amount: grand, currency,
     status: "ready", idempotency_key: `${orderNo}:${payload.provider}`,
+    pg_tid: init.tid ?? null,
   });
 
   return {
-    ok: true, orderNo, pgReady: init.ready, redirectUrl: init.redirectUrl ?? null,
+    ok: true, orderNo, pgReady: init.ready, redirectUrl: init.redirectUrl ?? null, form: init.form ?? null,
     message: init.ready ? "결제창으로 이동합니다." : `주문이 생성되었습니다 (주문번호 ${orderNo}). ${init.message}`,
   };
 }

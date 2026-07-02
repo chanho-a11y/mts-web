@@ -10,7 +10,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const supabase = createClient();
   const { data: p } = await supabase
     .from("product")
-    .select(`id,slug,title_ko,one_liner,product_type,status,is_b2b_only,roast_level,flavor_notes,origin,variety,process,weight_g,key_color,report_no,material,story,cost,
+    .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,product_type,status,is_b2b_only,roast_level,roast_level_en,flavor_notes,flavor_notes_en,origin,variety,variety_en,process,process_en,weight_g,key_color,report_no,material,story,story_en,cost,recipe,
       brand(code), product_variant(id,sku,base_price), product_categories(category(slug))`)
     .eq("slug", params.slug).maybeSingle();
   if (!p) notFound();
@@ -44,14 +44,19 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const skuOf = (vid: string) => variants.find((v) => v.id === vid)?.sku ?? "";
   const baseOf = (vid: string) => variants.find((v) => v.id === vid)?.base_price ?? 0;
 
+  const px = p as any;
   const initial = {
-    slug: p.slug, brand: (p as any).brand?.code, title_ko: p.title_ko, one_liner: p.one_liner ?? "",
-    is_b2b_only: p.is_b2b_only, roast_level: p.roast_level ?? "", status: p.status ?? "active",
-    flavor_notes: p.flavor_notes ?? [], origin_country: (p as any).origin?.country ?? "",
-    variety: p.variety ?? "", process: p.process ?? "", weight_g: p.weight_g, key_color: p.key_color ?? "",
+    slug: p.slug, brand: px.brand?.code, title_ko: p.title_ko, title_en: px.title_en ?? "",
+    one_liner: p.one_liner ?? "", one_liner_en: px.one_liner_en ?? "",
+    is_b2b_only: p.is_b2b_only, roast_level: p.roast_level ?? "", roast_level_en: px.roast_level_en ?? "", status: p.status ?? "active",
+    flavor_notes: p.flavor_notes ?? [], flavor_notes_en: px.flavor_notes_en ?? [],
+    origin_country: px.origin?.country ?? "", origin_country_en: px.origin?.country_en ?? "",
+    variety: p.variety ?? "", variety_en: px.variety_en ?? "", process: p.process ?? "", process_en: px.process_en ?? "",
+    weight_g: p.weight_g, key_color: p.key_color ?? "",
     sku: pv?.sku ?? "", base_price: pv?.base_price ?? undefined, category: catSlug,
-    report_no: (p as any).report_no ?? "", material: (p as any).material ?? "",
-    story: (p as any).story ?? "", cost: (p as any).cost ?? null,
+    report_no: px.report_no ?? "", material: px.material ?? "",
+    story: px.story ?? "", story_en: px.story_en ?? "", cost: px.cost ?? null,
+    recipe: px.recipe ?? null,
   };
 
   return (

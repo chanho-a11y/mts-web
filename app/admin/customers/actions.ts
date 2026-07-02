@@ -54,9 +54,31 @@ export async function archiveCustomerAction(formData: FormData) {
 export async function deleteCustomerAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (!id) redirect(CUST);
-  if (!hasServiceRole) redirect(`${CUST}?error=${encodeURIComponent("service-role 키가 필요합니다")}`);
+  if (!hasServiceRole) redirect(`${CUST}?error=${encodeURIComponent("service-role 키가 필요합니다(배포 환경에서 동작)")}`);
   const admin = createAdminClient();
-  await admin.auth.admin.deleteUser(id);
+
+  // 1) NO ACTION(생성자) 참조 정리 — 이 고객이 만든 단가/승인/환불의 created_by·approved_by를 NULL 처리(삭제 차단 방지)
+  await admin.from("customer_variant_prices").update({ created_by: null }).eq("created_by", id);
+  await admin.from("business_accounts").update({ approved_by: null }).eq("approved_by", id);
+  await admin.from("refund").update({ created_by: null }).eq("created_by", id);
+
+  // 2) 주문 이력이 있으면 하드 삭제 불가(orders FK=RESTRICT) → 보관 처리로 폴백해 목록에서 숨김
+  const { count: orderCount } = await admin.from("orders").select("*", { count: "exact", head: true }).eq("profile_id", id);
+  if ((orderCount ?? 0) > 0) {
+    await admin.from("profiles").update({ archived: true }).eq("id", id);
+    revalidatePath(CUST);
+    redirect(`${CUST}?archived_instead=1`);
+  }
+
+  // 3) 주문 없음 → auth 계정 삭제(profiles·addresses·cart 등은 ON DELETE CASCADE로 함께 제거)
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    await admin.from("profiles").update({ archived: true }).eq("id", id);
+    revalidatePath(CUST);
+    redirect(`${CUST}?error=${encodeURIComponent("완전 삭제 불가(연관 데이터 존재) → 보관 처리했습니다")}`);
+  }
+  // cascade로 지워지지 않은 경우 대비 명시적 제거
+  await admin.from("profiles").delete().eq("id", id);
   revalidatePath(CUST);
   redirect(`${CUST}?deleted=1`);
 }

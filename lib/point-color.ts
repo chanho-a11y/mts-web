@@ -9,6 +9,26 @@ const MATRIX: Record<string, [string, string, string]> = {
   tropical: ["#AEAF5E", "#95964A", "#6B6B32"],
 };
 
+// 제품 등록 키 컬러 팔레트(선택형) — 브랜드 clay + flavor×roast 15색. 자동(빈값) 옵션은 폼에서 처리.
+export const KEY_COLOR_PALETTE: { hex: string; label: string }[] = [
+  { hex: "#C68D62", label: "Clay · 브랜드 키" },
+  { hex: MATRIX.chocolate[0], label: "Chocolate · Light" },
+  { hex: MATRIX.chocolate[1], label: "Chocolate · Medium" },
+  { hex: MATRIX.chocolate[2], label: "Chocolate · Dark" },
+  { hex: MATRIX.citrus[0], label: "Citrus · Light" },
+  { hex: MATRIX.citrus[1], label: "Citrus · Medium" },
+  { hex: MATRIX.citrus[2], label: "Citrus · Dark" },
+  { hex: MATRIX.peach[0], label: "Peach · Light" },
+  { hex: MATRIX.peach[1], label: "Peach · Medium" },
+  { hex: MATRIX.peach[2], label: "Peach · Dark" },
+  { hex: MATRIX.berry[0], label: "Berry · Light" },
+  { hex: MATRIX.berry[1], label: "Berry · Medium" },
+  { hex: MATRIX.berry[2], label: "Berry · Dark" },
+  { hex: MATRIX.tropical[0], label: "Tropical · Light" },
+  { hex: MATRIX.tropical[1], label: "Tropical · Medium" },
+  { hex: MATRIX.tropical[2], label: "Tropical · Dark" },
+];
+
 function flavorFamily(notes: string): string {
   const s = notes.toLowerCase();
   const has = (...k: string[]) => k.some((x) => s.includes(x));

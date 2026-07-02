@@ -40,7 +40,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
         </div>
       )}
       <p className="mb-4 text-sm text-neutral-500">
-        {products?.length ?? 0}개 · {showArchived ? "보관된(삭제) 제품 — 복구 가능" : "수정·삭제 버튼으로 관리"}
+        {products?.length ?? 0}개 · {showArchived ? "보관된 제품 — 복구 가능" : "수정·보관 버튼으로 관리 (보관 = 스토어프론트 숨김·복구 가능)"}
       </p>
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
@@ -65,7 +65,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
                   ) : (
                     <form action={archiveProductAction}>
                       <input type="hidden" name="slug" value={p.slug} />
-                      <button className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50">삭제</button>
+                      <button className="rounded border px-3 py-1 text-xs hover:bg-neutral-100" title="보관함으로 이동(스토어프론트 숨김·복구 가능)">보관</button>
                     </form>
                   )}
                 </div>

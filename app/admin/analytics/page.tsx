@@ -13,7 +13,7 @@ export default async function AdminAnalyticsPage() {
   const supabase = createClient();
   const { data: orders } = await supabase
     .from("orders")
-    .select("status,grand_total,currency,customer_type,coupon_code,profile_id,placed_at")
+    .select("status,grand_total,currency,customer_type,coupon_code,profile_id,placed_at,shipping_address")
     .order("placed_at", { ascending: false })
     .limit(2000);
   const rows = orders ?? [];
@@ -30,7 +30,7 @@ export default async function AdminAnalyticsPage() {
   // 기간별 gross profit — order_item(line_total) − 제조원가(product.cost × qty)
   const { data: items } = await supabase
     .from("order_item")
-    .select("qty,line_total,order:orders(status,currency,placed_at),variant:product_variant(product:product(cost))")
+    .select("qty,line_total,order:orders(status,currency,placed_at,profile_id),variant:product_variant(product:product(cost))")
     .limit(10000);
   const bounds = kstPeriodBounds();
   const grossFrom = (fromMs: number) => {
@@ -78,6 +78,44 @@ export default async function AdminAnalyticsPage() {
   perProfile.forEach((n) => { if (n >= 4) freq.fourPlus++; else if (n >= 2) freq.twoThree++; else freq.one++; });
   const repeatRate = perProfile.size ? Math.round(((freq.twoThree + freq.fourPlus) / perProfile.size) * 100) : 0;
 
+  // 아이템당 평균 판매가격 = 결제완료 라인 매출 합 / 수량 합
+  let itemQty = 0, itemRev = 0;
+  for (const it of (items ?? []) as any[]) {
+    const o = it.order;
+    if (!o || o.currency !== "KRW" || !PAID.includes(o.status)) continue;
+    itemQty += it.qty || 0; itemRev += it.line_total || 0;
+  }
+  const itemAvg = itemQty ? Math.round(itemRev / itemQty) : 0;
+
+  // 지역별 매출 (배송지 시/도 기준 — province/sido, 없으면 주소1 첫 토큰)
+  const regionSales = new Map<string, { sales: number; count: number }>();
+  paid.forEach((o) => {
+    const a = (o.shipping_address ?? {}) as Record<string, string>;
+    const region = (a.province || a.sido || a.state || a.city || (a.addr1 ? a.addr1.trim().split(/\s+/)[0] : "") || "기타").trim() || "기타";
+    const cur = regionSales.get(region) ?? { sales: 0, count: 0 };
+    cur.sales += o.grand_total; cur.count += 1; regionSales.set(region, cur);
+  });
+
+  // 고객별 매출/구매수량 (상·하위 5)
+  const salesByProfile = new Map<string, number>();
+  paid.filter((o) => o.profile_id).forEach((o) => salesByProfile.set(o.profile_id, (salesByProfile.get(o.profile_id) ?? 0) + o.grand_total));
+  const qtyByProfile = new Map<string, number>();
+  for (const it of (items ?? []) as any[]) {
+    const o = it.order;
+    if (!o || o.currency !== "KRW" || !PAID.includes(o.status) || !o.profile_id) continue;
+    qtyByProfile.set(o.profile_id, (qtyByProfile.get(o.profile_id) ?? 0) + (it.qty || 0));
+  }
+  const pids = Array.from(new Set([...salesByProfile.keys(), ...qtyByProfile.keys()]));
+  const nameById = new Map<string, string>();
+  if (pids.length) {
+    const { data: profs } = await supabase.from("profiles").select("id,name,email").in("id", pids);
+    (profs ?? []).forEach((p: any) => nameById.set(p.id, p.name || p.email || String(p.id).slice(0, 8)));
+  }
+  const rank = (m: Map<string, number>, asc: boolean) =>
+    [...m.entries()].filter(([, v]) => v > 0).sort((a, b) => (asc ? a[1] - b[1] : b[1] - a[1])).slice(0, 5);
+  const salesTop = rank(salesByProfile, false), salesBottom = rank(salesByProfile, true);
+  const qtyTop = rank(qtyByProfile, false), qtyBottom = rank(qtyByProfile, true);
+
   const [{ count: total }, { count: biz }, { count: infl }, { count: pendingBiz }] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "business"),
@@ -89,6 +127,7 @@ export default async function AdminAnalyticsPage() {
     { label: "총 매출(KRW, 결제완료+)", value: formatKRW(sales) },
     { label: "결제완료 주문", value: paidCount },
     { label: "평균 주문금액", value: formatKRW(avg) },
+    { label: "아이템당 평균 판매가", value: formatKRW(itemAvg) },
     { label: "재구매율", value: `${repeatRate}%` },
     { label: "회원 수", value: total ?? 0 },
     { label: "기업회원", value: biz ?? 0 },
@@ -187,6 +226,49 @@ export default async function AdminAnalyticsPage() {
             {byCode.size === 0 && <tr><td colSpan={3} className="py-4 text-neutral-400">코드 사용 주문 없음</td></tr>}
           </tbody>
         </table>
+      </section>
+
+      {/* 지역별 매출 */}
+      <section>
+        <h2 className="mb-3 font-bold">지역별 매출 <span className="text-xs font-normal text-neutral-400">(배송지 시/도 · 결제완료 기준)</span></h2>
+        <table className={tableCls}>
+          <thead><tr className="border-b text-left text-neutral-500"><th className="py-2">지역</th><th className="text-right">주문</th><th className="text-right">매출</th></tr></thead>
+          <tbody>
+            {[...regionSales.entries()].sort((a, b) => b[1].sales - a[1].sales).map(([k, v]) => (
+              <tr key={k} className="border-b"><td className="py-2">{k}</td><td className="text-right">{v.count}</td><td className="text-right">{formatKRW(v.sales)}</td></tr>
+            ))}
+            {regionSales.size === 0 && <tr><td colSpan={3} className="py-4 text-neutral-400">데이터 없음</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      {/* 고객 순위 (매출·구매수량 상·하위 5) */}
+      <section>
+        <h2 className="mb-3 font-bold">고객 순위 <span className="text-xs font-normal text-neutral-400">(결제완료 기준)</span></h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          {([
+            { title: "매출 상위 5 고객", data: salesTop, money: true },
+            { title: "매출 하위 5 고객", data: salesBottom, money: true },
+            { title: "구매 수량 상위 5 고객", data: qtyTop, money: false },
+            { title: "구매 수량 하위 5 고객", data: qtyBottom, money: false },
+          ] as { title: string; data: [string, number][]; money: boolean }[]).map((blk) => (
+            <div key={blk.title}>
+              <p className="mb-2 text-sm font-semibold">{blk.title}</p>
+              <table className="w-full text-sm">
+                <tbody>
+                  {blk.data.map(([pid, v], idx) => (
+                    <tr key={pid} className="border-b">
+                      <td className="py-1.5 text-neutral-400">{idx + 1}</td>
+                      <td className="py-1.5">{nameById.get(pid) ?? pid.slice(0, 8)}</td>
+                      <td className="py-1.5 text-right">{blk.money ? formatKRW(v) : `${v}개`}</td>
+                    </tr>
+                  ))}
+                  {blk.data.length === 0 && <tr><td colSpan={3} className="py-3 text-neutral-400">데이터 없음</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section>

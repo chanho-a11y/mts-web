@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { approveOrder } from "@/lib/payments-approve";
 import { paypalToken, paypalCapture } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
+const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
 
 function db() {
   return hasServiceRole ? createAdminClient() : createClient();
@@ -54,10 +56,26 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
   }
 
   if (provider === "inicis") {
-    // 이니시스 인증결과(authToken/authUrl) 승인은 운영 키(서명) 연동 필요.
-    if (!process.env.INICIS_MID || !process.env.INICIS_SIGNKEY) return { ok: false, reason: "inicis_unconfigured", orderNo };
-    // 운영 연동 시: authUrl 로 승인요청(서명) → 결과 검증 → approveOrder. (키 확보 후 구현)
-    return { ok: false, reason: "inicis_pending_keys", orderNo };
+    // 이니시스 표준결제: 인증창 → returnUrl(POST)로 resultCode/authToken/authUrl 수신 → authUrl 승인요청(서명) → 검증.
+    const mid = process.env.INICIS_MID, signKey = process.env.INICIS_SIGNKEY;
+    if (!mid || !signKey) return { ok: false, reason: "inicis_unconfigured", orderNo };
+    const resultCode = String(body.resultCode || "");
+    const authToken = String(body.authToken || "");
+    const authUrl = String(body.authUrl || "");
+    if (resultCode !== "0000" || !authToken || !authUrl) return { ok: false, reason: "inicis_auth_failed", orderNo };
+    // 보안: authUrl 은 이니시스 도메인만 허용
+    let host = "";
+    try { host = new URL(authUrl).host; } catch { return { ok: false, reason: "inicis_bad_authurl", orderNo }; }
+    if (!/(^|\.)inicis\.com$/.test(host)) return { ok: false, reason: "inicis_bad_authurl", orderNo };
+    const timestamp = Date.now().toString();
+    const signature = sha256(`authToken=${authToken}&timestamp=${timestamp}`);
+    const verification = sha256(`authToken=${authToken}&signKey=${signKey}&timestamp=${timestamp}`);
+    const form = new URLSearchParams({ mid, authToken, timestamp, signature, verification, charset: "UTF-8", format: "JSON" });
+    const res = await fetch(authUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() });
+    const raw = await res.json().catch(() => null);
+    if (!raw || String(raw.resultCode) !== "0000") return { ok: false, reason: "inicis_approve_failed", orderNo };
+    const r = await approveOrder(db(), orderId, { provider, tid: String(raw.tid ?? ""), raw });
+    return { ...r, orderNo: r.orderNo || orderNo };
   }
 
   return { ok: false, reason: "unknown_provider", orderNo };
@@ -82,5 +100,19 @@ export async function POST(req: NextRequest, { params }: { params: { provider: s
     else { const fd = await req.formData(); fd.forEach((v, k) => { body[k] = String(v); }); }
   } catch { body = {}; }
   const r = await handle(params.provider, req.nextUrl.searchParams, body);
+
+  // 이니시스는 인증 결과를 returnUrl 로 브라우저 POST 한다(결제창 팝업 컨텍스트).
+  // → 부모창을 결제완료 페이지로 이동시키는 HTML 응답.
+  if (params.provider === "inicis") {
+    const url = new URL("/checkout/complete", SITE);
+    if (r.orderNo) url.searchParams.set("order", r.orderNo);
+    url.searchParams.set("paid", r.ok ? "1" : "0");
+    const target = JSON.stringify(url.toString());
+    return new NextResponse(
+      `<!doctype html><html><head><meta charset="utf-8"></head><body><script>try{(window.top||window).location.replace(${target});}catch(e){location.replace(${target});}</script></body></html>`,
+      { headers: { "content-type": "text/html; charset=utf-8" } },
+    );
+  }
+
   return NextResponse.json({ received: true, provider: params.provider, ...r });
 }

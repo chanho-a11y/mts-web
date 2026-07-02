@@ -22,7 +22,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       await transporter.sendMail({ from: FROM, to, subject, html });
       return { sent: true, provider: "gmail" };
     } catch (e) {
-      return { sent: false, provider: "gmail", reason: (e as Error)?.message?.slice(0, 80) || "smtp_error" };
+      // Gmail 실패 시 다음 프로바이더(Resend·webhook)로 폴백한다.
+      console.warn("[email] gmail failed, falling back:", (e as Error)?.message?.slice(0, 120) || "smtp_error");
     }
   }
 
@@ -65,6 +66,23 @@ export function emailLayout(title: string, bodyHtml: string): string {
   ${bodyHtml}
   <p style="margin-top:28px;font-size:12px;color:#888">MTSPACE COFFEE · 경기도 가평 청평 로스터리 · hello@mtspace.coffee<br>everyday excellence</p>
 </div>`;
+}
+
+// 템플릿: 결제완료(주문확인)
+export function orderConfirmationHtml(orderNo: string, name?: string, amount?: number, currency?: string): string {
+  const money =
+    amount != null
+      ? currency === "USD"
+        ? `$${amount.toLocaleString("en-US")}`
+        : `${amount.toLocaleString("ko-KR")}원`
+      : "";
+  return emailLayout(
+    "결제가 완료되었습니다 ✓",
+    `<p>${name ? name + "님, " : ""}주문(<b>${orderNo}</b>) 결제가 정상적으로 완료되었습니다. 감사합니다.</p>
+     ${money ? `<p style="margin:8px 0"><b>결제 금액</b> · ${money}</p>` : ""}
+     <p>원두는 <b>매주 월·화 로스팅, 화·수 출고</b> 일정에 맞춰 가평 로스터리에서 갓 볶아 보내드립니다. 출고 시 별도 안내 메일을 드립니다.</p>
+     <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
+  );
 }
 
 // 템플릿: 출고 알림

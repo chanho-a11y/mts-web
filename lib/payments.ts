@@ -1,5 +1,8 @@
-// Payment provider adapters. Structure ready; real PG keys added later (env).
-// 이니시스(KRW) · 카카오페이(KRW) · 페이팔(USD, 해외/원두).
+// Payment provider adapters. 이니시스(INIStdPay·KRW) · 카카오페이(KRW) · 페이팔(USD).
+// 실키 미설정 시: PAYMENTS_TEST_MODE=true 면 승인 라우트로 리다이렉트해 전체 플로우 검증.
+//               그 외에는 notConfigured(주문만 생성, 결제 대기).
+import crypto from "crypto";
+
 export type Provider = "inicis" | "kakaopay" | "paypal";
 
 export interface PaymentInit {
@@ -8,10 +11,15 @@ export interface PaymentInit {
   amount: number;
   currency: string; // KRW | USD
   returnUrl: string;
+  buyerName?: string;
+  buyerTel?: string;
+  buyerEmail?: string;
 }
 export interface PaymentInitResult {
-  ready: boolean;          // true면 결제창/리다이렉트 진행 가능
-  redirectUrl?: string;
+  ready: boolean;          // true면 결제창/리다이렉트/폼 진행 가능
+  redirectUrl?: string;    // 리다이렉트형(PayPal·KakaoPay·테스트모드)
+  form?: { sdk: "inicis"; fields: Record<string, string> }; // SDK 폼 제출형(이니시스)
+  tid?: string;            // ready 단계에서 발급된 PG 거래ID(카카오페이) → payment.pg_tid 저장
   message: string;
 }
 
@@ -22,28 +30,96 @@ export interface PaymentAdapter {
   init(p: PaymentInit): Promise<PaymentInitResult>;
 }
 
+const TEST = process.env.PAYMENTS_TEST_MODE === "true";
+const SITE = () => process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
+const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
+
 const notConfigured = (provider: Provider): PaymentInitResult => ({
   ready: false,
   message: `${provider} 결제 연동 키가 아직 설정되지 않았습니다. (env 추가 후 활성화)`,
 });
 
+// 테스트모드: 키 없이 order→approve→paid→메일 전체 플로우 검증용 리다이렉트
+const testRedirect = (provider: Provider, p: PaymentInit): PaymentInitResult => ({
+  ready: true,
+  message: `${provider} 테스트 모드`,
+  redirectUrl: `${SITE()}/api/payments/${provider}?oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`,
+});
+
+// ---- 이니시스 INIStdPay (표준결제, KRW) ----
 export const inicis: PaymentAdapter = {
   provider: "inicis", label: "신용카드·계좌이체 (이니시스)", currency: "KRW",
   async init(p) {
-    if (!process.env.INICIS_MID || !process.env.INICIS_SIGNKEY) return notConfigured("inicis");
-    // TODO: INIStdPay 서명·결제창 파라미터 생성 → redirectUrl
-    return { ready: true, message: "inicis ready", redirectUrl: undefined };
+    if (TEST) return testRedirect("inicis", p);
+    const mid = process.env.INICIS_MID, signKey = process.env.INICIS_SIGNKEY;
+    if (!mid || !signKey) return notConfigured("inicis");
+    const timestamp = Date.now().toString();
+    const oid = p.orderNo;
+    const price = String(p.amount);
+    // 표준결제 서명 규칙: signature=SHA256(oid&price&timestamp),
+    //                    verification=SHA256(oid&price&signKey&timestamp), mKey=SHA256(signKey)
+    const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
+    const verification = sha256(`oid=${oid}&price=${price}&signKey=${signKey}&timestamp=${timestamp}`);
+    const mKey = sha256(signKey);
+    const origin = SITE();
+    const fields: Record<string, string> = {
+      version: "1.0",
+      mid,
+      oid,
+      price,
+      timestamp,
+      currency: "WON",
+      goodname: `MTSPACE COFFEE 주문 ${oid}`,
+      buyername: p.buyerName || "고객",
+      buyertel: p.buyerTel || "",
+      buyeremail: p.buyerEmail || "",
+      gopaymethod: "Card:DirectBank:VBank",
+      acceptmethod: "below1000",
+      use_chkfake: "Y",
+      signature,
+      verification,
+      mKey,
+      returnUrl: `${origin}/api/payments/inicis?oid=${p.orderId}&order=${encodeURIComponent(oid)}`,
+      closeUrl: `${origin}/checkout/complete?order=${encodeURIComponent(oid)}&paid=0`,
+    };
+    return { ready: true, message: "inicis ready", form: { sdk: "inicis", fields } };
   },
 };
+
+// ---- 카카오페이 (online v1, KRW) ----
 export const kakaopay: PaymentAdapter = {
   provider: "kakaopay", label: "카카오페이", currency: "KRW",
   async init(p) {
-    if (!process.env.KAKAOPAY_CID || !process.env.KAKAOPAY_SECRET) return notConfigured("kakaopay");
-    // TODO: kakaopay ready → next_redirect_pc_url
-    return { ready: true, message: "kakaopay ready" };
+    if (TEST) return testRedirect("kakaopay", p);
+    const cid = process.env.KAKAOPAY_CID, secret = process.env.KAKAOPAY_SECRET;
+    if (!cid || !secret) return notConfigured("kakaopay");
+    const origin = SITE();
+    const res = await fetch("https://open-api.kakaopay.com/online/v1/payment/ready", {
+      method: "POST",
+      headers: { Authorization: `SECRET_KEY ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cid,
+        partner_order_id: p.orderNo,
+        partner_user_id: p.orderNo,
+        item_name: `MTSPACE COFFEE 주문 ${p.orderNo}`,
+        quantity: 1,
+        total_amount: p.amount,
+        tax_free_amount: 0,
+        approval_url: `${origin}/api/payments/kakaopay?oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`,
+        cancel_url: `${origin}/checkout/complete?order=${encodeURIComponent(p.orderNo)}&paid=0`,
+        fail_url: `${origin}/checkout/complete?order=${encodeURIComponent(p.orderNo)}&paid=0`,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.tid || !data?.next_redirect_pc_url) {
+      return { ready: false, message: "kakaopay ready 실패" };
+    }
+    // tid 는 approve 단계에서 필요 → payment.pg_tid 에 저장(호출측에서 처리)
+    return { ready: true, message: "kakaopay ready", redirectUrl: data.next_redirect_pc_url, tid: data.tid };
   },
 };
-// ---- PayPal Orders v2 (REST) ----
+
+// ---- PayPal Orders v2 (REST, USD) ----
 export function paypalBase() {
   return process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 }
@@ -71,9 +147,10 @@ export async function paypalCapture(token: string, ppOrderId: string): Promise<{
 export const paypal: PaymentAdapter = {
   provider: "paypal", label: "PayPal (해외·USD)", currency: "USD",
   async init(p) {
+    if (TEST) return testRedirect("paypal", p);
     const token = await paypalToken();
     if (!token) return notConfigured("paypal");
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
+    const origin = SITE();
     const res = await fetch(`${paypalBase()}/v2/checkout/orders`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({

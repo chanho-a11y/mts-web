@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { saveSettingsAction, saveCategoryBannerAction } from "@/app/admin/content/actions";
+import ImageUpload from "@/components/image-upload";
+import MultiImageUpload from "@/components/multi-image-upload";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +32,7 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
           <legend className="px-1 text-xs font-bold uppercase text-neutral-400">홈 히어로 / 이미지 슬라이드</legend>
           <label className="block text-sm">홈 히어로 제목<input name="hero_title" defaultValue={s.hero_title} className={input} /></label>
           <label className="mt-3 block text-sm">홈 히어로 부제<textarea name="hero_subtitle" defaultValue={s.hero_subtitle} rows={2} className={input} /></label>
-          <label className="mt-3 block text-sm">홈 이미지 슬라이드(상품 아님) — 경로를 줄바꿈/콤마로 구분
-            <textarea name="home_slides" defaultValue={s.home_slides} rows={4} placeholder={"/images/hero.jpg\n/images/cat-single-origins.jpg\n/images/about-roastery.jpg"} className={input} /></label>
+          <div className="mt-3"><MultiImageUpload name="home_slides" defaultValue={s.home_slides} folder="home-slides" label="홈 이미지 슬라이드(상품 아님)" /></div>
         </fieldset>
 
         <fieldset className="rounded-lg border p-4">
@@ -53,8 +54,8 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
 
         <fieldset className="rounded-lg border p-4">
           <legend className="px-1 text-xs font-bold uppercase text-neutral-400">디자인 자산</legend>
-          <label className="block text-sm">로고 이미지 경로(빈칸이면 텍스트 로고)<input name="logo_path" defaultValue={s.logo_path} placeholder="/images/logo.png" className={input} /></label>
-          <label className="mt-3 block text-sm">파비콘 경로<input name="favicon_path" defaultValue={s.favicon_path} placeholder="/favicon.ico" className={input} /></label>
+          <ImageUpload name="logo_path" defaultValue={s.logo_path} folder="brand" label="로고 이미지 (빈칸이면 텍스트 로고)" />
+          <div className="mt-3"><ImageUpload name="favicon_path" defaultValue={s.favicon_path} folder="brand" label="파비콘" /></div>
         </fieldset>
 
         <fieldset className="rounded-lg border p-4">
@@ -67,7 +68,7 @@ export default async function AdminContentPage({ searchParams }: { searchParams:
       </form>
 
       <CategoryBanners />
-      <p className="mt-4 text-xs text-neutral-400">※ 이미지는 /images/ 경로(레포 public)나 외부 URL 모두 가능. 빈 값이면 기본값 사용.</p>
+      <p className="mt-4 text-xs text-neutral-400">※ 이미지는 파일 첨부로 업로드됩니다(공개 스토리지). 빈 값이면 기본값 사용.</p>
     </main>
   );
 }
@@ -80,10 +81,10 @@ async function CategoryBanners() {
       <h2 className="mb-3 font-bold">카테고리 배너 이미지</h2>
       <div className="space-y-2">
         {(cats ?? []).map((c) => (
-          <form key={c.slug} action={saveCategoryBannerAction} className="flex items-center gap-2 text-sm">
+          <form key={c.slug} action={saveCategoryBannerAction} className="flex items-center gap-3 rounded border p-2 text-sm">
             <input type="hidden" name="slug" value={c.slug} />
             <span className="w-28 shrink-0 text-neutral-500">{c.name_ko}</span>
-            <input name="banner_path" defaultValue={c.banner_path ?? ""} placeholder="/images/cat-xxx.jpg" className="flex-1 rounded border px-3 py-1.5" />
+            <div className="flex-1"><ImageUpload name="banner_path" defaultValue={c.banner_path ?? ""} folder="category-banner" label="" /></div>
             <button className="rounded border px-3 py-1.5 text-xs">저장</button>
           </form>
         ))}

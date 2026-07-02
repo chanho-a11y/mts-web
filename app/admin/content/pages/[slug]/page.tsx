@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { pageById, getPageSettings } from "@/lib/page-content";
 import { savePageContentAction } from "../actions";
+import ImageUpload from "@/components/image-upload";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,15 @@ export default async function AdminPageEditor({ params, searchParams }: { params
         <input type="hidden" name="page" value={def.id} />
         {def.fields.map((f) => (
           <div key={f.key}>
-            <label className="block text-sm font-medium">{f.label} <span className="text-xs text-neutral-400">({f.type})</span></label>
-            {f.type === "textarea"
-              ? <textarea name={f.key} defaultValue={s[f.key] ?? ""} rows={5} className={input} />
-              : <input name={f.key} defaultValue={s[f.key] ?? ""} className={input} placeholder={f.type === "image" ? "/images/파일명.jpg" : ""} />}
-            {f.type === "image" && s[f.key] && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={s[f.key]} alt="" className="mt-2 h-24 rounded border object-cover" />
+            {f.type === "image" ? (
+              <ImageUpload name={f.key} defaultValue={s[f.key] ?? ""} folder="page" label={f.label} />
+            ) : (
+              <>
+                <label className="block text-sm font-medium">{f.label} <span className="text-xs text-neutral-400">({f.type})</span></label>
+                {f.type === "textarea"
+                  ? <textarea name={f.key} defaultValue={s[f.key] ?? ""} rows={5} className={input} />
+                  : <input name={f.key} defaultValue={s[f.key] ?? ""} className={input} />}
+              </>
             )}
           </div>
         ))}

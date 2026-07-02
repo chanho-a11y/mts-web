@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LangToggle from "@/components/lang-toggle";
+import CartLink from "@/components/cart-link";
 import type { Brand } from "@/lib/brands";
 import { t, type Locale } from "@/lib/i18n";
 import { signOutAction } from "@/app/account/actions";
@@ -60,7 +61,7 @@ export default function SiteHeader({
                 <Link href="/account/signup" className="hidden hover:opacity-70 sm:inline">{tt.signup}</Link>
               </>
             )}
-            <Link href="/cart" className="hover:opacity-70">{tt.cart}</Link>
+            <CartLink label={tt.cart} />
           </div>
         </div>
       </div>

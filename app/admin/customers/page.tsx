@@ -5,7 +5,7 @@ import { addCustomerAction, updateCustomerAction, archiveCustomerAction, deleteC
 export const dynamic = "force-dynamic";
 const ROLE: Record<string, string> = { individual: "개인", business: "사업자", influencer: "인플루언서", admin: "관리자" };
 
-export default async function AdminCustomersPage({ searchParams }: { searchParams: { show?: string; imported?: string; failed?: string; error?: string; added?: string } }) {
+export default async function AdminCustomersPage({ searchParams }: { searchParams: { show?: string; imported?: string; failed?: string; error?: string; added?: string; updated?: string; deleted?: string; archived_instead?: string } }) {
   const supabase = createClient();
   const showArchived = searchParams.show === "archived";
 
@@ -36,6 +36,9 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
       {searchParams.error && <p className="rounded bg-red-50 px-4 py-2 text-sm text-red-600">{searchParams.error}</p>}
       {searchParams.imported && <p className="rounded bg-green-50 px-4 py-2 text-sm text-green-700">임포트 완료: {searchParams.imported}건 추가{searchParams.failed && searchParams.failed !== "0" ? ` · 실패 ${searchParams.failed}건` : ""}</p>}
       {searchParams.added && <p className="rounded bg-green-50 px-4 py-2 text-sm text-green-700">고객이 추가되었습니다.</p>}
+      {searchParams.updated && <p className="rounded bg-green-50 px-4 py-2 text-sm text-green-700">고객 정보가 저장되었습니다.</p>}
+      {searchParams.deleted && <p className="rounded bg-green-50 px-4 py-2 text-sm text-green-700">고객이 완전 삭제되었습니다.</p>}
+      {searchParams.archived_instead && <p className="rounded bg-amber-50 px-4 py-2 text-sm text-amber-700">주문 이력이 있어 완전 삭제 대신 <b>보관</b> 처리했습니다. (보관함에서 확인·복원 가능)</p>}
 
       {/* 추가 + 임포트 */}
       <div className="grid gap-4 md:grid-cols-2">

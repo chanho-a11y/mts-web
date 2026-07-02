@@ -9,10 +9,35 @@ import { createOrderAction } from "@/app/checkout/actions";
 import type { Provider } from "@/lib/payments";
 
 declare global {
-  interface Window { daum?: any }
+  interface Window { daum?: any; INIStdPay?: any }
 }
 
-export default function CheckoutForm({ tip, email = "", locale = "ko" }: { tip: number; email?: string; locale?: Locale }) {
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement("script");
+    s.src = src; s.onload = () => resolve(); s.onerror = () => reject(new Error("script load failed"));
+    document.body.appendChild(s);
+  });
+}
+
+// 이니시스 표준결제(INIStdPay): 서명 필드로 hidden 폼 구성 후 SDK 결제창 호출
+async function startInicis(fields: Record<string, string>) {
+  await loadScript("https://stdpay.inicis.com/stdjs/INIStdPay.js");
+  document.getElementById("inicis_pay_form")?.remove();
+  const form = document.createElement("form");
+  form.id = "inicis_pay_form"; form.method = "post"; form.style.display = "none";
+  for (const [k, v] of Object.entries(fields)) {
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = k; i.value = String(v);
+    form.appendChild(i);
+  }
+  document.body.appendChild(form);
+  window.INIStdPay?.pay("inicis_pay_form");
+}
+
+interface CheckoutInitial { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string }
+export default function CheckoutForm({ tip, email = "", locale = "ko", initial }: { tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial }) {
   const { items, clear } = useCart();
   const tt = t(locale);
   const METHODS: { p: Provider; label: string }[] = [
@@ -25,9 +50,10 @@ export default function CheckoutForm({ tip, email = "", locale = "ko" }: { tip: 
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [country, setCountry] = useState("KR");
-  const [zipcode, setZipcode] = useState("");
-  const [addr1, setAddr1] = useState("");
+  // 로그인 회원의 저장 배송지/프로필로 프리필(비회원이면 빈 값)
+  const [country, setCountry] = useState(initial?.country || "KR");
+  const [zipcode, setZipcode] = useState(initial?.zipcode || "");
+  const [addr1, setAddr1] = useState(initial?.addr1 || "");
   const sub = subtotal(items);
 
   function searchKR() {
@@ -57,10 +83,17 @@ export default function CheckoutForm({ tip, email = "", locale = "ko" }: { tip: 
         addr2: String(formData.get("addr2") || ""),
       },
     });
-    setBusy(false);
     setMsg(res.message);
+    // 이니시스: SDK 결제창(폼 제출)
+    if (res.ok && res.form?.sdk === "inicis") {
+      clear();
+      try { await startInicis(res.form.fields); }
+      catch { setMsg("결제창을 열지 못했습니다. 잠시 후 다시 시도해주세요."); setBusy(false); }
+      return;
+    }
+    setBusy(false);
     if (res.ok && res.pgReady && res.redirectUrl) {
-      // PG 결제창/승인 페이지로 이동 (PayPal 등)
+      // PG 결제창/승인 페이지로 이동 (PayPal·KakaoPay·테스트모드)
       clear();
       window.location.href = res.redirectUrl;
       return;
@@ -81,8 +114,8 @@ export default function CheckoutForm({ tip, email = "", locale = "ko" }: { tip: 
         <label className="block text-sm">{tt.emailOrderConfirm}<input type="email" name="email" defaultValue={email} required className={input} /></label>
         <h2 className="pt-2 font-bold">{tt.shippingAddress}</h2>
         <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
-        <label className="block text-sm">{tt.recipient}<input name="recipient" required className={input} /></label>
-        <label className="block text-sm">{tt.phone}<input name="phone" required className={input} /></label>
+        <label className="block text-sm">{tt.recipient}<input name="recipient" defaultValue={initial?.recipient || ""} required className={input} /></label>
+        <label className="block text-sm">{tt.phone}<input name="phone" defaultValue={initial?.phone || ""} required className={input} /></label>
         <label className="block text-sm">{tt.country}
           <select name="country" value={country} onChange={(e) => setCountry(e.target.value)} className={input}>
             <option value="KR">{tt.countryKR}</option><option value="US">United States</option><option value="OTHER">Other</option>
@@ -99,7 +132,7 @@ export default function CheckoutForm({ tip, email = "", locale = "ko" }: { tip: 
           )}
         </div>
         <input name="addr1" placeholder={tt.addr1Placeholder} value={addr1} onChange={(e) => setAddr1(e.target.value)} required className={input} />
-        <input name="addr2" placeholder={tt.addr2Placeholder} className={input} />
+        <input name="addr2" defaultValue={initial?.addr2 || ""} placeholder={tt.addr2Placeholder} className={input} />
 
         <h2 className="pt-4 font-bold">{tt.paymentMethod}</h2>
         {METHODS.map((m) => (

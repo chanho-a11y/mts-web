@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createPostAction, updatePostAction, deletePostAction } from "./actions";
+import ImageUpload from "@/components/image-upload";
+import RichEditor from "@/components/rich-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +17,16 @@ export default async function AdminBlogPage() {
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   return (
     <main className="max-w-3xl space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold">블로그 관리</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Coffeelog 글을 직접 작성·수정·삭제합니다. 발행(published) 상태만 사이트에 노출됩니다.
-          디자인 초안은 <a href="/admin/studio" className="underline">통합 스튜디오</a>에서도 생성할 수 있습니다.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">블로그 관리</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Coffeelog 글을 직접 작성·수정·삭제합니다. 발행(published) 상태만 사이트에 노출됩니다.
+          </p>
+        </div>
+        <a href="/admin/studio?tab=blog" className="shrink-0 rounded-full bg-clay px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+          통합 스튜디오로 글쓰기 →
+        </a>
       </div>
 
       {/* 새 글 작성 */}
@@ -32,14 +38,19 @@ export default async function AdminBlogPage() {
             <label className="text-sm">슬러그(선택)<input name="slug" placeholder="자동 생성" className={input} /></label>
           </div>
           <label className="block text-sm">요약<input name="excerpt" className={input} /></label>
-          <label className="block text-sm">커버 이미지 경로(선택)<input name="cover_image" placeholder="/images/blog-hero.jpg" className={input} /></label>
-          <label className="block text-sm">본문 (HTML)
-            <textarea name="body_html" rows={8} className={input} placeholder="<p>본문…</p>" /></label>
+          <ImageUpload name="cover_image" folder="blog-cover" label="커버 이미지 첨부" />
+          <div className="text-sm">본문
+            <RichEditor name="body_html" minWords={800} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">SEO 제목(선택)<input name="seo_title" className={input} /></label>
+            <label className="text-sm">SEO 설명(선택)<input name="seo_description" className={input} /></label>
+          </div>
           <div className="flex items-center gap-3">
             <label className="text-sm">상태
               <select name="status" className={`${input} w-32`}>
-                <option value="draft">초안</option>
-                <option value="published">발행</option>
+                <option value="draft">초안(보관)</option>
+                <option value="published">발행(게시)</option>
               </select>
             </label>
             <button className="self-end rounded-full bg-black px-5 py-2 text-sm text-white">작성</button>
@@ -49,7 +60,7 @@ export default async function AdminBlogPage() {
 
       {/* 글 목록 */}
       <section className="space-y-4">
-        <h2 className="font-bold">글 목록 ({posts?.length ?? 0})</h2>
+        <h2 className="font-bold">글 목록 ({posts?.length ?? 0}) <span className="text-xs font-normal text-neutral-400">— 스튜디오에서 보관/게시한 글도 여기서 수정</span></h2>
         {(posts ?? []).map((p) => (
           <details key={p.id} className="rounded-xl border p-4">
             <summary className="flex cursor-pointer items-center justify-between gap-3">
@@ -65,14 +76,15 @@ export default async function AdminBlogPage() {
                 <label className="text-sm">슬러그<input name="slug" defaultValue={p.slug} className={input} /></label>
               </div>
               <label className="block text-sm">요약<input name="excerpt" defaultValue={p.excerpt ?? ""} className={input} /></label>
-              <label className="block text-sm">커버 이미지<input name="cover_image" defaultValue={p.cover_image ?? ""} className={input} /></label>
-              <label className="block text-sm">본문 (HTML)
-                <textarea name="body_html" rows={8} defaultValue={p.body_html ?? ""} className={input} /></label>
+              <ImageUpload name="cover_image" defaultValue={p.cover_image ?? ""} folder="blog-cover" label="커버 이미지 첨부" />
+              <div className="text-sm">본문
+                <RichEditor name="body_html" defaultValue={p.body_html ?? ""} minWords={800} />
+              </div>
               <div className="flex items-center gap-3">
                 <label className="text-sm">상태
                   <select name="status" defaultValue={p.status} className={`${input} w-32`}>
-                    <option value="draft">초안</option>
-                    <option value="published">발행</option>
+                    <option value="draft">초안(보관)</option>
+                    <option value="published">발행(게시)</option>
                   </select>
                 </label>
                 <button className="self-end rounded-full bg-black px-5 py-2 text-sm text-white">저장</button>

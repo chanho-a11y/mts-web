@@ -1,13 +1,15 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getStorefrontContext } from "@/lib/storefront";
-import { getProductBySlug } from "@/lib/queries";
+import { getProductBySlug, getRelatedProducts } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
+import ProductCard from "@/components/product-card";
 import { addReviewAction } from "@/app/products/review-action";
 import { pointTheme } from "@/lib/point-color";
+import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 
 export const dynamic = "force-dynamic";
 
@@ -100,10 +102,14 @@ const CSS = `
 `;
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const { locale } = await getStorefrontContext();
+  const { locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
   const p = await getProductBySlug(params.slug);
   if (!p) notFound();
+
+  // 연관 제품 3개 — 블렌드: 블렌드2+싱글1 / 싱글: 싱글2+디카페인1(없으면 싱글로 폴백)
+  const isBlend = p.categories.some((c) => c.slug === "blends");
+  const related = await getRelatedProducts(storefrontId, p.slug, isBlend);
 
   const supabase = createClient();
   const { data: reviews } = await supabase
@@ -118,42 +124,55 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const title = (locale === "en" && p.title_en ? p.title_en : p.title_ko).replace(/\[.*?\]\s*/g, "");
   const en = p.title_en ?? "";
   const weightTxt = p.weight_g ? `${p.weight_g}g` : "";
-  const typeLine = [p.is_b2b_only ? "Wholesale" : (p.product_type || "Coffee"), p.roast_level].filter(Boolean).join(" · ");
-  const notesLine = p.flavor_notes.join(" · ") + (p.one_liner ? ` — ${p.one_liner}` : "");
-  const flavCards = p.flavor_notes.slice(0, 3);
+
+  // locale별 노출값(제품 등록 한/영 입력 정본 → 상세 반영)
+  const oneLiner = (locale === "en" && p.one_liner_en ? p.one_liner_en : p.one_liner) ?? null;
+  const flavorArr = (locale === "en" && p.flavor_notes_en?.length ? p.flavor_notes_en : p.flavor_notes);
+  const roastTxt = (locale === "en" && p.roast_level_en ? p.roast_level_en : p.roast_level) ?? null;
+  const varietyTxt = (locale === "en" && p.variety_en ? p.variety_en : p.variety) ?? null;
+  const processTxt = (locale === "en" && p.process_en ? p.process_en : p.process) ?? null;
+  const altitudeTxt = (locale === "en" && p.altitude_en ? p.altitude_en : p.altitude) ?? null;
+  const originCountry = (locale === "en" && p.origin?.country_en ? p.origin.country_en : p.origin?.country) ?? null;
+
+  const typeLine = [p.is_b2b_only ? "Wholesale" : (p.product_type || "Coffee"), roastTxt].filter(Boolean).join(" · ");
+  const notesLine = flavorArr.join(" · ") + (oneLiner ? ` — ${oneLiner}` : "");
+  const flavCards = flavorArr.slice(0, 3);
 
   // 커피 정보
   const info: [string, string | null][] = [
-    ["ROAST", p.roast_level],
-    ["FLAVOUR", p.flavor_notes.join(" · ") || null],
+    ["ROAST", roastTxt],
+    ["FLAVOUR", flavorArr.join(" · ") || null],
     ["WEIGHT", weightTxt || null],
-    ["ORIGIN", p.origin?.country ?? null],
+    ["ORIGIN", originCountry],
     ["REGION", p.origin?.region ?? null],
-    ["VARIETAL", p.variety],
-    ["ALTITUDE", p.altitude],
-    ["PROCESS", p.process],
+    ["VARIETAL", varietyTxt],
+    ["ALTITUDE", altitudeTxt],
+    ["PROCESS", processTxt],
   ];
   const infoRows = info.filter(([, v]) => v);
 
-  // 추출 레시피
+  // 추출 레시피 — 구조화(recipe) 우선, 없으면 구 brew_recipe 폴백
+  const recipeBlocks = recipeDisplay(p.recipe as RecipeData | null, locale);
   const r = p.brew_recipe ?? {};
-  const recipe: [string, string][] = [];
-  if (r.espresso || r.es) recipe.push(["ESPRESSO", r.espresso ?? r.es]);
-  if (r.milk) recipe.push(["MILK", r.milk]);
-  if (r.filter || r.fil) recipe.push(["FILTER", r.filter ?? r.fil]);
+  const legacyRecipe: [string, string][] = [];
+  if (!recipeBlocks.length) {
+    if (r.espresso || r.es) legacyRecipe.push(["ESPRESSO", r.espresso ?? r.es]);
+    if (r.milk) legacyRecipe.push(["MILK", r.milk]);
+    if (r.filter || r.fil) legacyRecipe.push(["FILTER", r.filter ?? r.fil]);
+  }
+  const hasRecipe = recipeBlocks.length > 0 || legacyRecipe.length > 0;
+  const brewModes = recipeBlocks.length ? recipeBlocks.map((b) => b.title) : legacyRecipe.map((x) => x[0]);
 
   // FAQ (제품 데이터에서 생성 — AIEO)
   const faqs: { q: string; a: string }[] = locale === "en"
     ? [
-        { q: `What does ${title} taste like?`, a: `A ${p.roast_level || ""} coffee with notes of ${p.flavor_notes.join(" · ") || "balanced flavour"}. ${p.one_liner ?? ""}`.trim() },
-        { q: "Which brew methods suit it best?", a: recipe.length ? `It shines with ${recipe.map((x) => x[0]).join(" · ")}.` : "It works beautifully across espresso, pour-over (V60), and cold brew." },
-        { q: "When is it roasted and shipped?", a: "Roasted every Monday & Tuesday at our own roastery in Cheongpyeong, Gapyeong, and shipped fresh on Tuesday & Wednesday." },
+        { q: `What does ${title} taste like?`, a: `A ${roastTxt || ""} coffee with notes of ${flavorArr.join(" · ") || "balanced flavour"}. ${oneLiner ?? ""}`.trim() },
+        { q: "Which brew methods suit it best?", a: hasRecipe ? `It shines with ${brewModes.join(" · ")}.` : "It works beautifully across espresso, pour-over (V60), and cold brew." },
         { q: "How should I store it?", a: "After opening, seal it and keep it at room temperature away from direct sunlight, and enjoy within 2–3 weeks." },
       ]
     : [
-        { q: `${title}은(는) 어떤 맛인가요?`, a: `${p.flavor_notes.join(" · ") || "균형 잡힌 향미"}의 특징을 지닌 ${p.roast_level || ""} 커피입니다. ${p.one_liner ?? ""}`.trim() },
-        { q: "어떤 추출에 잘 어울리나요?", a: recipe.length ? `${recipe.map((x) => x[0]).join(" · ")} 등으로 안정적으로 즐기실 수 있습니다.` : "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다." },
-        { q: "로스팅과 배송은 언제 되나요?", a: "경기도 가평 청평 자체 로스터리에서 매주 월·화 로스팅하여 화·수에 신선하게 발송합니다." },
+        { q: `${title}은(는) 어떤 맛인가요?`, a: `${flavorArr.join(" · ") || "균형 잡힌 향미"}의 특징을 지닌 ${roastTxt || ""} 커피입니다. ${oneLiner ?? ""}`.trim() },
+        { q: "어떤 추출에 잘 어울리나요?", a: hasRecipe ? `${brewModes.join(" · ")} 등으로 안정적으로 즐기실 수 있습니다.` : "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다." },
         { q: "보관은 어떻게 하나요?", a: "개봉 후 밀폐하여 직사광선을 피해 상온 보관하고 2~3주 내 소비를 권장합니다." },
       ];
 
@@ -162,7 +181,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     "@graph": [
       {
         "@type": "Product", name: title, image: p.images.map((i) => i.storage_path),
-        description: p.one_liner ?? p.flavor_notes.join(", "),
+        description: oneLiner ?? flavorArr.join(", "),
         brand: { "@type": "Brand", name: pBrand.name },
         additionalProperty: infoRows.map(([k, v]) => ({ "@type": "PropertyValue", name: k, value: v })),
         offers: { "@type": "Offer", priceCurrency: "KRW", price: p.minPrice, availability: "https://schema.org/InStock" },
@@ -237,8 +256,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
               {notesLine.trim() && <div className="notes">{notesLine}</div>}
             </section>
 
-            {p.one_liner && (
-              <section className="sec first"><p className="lead">{p.one_liner}</p></section>
+            {oneLiner && (
+              <section className="sec first"><p className="lead">{oneLiner}</p></section>
             )}
 
             {flavCards.length > 0 && (
@@ -264,23 +283,35 @@ export default async function ProductPage({ params }: { params: { slug: string }
               </div>
             </section>
 
-            {infoRows.length > 0 && (
+            {(infoRows.length > 0 || hasRecipe) && (
               <section className="sec">
                 <h2 className="head">{locale === "en" ? "Coffee Information" : "Coffee Information · 커피 정보"}</h2>
-                <div className="grid2">
-                  {infoRows.map(([k, v]) => (
-                    <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v}</span></div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {recipe.length > 0 && (
-              <section className="sec">
-                <h2 className="head">{locale === "en" ? "Recommended Recipe" : "Recommended Recipe · 추출 레시피"}</h2>
-                {recipe.map(([k, v]) => (
-                  <div className="rec" key={k}><span className="rk">{k}</span><div style={{ textAlign: "right" }}><div className="rn">{v}</div></div></div>
-                ))}
+                {infoRows.length > 0 && (
+                  <div className="grid2">
+                    {infoRows.map(([k, v]) => (
+                      <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v}</span></div>
+                    ))}
+                  </div>
+                )}
+                {hasRecipe && (
+                  <div style={{ marginTop: infoRows.length > 0 ? 22 : 0 }}>
+                    <h3 className="head" style={{ margin: "0 0 12px" }}>{locale === "en" ? "Recipe" : "Recipe · 레시피"}</h3>
+                    {recipeBlocks.length > 0 ? (
+                      recipeBlocks.map((b) => (
+                        <div key={b.mode} style={{ marginBottom: 14 }}>
+                          <div className="mono" style={{ fontSize: 10, letterSpacing: 1.5, color: "var(--point-text)", textTransform: "uppercase", marginBottom: 4 }}>{b.title}</div>
+                          {b.rows.map((row) => (
+                            <div className="rec" key={row.label}><span className="rk">{row.label}</span><div style={{ textAlign: "right" }}><div className="rn">{row.value}</div></div></div>
+                          ))}
+                        </div>
+                      ))
+                    ) : (
+                      legacyRecipe.map(([k, v]) => (
+                        <div className="rec" key={k}><span className="rk">{k}</span><div style={{ textAlign: "right" }}><div className="rn">{v}</div></div></div>
+                      ))
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -289,26 +320,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
               {faqs.map((f, i) => (
                 <div className="faq" key={i}><div className="q">Q. {f.q}</div><div className="a">{f.a}</div></div>
               ))}
-            </section>
-
-            {/* 리뷰 — 디자인 톤 유지 */}
-            <section className="sec" style={{ paddingBottom: 8 }}>
-              <h2 className="head">{locale === "en" ? "Reviews" : "Reviews · 리뷰"} {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
-              {(reviews ?? []).map((rv, i) => (
-                <div className="rev" key={i}>
-                  <div style={{ fontSize: 12 }}><span style={{ color: "var(--point-text)" }}>{"★".repeat(rv.rating)}{"☆".repeat(5 - rv.rating)}</span> <b>{rv.title}</b> <span style={{ color: "var(--faint)", fontSize: 11 }}>{rv.author_name}</span></div>
-                  {rv.body && <div className="serif" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 4 }}>{rv.body}</div>}
-                </div>
-              ))}
-              {revCount === 0 && <p style={{ fontSize: 12, color: "var(--faint)" }}>{tt.firstReview}</p>}
-              <form action={addReviewAction} className="frm" style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 460 }}>
-                <input type="hidden" name="product_id" value={p.id} />
-                <input type="hidden" name="slug" value={p.slug} />
-                <select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{locale === "en" ? `${n} ★` : `${n}점`}</option>)}</select>
-                <input name="title" placeholder={tt.reviewTitlePlaceholder} />
-                <textarea name="body" placeholder={tt.reviewBodyPlaceholder} rows={2} />
-                <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>{tt.submitReview}</button>
-              </form>
             </section>
 
             {/* more information — 전 제품 공통 구매·신선도·정책 안내 (정본: 월·화 로스팅 / 화·수 출고) */}
@@ -345,15 +356,40 @@ export default async function ProductPage({ params }: { params: { slug: string }
               )}
             </section>
 
-            <footer className="fine">
-              {locale === "en"
-                ? "MTSPACE COFFEE · Cheongpyeong, Gapyeong roastery · roasted Mon & Tue, shipped Tue & Wed · everyday excellence"
-                : "MTSPACE COFFEE · 경기도 가평 청평 로스터리 · 매주 월·화 로스팅, 화·수 출고 · everyday excellence"}
-              <br /><a href={`https://instagram.com/${pBrand.instagram.replace("@", "")}`} target="_blank" rel="noreferrer" style={{ color: "var(--point-text)" }}>Instagram {pBrand.instagram}</a>
-            </footer>
+            {/* 리뷰 — 가장 마지막(연관 제품 위)으로 이동 */}
+            <section className="sec" style={{ paddingBottom: 8 }}>
+              <h2 className="head">{locale === "en" ? "Reviews" : "Reviews · 리뷰"} {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
+              {(reviews ?? []).map((rv, i) => (
+                <div className="rev" key={i}>
+                  <div style={{ fontSize: 12 }}><span style={{ color: "var(--point-text)" }}>{"★".repeat(rv.rating)}{"☆".repeat(5 - rv.rating)}</span> <b>{rv.title}</b> <span style={{ color: "var(--faint)", fontSize: 11 }}>{rv.author_name}</span></div>
+                  {rv.body && <div className="serif" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 4 }}>{rv.body}</div>}
+                </div>
+              ))}
+              {revCount === 0 && <p style={{ fontSize: 12, color: "var(--faint)" }}>{tt.firstReview}</p>}
+              <form action={addReviewAction} className="frm" style={{ marginTop: 12, display: "grid", gap: 8, maxWidth: 460 }}>
+                <input type="hidden" name="product_id" value={p.id} />
+                <input type="hidden" name="slug" value={p.slug} />
+                <select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{locale === "en" ? `${n} ★` : `${n}점`}</option>)}</select>
+                <input name="title" placeholder={tt.reviewTitlePlaceholder} />
+                <textarea name="body" placeholder={tt.reviewBodyPlaceholder} rows={2} />
+                <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>{tt.submitReview}</button>
+              </form>
+            </section>
           </main>
         </div>
       </div>
+
+      {/* 연관 제품 3개 — 상세 카드 하단 (블렌드2+싱글1 / 싱글2+디카페인1→폴백싱글) */}
+      {related.length > 0 && (
+        <div style={{ maxWidth: 1040, margin: "28px auto 0", padding: "0 4px" }}>
+          <h2 style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#8A8173", textTransform: "uppercase", margin: "0 0 16px" }}>
+            {locale === "en" ? "You may also like" : "함께 보면 좋은 제품"}
+          </h2>
+          <div className="grid grid-cols-3 gap-4">
+            {related.map((rp) => <ProductCard key={rp.slug} p={rp} locale={locale} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

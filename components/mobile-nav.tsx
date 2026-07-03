@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import LangToggle from "@/components/lang-toggle";
 import CartLink from "@/components/cart-link";
@@ -24,6 +25,10 @@ export default function MobileNav({
   labels: { search: string; login: string; signup: string; myPage: string; signOut: string; cart: string; menu: string; close: string };
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 포털 대상은 클라이언트 마운트 후에만 존재
+  useEffect(() => { setMounted(true); }, []);
 
   // 드로어 열림 동안 배경 스크롤 잠금
   useEffect(() => {
@@ -62,21 +67,24 @@ export default function MobileNav({
         </svg>
       </button>
 
-      {/* 오버레이 */}
-      <div
-        onClick={close}
-        aria-hidden={!open}
-        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
-      />
+      {/* 오버레이 + 드로어는 헤더의 backdrop-filter 컨테이닝 블록을 벗어나야 하므로 body로 포털 */}
+      {mounted && createPortal(
+        <div className="md:hidden">
+          {/* 오버레이 */}
+          <div
+            onClick={close}
+            aria-hidden={!open}
+            className={`fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300 ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          />
 
-      {/* 우측 슬라이드 드로어 */}
-      <aside
-        id="mobile-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={brandName}
-        className={`fixed right-0 top-0 z-50 flex h-full w-[84%] max-w-xs flex-col overflow-y-auto bg-bg shadow-xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
-      >
+          {/* 우측 슬라이드 드로어 */}
+          <aside
+            id="mobile-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={brandName}
+            className={`fixed right-0 top-0 z-[61] flex h-full w-[84%] max-w-xs flex-col overflow-y-auto bg-bg shadow-xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+          >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <span className="mt-wordmark text-lg">MTSPACE <span className="light">COFFEE</span></span>
           <button
@@ -139,7 +147,10 @@ export default function MobileNav({
             <span onClick={close}><CartLink label={labels.cart} /></span>
           </div>
         </div>
-      </aside>
+          </aside>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -175,7 +175,7 @@ export default async function AboutPage() {
 
       <section className="mt-14">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroImg} alt="MTSPACE COFFEE" className="aspect-[3/2] w-full rounded-card border border-line object-cover" />
+        <img src={heroImg} alt={locale === "en" ? "MTSPACE COFFEE espresso served with a glass brewing server" : "MTSPACE COFFEE 에스프레소와 유리 서버로 완성한 한 잔"} className="aspect-[3/2] w-full rounded-card border border-line object-cover" />
         <div className="prose-serif mt-6 space-y-5 text-ink/85">
           <h2 className="text-lg font-bold text-ink">{brandTitle}</h2>
           <p>{brandBody}</p>
@@ -185,7 +185,7 @@ export default async function AboutPage() {
 
       <section className="mt-16">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/about-pursuit.jpg" alt="Espresso" className="aspect-[3/2] w-full rounded-card border border-line object-cover" />
+        <img src="/images/about-pursuit.jpg" alt={locale === "en" ? "Espresso extracting into two cups on the machine" : "에스프레소 머신에서 두 잔으로 나뉘어 추출되는 에스프레소"} className="aspect-[3/2] w-full rounded-card border border-line object-cover" />
         <div className="prose-serif mt-6 space-y-5 text-ink/85">
           <h2 className="text-lg font-bold text-ink">{c.pursuitH}</h2>
           <p>{c.pursuitP1}</p>

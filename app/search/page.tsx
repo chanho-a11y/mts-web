@@ -4,7 +4,7 @@ import ProductCard from "@/components/product-card";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Search" };
+export const metadata = { title: "검색 · Search", robots: { index: false, follow: true } };
 
 export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
   const q = (searchParams.q ?? "").trim();

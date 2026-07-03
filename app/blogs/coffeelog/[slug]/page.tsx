@@ -7,10 +7,14 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const supabase = createClient();
   const { data } = await supabase
-    .from("content_post").select("title,excerpt,seo_title,seo_description").eq("slug", params.slug).maybeSingle();
+    .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", params.slug).maybeSingle();
+  const title = data?.seo_title || data?.title || "Coffeelog";
+  const description = data?.seo_description || data?.excerpt || undefined;
   return {
-    title: data?.seo_title || data?.title || "Coffeelog",
-    description: data?.seo_description || data?.excerpt || undefined,
+    title,
+    description,
+    alternates: { canonical: `/blogs/coffeelog/${params.slug}` },
+    openGraph: { title, description, type: "article", ...(data?.cover_image ? { images: [data.cover_image] } : {}) },
   };
 }
 

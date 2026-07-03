@@ -3,6 +3,8 @@ import CartView from "@/components/cart-view";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+// 장바구니는 검색엔진 색인 제외(개인화 페이지)
+export const metadata = { title: "장바구니 · Cart", robots: { index: false, follow: true } };
 
 export default async function CartPage() {
   const { brand, locale } = await getStorefrontContext();

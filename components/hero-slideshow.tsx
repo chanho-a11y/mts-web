@@ -25,7 +25,7 @@ export default function HeroSlideshow({
   if (n === 0) return null;
 
   return (
-    <section className="relative h-[52vh] min-h-[320px] w-full overflow-hidden border-b border-neutral-200 bg-neutral-900">
+    <section className="relative h-[58vh] min-h-[380px] w-full overflow-hidden border-b border-neutral-200 bg-neutral-900 md:h-[52vh] md:min-h-[320px]">
       {slides.map((s, idx) => (
         <a
           key={idx}
@@ -40,9 +40,9 @@ export default function HeroSlideshow({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/55 to-black/10" />
       {(title || subtitle) && (
         <div className="pointer-events-none absolute inset-0 mx-auto flex max-w-6xl flex-col justify-center px-4 text-white">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/80">everyday excellence</p>
-          {title && <h1 className="mt-3 max-w-2xl text-4xl font-bold leading-tight md:text-5xl">{title}</h1>}
-          {subtitle && <p className="mt-4 max-w-xl text-white/90">{subtitle}</p>}
+          <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/80 sm:text-xs">everyday excellence</p>
+          {title && <h1 className="mt-3 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">{title}</h1>}
+          {subtitle && <p className="mt-3 max-w-xl text-sm text-white/90 sm:mt-4 sm:text-base">{subtitle}</p>}
         </div>
       )}
       {n > 1 && (

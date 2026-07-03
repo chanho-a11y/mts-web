@@ -6,6 +6,8 @@ import SiteFooter from "@/components/site-footer";
 import PromoBanner from "@/components/promo-banner";
 import { CartProvider } from "@/components/cart-provider";
 import GoogleAnalytics from "@/components/google-analytics";
+import JsonLd from "@/components/json-ld";
+import { organizationJsonLd, webSiteJsonLd, siteBaseUrl } from "@/lib/seo";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,10 +21,21 @@ export async function generateMetadata(): Promise<Metadata> {
       favicon = data?.value ?? "";
     }
   } catch {}
+  const base = siteBaseUrl();
   return {
+    metadataBase: new URL(base),
     title: { default: `${brand.name} — everyday excellence`, template: `%s · ${brand.name}` },
     description: brand.philosophy.ko,
-    openGraph: { siteName: brand.name, title: brand.name, description: brand.philosophy.ko },
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      siteName: brand.name,
+      title: `${brand.name} — everyday excellence`,
+      description: brand.philosophy.ko,
+      locale: "ko_KR",
+      url: base,
+    },
+    twitter: { card: "summary_large_image", title: `${brand.name} — everyday excellence`, description: brand.philosophy.ko },
     ...(favicon ? { icons: { icon: favicon } } : {}),
   };
 }
@@ -77,6 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale}>
       <body style={bodyStyle}>
+        <JsonLd data={[organizationJsonLd(brand, locale), webSiteJsonLd(brand)]} />
         <GoogleAnalytics />
         <CartProvider>
           <PromoBanner message={promo} />

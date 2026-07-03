@@ -33,8 +33,17 @@ export default async function Home() {
 
   // 이미지 슬라이드(상품 아님): CMS 경로 우선, 없으면 기본 이미지
   const defaultSlides = ["/images/main01.jpg", "/images/main02.jpg", "/images/main03.jpg", "/images/main04.jpg", "/images/main05.jpg", "/images/main06.jpg"];
+  // 슬라이드 이미지 대체텍스트(SEO/접근성) — 파일명 기준 서술형
+  const slideAlt: Record<string, { ko: string; en: string }> = {
+    "/images/main01.jpg": { ko: `${brand.name} 에스프레소 한 잔과 유리 서버`, en: `${brand.name} espresso and glass brewing server` },
+    "/images/main02.jpg": { ko: "홍찬호 대표의 바리스타·로스팅 대회 트로피와 메달", en: "Chanho Hong's barista and roasting championship trophies" },
+    "/images/main03.jpg": { ko: "로스팅 머신 드럼 안에서 볶이는 커피 원두", en: "Coffee beans roasting inside the drum" },
+    "/images/main04.jpg": { ko: "로스팅을 마치고 쿨링 트레이로 배출되는 갓 볶은 원두", en: "Freshly roasted beans dropping into the cooling tray" },
+    "/images/main05.jpg": { ko: "에스프레소 머신에서 추출되는 더블 샷", en: "A double espresso shot being pulled" },
+    "/images/main06.jpg": { ko: "로스터 사이트글라스로 본 로스팅 중인 원두", en: "Beans seen through the roaster's sight glass" },
+  };
   const slides = (slideRaw ? slideRaw.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean) : defaultSlides)
-    .map((src) => ({ src, alt: brand.name }));
+    .map((src) => ({ src, alt: slideAlt[src] ? slideAlt[src][locale] : brand.name }));
 
   // 홈 제품 썸네일 4구성: 베스트 · 이달의 신상품 · 블렌드 · 싱글오리진
   const catBySlug = (slug: string) => categories.find((c) => c.slug === slug);

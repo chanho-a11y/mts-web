@@ -28,7 +28,7 @@ export default function BulkProductBar({ showArchived, categories }: {
   async function run(action: "archive" | "restore" | "delete" | "settype", extra: Record<string, string> = {}) {
     const slugs = boxes().filter((b) => b.checked).map((b) => b.value);
     if (!slugs.length) return;
-    const label = action === "delete" ? "삭제" : action === "archive" ? "보관" : action === "restore" ? "복원" : "유형변경";
+    const label = action === "delete" ? "삭제" : action === "archive" ? "보관" : action === "restore" ? "게시" : "유형변경";
     if (!confirm(`선택한 제품 ${slugs.length}개를 ${label}할까요?` + (action === "delete" ? "\n(주문에 사용된 제품은 완전삭제 대신 보관 처리됩니다)" : ""))) return;
     setBusy(true);
     try {
@@ -52,9 +52,8 @@ export default function BulkProductBar({ showArchived, categories }: {
           <button disabled={busy || !count} onClick={() => run("settype", { category: cat })} className="rounded-full border px-3 py-1 disabled:opacity-40">유형변경</button>
         </span>
       )}
-      {showArchived
-        ? <button disabled={busy || !count} onClick={() => run("restore")} className="rounded-full border px-3 py-1 disabled:opacity-40">일괄 복원</button>
-        : <button disabled={busy || !count} onClick={() => run("archive")} className="rounded-full border px-3 py-1 disabled:opacity-40">일괄 보관</button>}
+      <button disabled={busy || !count} onClick={() => run("restore")} className="rounded-full border px-3 py-1 disabled:opacity-40" title="선택 제품을 발행(활성) 상태로">일괄 게시</button>
+      <button disabled={busy || !count} onClick={() => run("archive")} className="rounded-full border px-3 py-1 disabled:opacity-40" title="선택 제품을 보관(스토어프론트 숨김)">일괄 보관</button>
       <button disabled={busy || !count} onClick={() => run("delete")} className="rounded-full border border-red-200 px-3 py-1 text-red-600 disabled:opacity-40">일괄 삭제</button>
     </div>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addCustomerAction, updateCustomerAction, archiveCustomerAction, deleteCustomerAction, importCustomersAction } from "./actions";
+import BulkCustomerBar from "@/components/bulk-customer-bar";
 
 export const dynamic = "force-dynamic";
 const ROLE: Record<string, string> = { individual: "개인", business: "사업자", influencer: "인플루언서", admin: "관리자" };
@@ -66,9 +67,10 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
       </div>
 
       {/* 목록 */}
+      <BulkCustomerBar showArchived={showArchived} />
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
-          <th className="py-2">구분</th><th>이름 / 상호</th><th>이메일</th><th>연락처</th><th>단가</th><th></th>
+          <th className="w-8 py-2"></th><th>구분</th><th>이름 / 상호</th><th>이메일</th><th>연락처</th><th>단가</th><th></th>
         </tr></thead>
         <tbody>
           {(customers ?? []).map((c: any) => {
@@ -76,6 +78,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
             const pc = priceCount.get(c.id) ?? 0;
             return (
               <tr key={c.id} className="border-b align-top">
+                <td className="py-3"><input type="checkbox" className="bulk-cust mt-1" value={c.id} /></td>
                 <td className="py-3">
                   <span title={ROLE[c.role] ?? c.role}>{isBiz ? "🏢" : c.role === "individual" ? "👤" : "★"}</span>
                   <span className="ml-1 text-xs text-neutral-500">{ROLE[c.role] ?? c.role}</span>
@@ -112,7 +115,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
               </tr>
             );
           })}
-          {(!customers || customers.length === 0) && <tr><td colSpan={6} className="py-6 text-center text-neutral-400">{showArchived ? "보관된 고객이 없습니다." : "고객이 없습니다."}</td></tr>}
+          {(!customers || customers.length === 0) && <tr><td colSpan={7} className="py-6 text-center text-neutral-400">{showArchived ? "보관된 고객이 없습니다." : "고객이 없습니다."}</td></tr>}
         </tbody>
       </table>
     </main>

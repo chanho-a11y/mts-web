@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { archiveProductAction, restoreProductAction } from "./actions";
 import ReportNoManager from "@/components/report-no-manager";
+import BulkProductBar from "@/components/bulk-product-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     .select("slug,title_ko,product_type,is_b2b_only,status,key_color,product_variant(sku,base_price)")
     .eq("status", showArchived ? "archived" : "active")
     .order("title_ko");
+
+  const { data: cats } = await supabase.from("category").select("slug,name_ko,position").order("position");
+  const categoryOptions = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
 
   return (
     <main>
@@ -44,13 +48,15 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
       <p className="mb-4 text-sm text-neutral-500">
         {products?.length ?? 0}개 · {showArchived ? "보관된 제품 — 복구 가능" : "수정·보관 버튼으로 관리 (보관 = 스토어프론트 숨김·복구 가능)"}
       </p>
+      <BulkProductBar showArchived={showArchived} categories={categoryOptions} />
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
-          <th className="py-2">제품</th><th>유형</th><th>SKU·가격</th><th>구분</th><th>색</th><th className="text-right">관리</th>
+          <th className="w-8 py-2"></th><th>제품</th><th>유형</th><th>SKU·가격</th><th>구분</th><th>색</th><th className="text-right">관리</th>
         </tr></thead>
         <tbody>
           {(products ?? []).map((p: any) => (
             <tr key={p.slug} className="border-b align-top">
+              <td className="py-3"><input type="checkbox" className="bulk-prod mt-1" value={p.slug} /></td>
               <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{p.title_ko}</Link></td>
               <td>{p.product_type}</td>
               <td className="text-xs">{(p.product_variant ?? []).map((v: any) => `${v.sku} · ₩${v.base_price.toLocaleString()}`).join("  /  ")}</td>

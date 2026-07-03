@@ -24,7 +24,7 @@ export default async function Home() {
     getBestsellers(storefrontId, 4),
     getNewArrivals(storefrontId, 4),
   ]);
-  const isBusiness = role === "business";
+  const isBusiness = role === "business" || role === "admin"; // 관리자도 사업자전용 노출
 
   // CMS 사이트 설정(히어로 + 이미지 슬라이드)
   const heroTitle = settingsMap.hero_title || brand.name;

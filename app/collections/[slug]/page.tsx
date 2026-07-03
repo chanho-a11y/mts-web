@@ -14,7 +14,8 @@ async function getIsBusiness(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    return prof?.role === "business";
+    // 관리자도 사업자전용(wholesale) 카테고리를 기본 노출로 볼 수 있게 포함
+    return prof?.role === "business" || prof?.role === "admin";
   } catch {
     return false;
   }

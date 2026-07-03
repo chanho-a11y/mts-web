@@ -1020,10 +1020,11 @@
       <span class="hex" id="color1Hex">#1A1A1A</span>
     </label>
     <label class="color-pick">
-      <input type="color" id="color2" value="#0076BA" />
+      <input type="color" id="color2" value="#C68D62" />
       <span class="label-x">2·4</span>
-      <span class="hex" id="color2Hex">#0076BA</span>
+      <span class="hex" id="color2Hex">#C68D62</span>
     </label>
+    <button class="btn ghost" id="paletteBtn" type="button" title="브랜드 확장 팔레트에서 선택">팔레트</button>
   </div>
 
   <div class="group">
@@ -1076,6 +1077,20 @@
 <div class="statusbar" id="statusbar">
   <span class="dot"></span>
   <span id="statusText">제품 스냅샷 로드 중…</span>
+</div>
+
+<div id="palettePanel" style="display:none;position:absolute;z-index:60;background:#fff;border:1px solid var(--ui-line);border-radius:12px;padding:12px 14px;box-shadow:0 10px 34px rgba(0,0,0,.16);width:340px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:var(--ui-sub)">
+    <span>적용 대상</span>
+    <div class="seg" id="paletteTarget">
+      <button data-t="2" class="active" type="button">컬러2 (2·4)</button>
+      <button data-t="1" type="button">컬러1 (1·3·5)</button>
+    </div>
+    <span style="flex:1"></span>
+    <button class="btn ghost" id="paletteClose" type="button">닫기</button>
+  </div>
+  <div id="paletteGrid"></div>
+  <p style="margin:8px 0 0;font-size:10.5px;color:var(--ui-sub)">브랜드 톤 12 플레이버 × 3 로스팅(Light·Medium·Dark). 자유 색상은 상단 컬러 피커로.</p>
 </div>
 
 <main class="stage" id="stage"></main>
@@ -1360,7 +1375,23 @@
    ==================================================================== */
 
 const INK   = "#1A1A1A";
-const BRAND = "#0076BA";
+const BRAND = "#C68D62"; // 브랜드 키(clay). 구 Brand Blue(#0076BA) 폐기(D-039).
+
+/* ── 확장 키 컬러 팔레트 (12 flavor × 3 roast) — 제품 키컬러와 동일 정의(point-color.ts) ── */
+const CN_PALETTE = [
+  { ko: "레몬",     l: "#E6D08A", m: "#CDB35C", d: "#94802F" },
+  { ko: "오렌지",   l: "#E3AE77", m: "#C6864A", d: "#8E5A2C" },
+  { ko: "딸기",     l: "#D68C86", m: "#B35F5C", d: "#7E3B39" },
+  { ko: "파인애플", l: "#E2C06B", m: "#C69A3C", d: "#8B6B24" },
+  { ko: "복숭아",   l: "#E6B597", m: "#CE9068", d: "#96603D" },
+  { ko: "블루베리", l: "#94A1B5", m: "#6B7A93", d: "#47526A" },
+  { ko: "포도",     l: "#A992B0", m: "#7E6588", d: "#55405E" },
+  { ko: "망고",     l: "#E8B968", m: "#CE923E", d: "#955F22" },
+  { ko: "키위",     l: "#BFC079", m: "#9C9C48", d: "#6B6B29" },
+  { ko: "건포도",   l: "#AC8B79", m: "#7E5F51", d: "#533A30" },
+  { ko: "자스민",   l: "#DED6AE", m: "#C3B487", d: "#877A57" },
+  { ko: "사과",     l: "#ABC78D", m: "#7FA35F", d: "#52713A" },
+];
 
 /* ─── Role registry ────────────────────────────────────────────── */
 const ROLES = [
@@ -2115,6 +2146,83 @@ async function exportAll(ext) {
 }
 document.getElementById("exportPNG").addEventListener("click", () => exportAll("png"));
 document.getElementById("exportJPG").addEventListener("click", () => exportAll("jpg"));
+
+/* ─── Undo (Cmd/Ctrl+Z) ─────────────────────────────────────────── */
+const undoStack = []; const UNDO_MAX = 60; let isRestoring = false;
+function captureSnapshot() {
+  return {
+    slides: state.slides.map(s => ({ ...s })),
+    color1: state.color1, color2: state.color2,
+    fsHead: state.fsHead, fsBody: state.fsBody, ratio: state.ratio,
+    fontFamily: state.fontFamily, textColorOverride: state.textColorOverride,
+    texts: [...stageEl.querySelectorAll(".slide")].map(sl =>
+      [...sl.querySelectorAll('[contenteditable="true"]')].map(e => e.innerHTML)),
+  };
+}
+function pushUndo() { if (isRestoring) return; undoStack.push(captureSnapshot()); if (undoStack.length > UNDO_MAX) undoStack.shift(); }
+function applySnapshot(s) {
+  isRestoring = true;
+  state.slides = s.slides.map(x => ({ ...x }));
+  state.color1 = s.color1; state.color2 = s.color2;
+  state.fsHead = s.fsHead; state.fsBody = s.fsBody; state.ratio = s.ratio;
+  state.textColorOverride = s.textColorOverride;
+  document.getElementById("color1").value = s.color1; document.getElementById("color1Hex").textContent = s.color1.toUpperCase();
+  document.getElementById("color2").value = s.color2; document.getElementById("color2Hex").textContent = s.color2.toUpperCase();
+  document.body.classList.toggle("ratio-1-1", s.ratio === "1-1");
+  document.querySelectorAll("#ratioSeg button").forEach(b => b.classList.toggle("active", b.dataset.ratio === s.ratio));
+  applyFontFamily(s.fontFamily || "sans"); document.getElementById("fontFamily").value = s.fontFamily || "sans";
+  applyTextColor(s.textColorOverride || null);
+  applyFs();
+  reRender();
+  [...stageEl.querySelectorAll(".slide")].forEach((sl, i) => {
+    const eds = [...sl.querySelectorAll('[contenteditable="true"]')];
+    (s.texts[i] || []).forEach((html, j) => { if (eds[j] != null) { eds[j].innerHTML = html; eds[j].dataset.dirty = "1"; } });
+  });
+  isRestoring = false;
+}
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+    if (!undoStack.length) return;
+    e.preventDefault();
+    applySnapshot(undoStack.pop());
+    setStatus(`실행취소됨 · 되돌리기 ${undoStack.length}단계 남음`, "ok");
+  }
+});
+// 스냅샷 시점: 텍스트 편집 시작(포커스) + 툴바/슬라이드 컨트롤 조작 직전
+stageEl.addEventListener("focusin", e => { if (e.target.matches && e.target.matches('[contenteditable="true"]')) pushUndo(); });
+document.querySelector(".toolbar").addEventListener("pointerdown", e => { if (e.target.closest("button,select,input,.seg")) pushUndo(); }, true);
+stageEl.addEventListener("pointerdown", e => { if (e.target.closest(".slide-head button,.slide-head select,.photo-hint,.photo-input")) pushUndo(); }, true);
+
+/* ─── 확장 팔레트 선택 패널 ──────────────────────────────────────── */
+(function () {
+  const panel = document.getElementById("palettePanel");
+  const grid = document.getElementById("paletteGrid");
+  let target = "2";
+  grid.innerHTML = CN_PALETTE.map(f =>
+    `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+      <span style="width:52px;font-size:11px;color:var(--body-fg)">${f.ko}</span>
+      ${["l", "m", "d"].map(k => `<button type="button" class="cn-sw" data-hex="${f[k]}" title="${f.ko} ${f[k]}" style="flex:1;height:22px;border:1px solid rgba(0,0,0,.15);border-radius:4px;cursor:pointer;background:${f[k]}"></button>`).join("")}
+    </div>`).join("");
+  function setTarget(t) { target = t; panel.querySelectorAll("#paletteTarget button").forEach(b => b.classList.toggle("active", b.dataset.t === t)); }
+  document.getElementById("paletteBtn").addEventListener("click", e => {
+    if (panel.style.display === "none") {
+      const r = e.currentTarget.getBoundingClientRect();
+      panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 356)) + "px";
+      panel.style.top = (r.bottom + 6 + window.scrollY) + "px";
+      panel.style.display = "block";
+    } else { panel.style.display = "none"; }
+  });
+  document.getElementById("paletteClose").addEventListener("click", () => { panel.style.display = "none"; });
+  document.getElementById("paletteTarget").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setTarget(b.dataset.t); });
+  grid.addEventListener("click", e => {
+    const b = e.target.closest(".cn-sw"); if (!b) return;
+    const hex = b.dataset.hex;
+    pushUndo();
+    if (target === "1") { state.color1 = hex; document.getElementById("color1").value = hex; document.getElementById("color1Hex").textContent = hex.toUpperCase(); }
+    else { state.color2 = hex; document.getElementById("color2").value = hex; document.getElementById("color2Hex").textContent = hex.toUpperCase(); }
+    refreshThemes();
+  });
+})();
 
 /* ─── Boot ──────────────────────────────────────────────────────── */
 reRender();

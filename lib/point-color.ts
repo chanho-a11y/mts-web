@@ -9,24 +9,32 @@ const MATRIX: Record<string, [string, string, string]> = {
   tropical: ["#AEAF5E", "#95964A", "#6B6B32"],
 };
 
-// 제품 등록 키 컬러 팔레트(선택형) — 브랜드 clay + flavor×roast 15색. 자동(빈값) 옵션은 폼에서 처리.
+// ── 확장 키 컬러 팔레트 (12 flavor × 3 roast = 36색) ────────────────────────
+// 브랜드 톤(clay/oat/ink)에 맞춘 어시·뮤트 계열. 라벨 dot·카드뉴스 배경·썸네일 등
+// 작은 식별자/배경에 사용. 자유 색상 선택(color picker)과 병행 제공(D-039).
+export interface FlavorSwatch { flavor: string; ko: string; light: string; medium: string; dark: string }
+export const EXPANDED_PALETTE: FlavorSwatch[] = [
+  { flavor: "lemon",      ko: "레몬",     light: "#E6D08A", medium: "#CDB35C", dark: "#94802F" },
+  { flavor: "orange",     ko: "오렌지",   light: "#E3AE77", medium: "#C6864A", dark: "#8E5A2C" },
+  { flavor: "strawberry", ko: "딸기",     light: "#D68C86", medium: "#B35F5C", dark: "#7E3B39" },
+  { flavor: "pineapple",  ko: "파인애플", light: "#E2C06B", medium: "#C69A3C", dark: "#8B6B24" },
+  { flavor: "peach",      ko: "복숭아",   light: "#E6B597", medium: "#CE9068", dark: "#96603D" },
+  { flavor: "blueberry",  ko: "블루베리", light: "#94A1B5", medium: "#6B7A93", dark: "#47526A" },
+  { flavor: "grape",      ko: "포도",     light: "#A992B0", medium: "#7E6588", dark: "#55405E" },
+  { flavor: "mango",      ko: "망고",     light: "#E8B968", medium: "#CE923E", dark: "#955F22" },
+  { flavor: "kiwi",       ko: "키위",     light: "#BFC079", medium: "#9C9C48", dark: "#6B6B29" },
+  { flavor: "raisin",     ko: "건포도",   light: "#AC8B79", medium: "#7E5F51", dark: "#533A30" },
+  { flavor: "jasmine",    ko: "자스민",   light: "#DED6AE", medium: "#C3B487", dark: "#877A57" },
+  { flavor: "apple",      ko: "사과",     light: "#ABC78D", medium: "#7FA35F", dark: "#52713A" },
+];
+const ROAST_KO: Record<"light" | "medium" | "dark", string> = { light: "Light", medium: "Medium", dark: "Dark" };
+
+// 브랜드 키(clay) + 확장 36색 평면 목록 (하위호환: 기존 사용처 유지)
 export const KEY_COLOR_PALETTE: { hex: string; label: string }[] = [
   { hex: "#C68D62", label: "Clay · 브랜드 키" },
-  { hex: MATRIX.chocolate[0], label: "Chocolate · Light" },
-  { hex: MATRIX.chocolate[1], label: "Chocolate · Medium" },
-  { hex: MATRIX.chocolate[2], label: "Chocolate · Dark" },
-  { hex: MATRIX.citrus[0], label: "Citrus · Light" },
-  { hex: MATRIX.citrus[1], label: "Citrus · Medium" },
-  { hex: MATRIX.citrus[2], label: "Citrus · Dark" },
-  { hex: MATRIX.peach[0], label: "Peach · Light" },
-  { hex: MATRIX.peach[1], label: "Peach · Medium" },
-  { hex: MATRIX.peach[2], label: "Peach · Dark" },
-  { hex: MATRIX.berry[0], label: "Berry · Light" },
-  { hex: MATRIX.berry[1], label: "Berry · Medium" },
-  { hex: MATRIX.berry[2], label: "Berry · Dark" },
-  { hex: MATRIX.tropical[0], label: "Tropical · Light" },
-  { hex: MATRIX.tropical[1], label: "Tropical · Medium" },
-  { hex: MATRIX.tropical[2], label: "Tropical · Dark" },
+  ...EXPANDED_PALETTE.flatMap((f) =>
+    (["light", "medium", "dark"] as const).map((r) => ({ hex: f[r], label: `${f.ko} · ${ROAST_KO[r]}` }))
+  ),
 ];
 
 function flavorFamily(notes: string): string {

@@ -72,7 +72,11 @@ export function recipeDisplay(recipe: RecipeData | null | undefined, locale: "ko
           if (r.bilingual && locale === "en" && data[`${r.key}_en`]) value = data[`${r.key}_en`]!;
           if (!value) return null;
           const label = locale === "en" ? r.en : r.ko;
-          return { label: r.unit ? `${label} (${r.unit})` : label, value };
+          // 단위는 숫자 바로 뒤에 붙인다 (예: "도징 20g"). 이미 단위/문자로 끝나면 그대로 둔다.
+          const withUnit = r.unit && !new RegExp(`${r.unit}\\s*$`, "i").test(value.trim()) && /\d\s*$/.test(value.trim())
+            ? `${value.trim()}${r.unit}`
+            : value;
+          return { label, value: withUnit };
         })
         .filter(Boolean) as { label: string; value: string }[];
       if (!rows.length) return null;

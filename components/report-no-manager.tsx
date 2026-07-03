@@ -66,6 +66,7 @@ export default function ReportNoManager() {
               <div>
                 <h2 className="text-lg font-bold">품목보고번호 관리</h2>
                 <p className="text-xs text-neutral-500">식약처 품목보고 정본 · 제품 등록/수정·레이블 원재료명과 연동됩니다.</p>
+                <p className="mt-0.5 text-xs text-neutral-500">소비기한: 전 품목 <b>제조일로부터 1년</b> (고정) · 제조일자는 상단 표기 · 레이블에 자동 반영됩니다.</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setEdit({ ...EMPTY, position: (rows.length ? Math.max(...rows.map((r) => r.position ?? 0)) : 0) + 1 })} className="rounded-full bg-black px-3 py-1.5 text-xs text-white">+ 추가</button>

@@ -87,12 +87,20 @@
   .brandtxt{font-family:'Noto Serif KR',serif;font-size:var(--fs-brand);line-height:1.74;color:#5c574e;font-weight:300;text-align:left}
   .brandtxt.two{color:#7a7263;margin-top:2.2mm}
   .ig{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.8mm;letter-spacing:.06mm;color:var(--ink);font-weight:500;margin-bottom:2.6mm}
-  .tbl{width:100%;border-top:.4mm solid var(--point)}
-  .tr{display:flex;font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.16mm;line-height:1.3;border-bottom:.1mm solid var(--hair);text-align:left;white-space:nowrap}
-  .tr.wrap{white-space:normal}
-  .tr .c{padding:.8mm 1mm;border-right:.1mm solid var(--hair)}
-  .tr .c:last-child{border-right:none}
-  .tr .k{color:var(--ink-soft)}
+  /* 한글표시사항 표 — 고정 4열 그리드(열폭·구분선 일관). K1|V1|K2|V2, span은 2~4열 병합 */
+  .tbl{width:100%;border-top:.4mm solid var(--point);border-left:.1mm solid var(--hair)}
+  .trow{display:grid;grid-template-columns:12.5mm 1fr 12.5mm 1.35fr;border-bottom:.1mm solid var(--hair)}
+  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.16mm;line-height:1.28;padding:.7mm 1mm;
+    border-right:.1mm solid var(--hair);display:flex;align-items:center;min-height:3.2mm}
+  .trow .tcell:last-child{border-right:none}
+  .tcell.k{color:var(--ink-soft);justify-content:center;text-align:center;white-space:nowrap}
+  .tcell.v{justify-content:flex-start;text-align:left;white-space:normal}
+  .tcell.v.rno{white-space:nowrap;font-size:1.02mm;letter-spacing:-.01mm}
+  .tcell.span2{grid-column:2 / 5}
+  .tcell.spanAll{grid-column:1 / 5;justify-content:flex-start;color:var(--ink-soft);white-space:nowrap}
+  /* 엘레먼트 미세조정 선택 표시 */
+  body.nudge-mode [data-editable]{cursor:move}
+  .nudge-sel{outline:.25mm dashed var(--point)!important;outline-offset:.4mm}
   .clusterRow{display:flex;align-items:center;justify-content:center;gap:4.8mm;margin-top:3.6mm}
   .cluster{text-align:center}
   .iconArea{height:8.8mm;display:flex;align-items:center;justify-content:center}
@@ -245,7 +253,13 @@
         <span class="tag">18 × 13 cm</span>
         <span class="tag">6+6+6 · 1:1:1</span>
         <span class="tag" id="pointTag">#5E3F2A</span>
-        <span>· 텍스트를 클릭해 직접 편집</span>
+        <span class="tag" id="zoomOut" style="cursor:pointer;user-select:none">－</span>
+        <span class="tag" id="zoomVal" title="보기 배율">100%</span>
+        <span class="tag" id="zoomIn" style="cursor:pointer;user-select:none">＋</span>
+        <span class="tag" id="zoomReset" style="cursor:pointer;user-select:none">화면맞춤</span>
+        <span class="tag" id="nudgeToggle" style="cursor:pointer;user-select:none">✥ 위치 미세조정</span>
+        <span class="tag" id="nudgeReset" style="cursor:pointer;user-select:none">위치 리셋</span>
+        <span id="toolHint">· 텍스트를 클릭해 직접 편집</span>
       </div>
 
       <div class="labelScaler">
@@ -264,7 +278,7 @@
             <div class="brandtxt two" data-field="brand2" data-editable contenteditable>원두의 산지부터 로스팅까지 작은 차이를 끝까지 다듬어 매일의 한 잔에 깊이를 더합니다. 화려하지 않지만 빈틈없는 커피를 지향합니다.</div>
           </div>
           <div style="width:100%">
-            <div class="ig" data-field="ig" data-editable contenteditable>IG: @mtspacecoffee</div>
+            <div class="ig" data-field="ig" data-editable contenteditable>@mtspacecoffee</div>
             <div class="tbl" id="tbl"></div>
             <div class="clusterRow">
               <div class="cluster">
@@ -361,7 +375,7 @@ const PRESETS = {
     recipe:[['ESPRESSO','20g in, 48g out, 23s','(vst 20g 바스켓, 물 93도, 9bar 기준)'],['MILK','22g in, 42g out, 27s','(싱글샷 6oz 기준)'],['FILTER','12g in, 36g/60s blooming, 192g, 1:50-2:20','(v60, ufo, 찬호토네이도 기준)']]
   }
 };
-const FIXED = { maker:'경기도 가평군 청평면 톳골길 3, A동 B1호', ig:'IG: @mtspacecoffee', qrUrl:'https://mtspace.coffee', vol:'125 g' };
+const FIXED = { maker:'경기도 가평군 청평면 톳골길 3, A동 B1호', ig:'@mtspacecoffee', qrUrl:'https://mtspace.coffee', vol:'125 g' };
 const DEFAULTS = { brand:1.68, desc:1.72, info:1.64, bar:40 };
 
 let state = {};
@@ -450,29 +464,27 @@ function safetyFit(){
 
 function buildTable(){
   const t=document.getElementById('tbl'); t.innerHTML='';
+  // [텍스트, 클래스]. 항목(k)=좌우중앙+높이중앙, 설명(v)=좌정렬+높이중앙. 4열 고정 그리드로 열폭·구분선 통일.
   const rows=[
-    [['제품명','k'],[state.tableName,''],['품목보고번호','k'],[state.reportNo,'wrapCell']],
-    [['내용량','k'],[state.vol,''],['포장재질','k'],['PET','']],
-    [['원재료명','k'],[state.material,'span']],
-    [['업소명 및 소재지','k nowrap'],[state.maker,'span wrapCell']],
-    [['제조일자','k'],['상단 표기',''],['소비기한','k'],['제조일로부터 1년','']],
-    [['보관방법','k'],['서늘하고 건조한 곳에 보관해주시기 바랍니다.','span']],
+    [['제품명','k'],[state.tableName,'v'],['품목보고번호','k'],[state.reportNo,'v rno']],
+    [['내용량','k'],[state.vol,'v'],['포장재질','k'],['PET','v']],
+    [['원재료명','k'],[state.material,'v span2']],
+    [['업소명 및 소재지','k'],[state.maker,'v span2']],
+    [['제조일자','k'],['상단 표기','v'],['소비기한','k'],['제조일로부터 1년','v']],
+    [['보관방법','k'],['서늘하고 건조한 곳에 보관해주시기 바랍니다.','v span2']],
   ];
   rows.forEach(r=>{
-    const tr=document.createElement('div'); tr.className='tr'+(r.some(c=>c[1].includes('wrapCell'))?' wrap':'');
+    const tr=document.createElement('div'); tr.className='trow';
     r.forEach(c=>{
-      const d=document.createElement('div'); d.className='c'+(c[1].includes('k')?' k':'');
-      d.style.flex = c[1].includes('span')?'4.4': (c[1].includes('k')? '0.85':'1.55');
-      if(c[1].includes('nowrap')) d.style.whiteSpace='nowrap';
-      if(c[1].includes('wrapCell')) d.style.whiteSpace='normal';
+      const d=document.createElement('div'); d.className='tcell '+c[1];
       d.textContent=c[0]; tr.appendChild(d);
     });
     t.appendChild(tr);
   });
-  const foot=document.createElement('div');
-  foot.className='c'; foot.style.cssText='font-family:"IBM Plex Mono",Pretendard,monospace;font-size:1.16mm;color:var(--ink-soft);padding:.8mm 1mm;white-space:nowrap';
-  foot.textContent='소비자 불만, 부정 및 불량식품 신고는 국번없이 1399';
-  t.appendChild(foot);
+  const foot=document.createElement('div'); foot.className='trow';
+  const fc=document.createElement('div'); fc.className='tcell spanAll';
+  fc.textContent='소비자 불만, 부정 및 불량식품 신고는 국번없이 1399';
+  foot.appendChild(fc); t.appendChild(foot);
 }
 function buildInfo(){
   const c=document.getElementById('infoList'); c.innerHTML='';
@@ -481,7 +493,15 @@ function buildInfo(){
 }
 function buildRecipe(){
   const c=document.getElementById('recipeRender'); c.innerHTML='';
-  state.recipe.forEach(r=>{ const row=document.createElement('div'); row.className='recRow'; row.innerHTML='<span class="rk">'+esc(r[0])+'</span><div class="rv"><div class="rn">'+esc(r[1])+'</div><div class="rc">'+esc(r[2])+'</div></div>'; c.appendChild(row); });
+  state.recipe.forEach(r=>{
+    const row=document.createElement('div'); row.className='recRow';
+    // r[1]은 \n 으로 여러 줄(필터 3줄/에스프레소 1줄/밀크 2줄) 구성될 수 있음
+    const lines=String(r[1]==null?'':r[1]).split('\n').filter(function(l){return l!=='';})
+      .map(function(l){return '<div class="rn">'+esc(l)+'</div>';}).join('');
+    const cond=r[2]?'<div class="rc">'+esc(r[2])+'</div>':'';
+    row.innerHTML='<span class="rk">'+esc(r[0])+'</span><div class="rv">'+lines+cond+'</div>';
+    c.appendChild(row);
+  });
 }
 function makeQR(url){ const el=document.getElementById('qr'); el.innerHTML=''; try{ new QRCode(el,{text:url||' ',width:120,height:120,colorDark:'#3C352C',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='QR'; } }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
@@ -551,15 +571,58 @@ sel.addEventListener('change',()=>loadPreset(sel.value));
 document.getElementById('exportJson').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(state.tableName||'label')+'.json'; a.click(); };
 
 const NAT_W=180*MMPX, NAT_H=130*MMPX;
+let userZoom=1; // 사용자 확대/축소 배율(화면맞춤=1 기준의 배수)
+function baseFit(){ const avail=window.innerWidth-380-90; return Math.max(0.5,Math.min(1.4, avail/NAT_W)); }
 function fitScale(){
-  const avail=window.innerWidth-380-90;
-  const s=Math.max(0.5,Math.min(1.4, avail/NAT_W));
+  const s=baseFit()*userZoom;
   document.documentElement.style.setProperty('--scale',s);
   document.querySelector('.stageInner').style.width=(NAT_W*s)+'px';
   document.querySelector('.stageInner').style.height=(NAT_H*s+60)+'px';
+  const zv=document.getElementById('zoomVal'); if(zv) zv.textContent=Math.round(s*100)+'%';
   safetyFit();
 }
 window.addEventListener('resize',fitScale);
+
+/* ── 확대/축소 ───────────────────────────────────────────── */
+document.getElementById('zoomIn').addEventListener('click',()=>{ userZoom=Math.min(3,+(userZoom*1.15).toFixed(3)); fitScale(); });
+document.getElementById('zoomOut').addEventListener('click',()=>{ userZoom=Math.max(0.4,+(userZoom/1.15).toFixed(3)); fitScale(); });
+document.getElementById('zoomReset').addEventListener('click',()=>{ userZoom=1; fitScale(); });
+
+/* ── 엘레먼트 위치 미세조정 ──────────────────────────────── */
+let nudgeMode=false, selEl=null;
+function setNudge(on){
+  nudgeMode=on;
+  document.body.classList.toggle('nudge-mode',on);
+  document.getElementById('nudgeToggle').style.background=on?'#3c352c':'#fff';
+  document.getElementById('nudgeToggle').style.color=on?'#f6f1e7':'#6b6356';
+  document.getElementById('toolHint').textContent=on
+    ? '· 요소를 클릭해 선택 후 방향키로 이동(Shift=1mm) · Esc 해제'
+    : '· 텍스트를 클릭해 직접 편집';
+  // 미세조정 중에는 텍스트 편집 잠금(방향키 이동과 충돌 방지)
+  document.querySelectorAll('[data-editable]').forEach(el=>{ el.contentEditable = on ? 'false' : 'true'; });
+  if(!on && selEl){ selEl.classList.remove('nudge-sel'); selEl=null; }
+}
+document.getElementById('nudgeToggle').addEventListener('click',()=>setNudge(!nudgeMode));
+document.getElementById('nudgeReset').addEventListener('click',()=>{
+  document.querySelectorAll('#label [data-editable]').forEach(el=>{ el.style.transform=''; el.__off=null; });
+});
+document.getElementById('label').addEventListener('click',function(e){
+  if(!nudgeMode) return;
+  const el=e.target.closest('[data-editable]'); if(!el) return;
+  e.preventDefault();
+  if(selEl) selEl.classList.remove('nudge-sel');
+  selEl=el; selEl.classList.add('nudge-sel');
+},true);
+document.addEventListener('keydown',function(e){
+  if(!nudgeMode||!selEl) return;
+  if(e.key==='Escape'){ selEl.classList.remove('nudge-sel'); selEl=null; return; }
+  const step=e.shiftKey?1:0.3; let dx=0,dy=0;
+  if(e.key==='ArrowLeft')dx=-step; else if(e.key==='ArrowRight')dx=step;
+  else if(e.key==='ArrowUp')dy=-step; else if(e.key==='ArrowDown')dy=step; else return;
+  e.preventDefault();
+  const cur=selEl.__off||{x:0,y:0}; cur.x=+(cur.x+dx).toFixed(2); cur.y=+(cur.y+dy).toFixed(2); selEl.__off=cur;
+  selEl.style.transform='translate('+cur.x+'mm,'+cur.y+'mm)';
+});
 
 buildSwatches();
 loadPreset('2022026 4913101');

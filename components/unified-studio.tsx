@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { type DesignedFields } from "@/lib/content-gen";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
+import { EVIDENCE_FIELDS, srcTag, findUnsourcedStats, type EvidenceData } from "@/lib/evidence";
 import RichEditor from "@/components/rich-editor";
 import ImageUpload from "@/components/image-upload";
 
@@ -21,6 +22,7 @@ export interface StudioItem extends DesignedFields {
   altitude_en?: string; roast_en?: string; flavor_en?: string;
   one_liner?: string; one_liner_en?: string; story_en?: string;
   recipe?: RecipeData | null;
+  evidence?: EvidenceData | null;
 }
 
 type Tab = "detail" | "blog" | "cardnews" | "label" | "thumbnail";
@@ -36,7 +38,7 @@ const BRAND = { name: "MTSPACE COFFEE", instagram: "@mtspacecoffee" };
 const EMPTY: StudioItem = { slug: "", ko: "", en: "", country: "", country_en: "", region: "", farm: "", farmer: "", producer_en: "",
   variety: "", variety_en: "", process: "", process_en: "", altitude: "", altitude_en: "", roast: "", roast_en: "",
   flavor: "", flavor_en: "", weight: "", one_liner: "", one_liner_en: "", story: "", story_en: "",
-  rcp_es: "", rcp_fil: "", rcp_milk: "", recipe: null, hash: "", key_color: "#B0764A", price: "" };
+  rcp_es: "", rcp_fil: "", rcp_milk: "", recipe: null, evidence: null, hash: "", key_color: "#B0764A", price: "" };
 
 type BlogMode = "product" | "keyword" | "blank";
 
@@ -112,6 +114,11 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   const [kwSel, setKwSel] = useState<string[]>([]);
   const [blogStatus, setBlogStatus] = useState<string | null>(null);
   const [kbKeywords, setKbKeywords] = useState<string[]>([]);
+
+  // KB 정의 인용 팝업
+  const [kbOpen, setKbOpen] = useState(false);
+  const [kbFacts, setKbFacts] = useState<{ term: string; definition: string; category: string }[]>([]);
+  const [kbFactQuery, setKbFactQuery] = useState("");
 
   // 네이버 실시간 리서치
   const [researchOn, setResearchOn] = useState(false);
@@ -237,6 +244,21 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
 
     const conceptLine = kw.length ? `<p><strong>관련 개념:</strong> ${esc(kw.join(", "))}. 이 커피를 이해할 때 함께 살펴보면 좋은 키워드입니다.</p>` : "";
 
+    // 정보 이득(Information Gain) + 1차 경험(Experience) 슬롯 — 경쟁 글이 복제할 수 없는 우리 자산.
+    // [홍찬호 대표 코멘트]는 발행 전 채우는 placeholder(휴먼화·점검기가 미작성 시 감지).
+    const infoGain = `<h2>MTSPACE COFFEE의 방식</h2>`
+      + `<p>${esc(name)}은(는) 경기도 가평 청평의 자체 로스터리에서 매주 월·화요일에 로스팅합니다. 우리는 대회에서 검증한 로스팅·추출 기준을 실무에 그대로 적용해, 누가 내려도 일정한 컵 퀄리티가 나오도록 프로파일을 다듬습니다. V60에서는 물줄기를 회전시키는 차노토네이도(Chanotonado) 방식으로 추출의 균일성을 관리합니다. <em>[홍찬호 대표 현장 코멘트: ${esc(name)}의 로스팅·추출에서 특히 신경 쓴 점을 한두 문장으로 채우세요]</em></p>`;
+
+    // 자사 1차 데이터 → 출처 태깅(자사)해 본문에 삽입. 통계·수치의 출처가 되어 팩트체크 게이트를 통과.
+    const ev = f.evidence ?? {};
+    const evLines = EVIDENCE_FIELDS.map((fld) => {
+      const v = (ev as Record<string, string | undefined>)[fld.key];
+      return v ? `<li>${srcTag("자사", `${esc(fld.ko.replace(/\s*\(.*?\)\s*/, ""))} — ${esc(v)}`)}</li>` : "";
+    }).filter(Boolean).join("");
+    const evidenceHtml = evLines
+      ? `<h2>자사 로스팅·추출 데이터</h2><ul>${evLines}</ul><p>위 수치는 MTSPACE COFFEE 로스터리의 자체 실측·기록입니다.</p>`
+      : "";
+
     return [
       `<p>${esc(lead)}</p>`,
 
@@ -251,6 +273,9 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
 
       `<h2>풍미 프로파일 깊이 읽기</h2>`,
       flavorDeep,
+
+      infoGain,
+      evidenceHtml,
 
       `<h2>추천 추출 레시피</h2>`,
       `<p>아래는 ${esc(name)}의 개성을 가장 잘 끌어내는 기준 레시피입니다. 원두 상태와 그라인더에 따라 미세하게 조정하세요.</p>`,
@@ -292,21 +317,52 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     setKwOpen(false);
   }
 
-  // AIEO/SEO 점검 + 자동 다듬기(휴리스틱, 블로그 가이드 기준)
+  // AIEO/SEO 점검 — 4축 루브릭(정보이득·인용가능성·검증/신선도·분량) 점수화 + 발행 가능선.
+  // 기준: 블로그 개선 제안서(2026-07-03) §2·§3.7.
+  const BANNED_WORDS = ["최고의", "유일한", "완벽한", "Dark Velvet", "Sweetheart", "Citrus Breeze"];
   function checkSeo() {
-    const r: string[] = [];
     const text = blogBody.replace(/<[^>]+>/g, " ");
-    const words = text.trim().split(/\s+/).filter(Boolean).length;
     const chars = text.replace(/\s+/g, "").length;
-    r.push(`${blogTitle.length >= 15 && blogTitle.length <= 60 ? "✓" : "△"} 제목 길이 ${blogTitle.length}자 (15–60 권장)`);
-    r.push(`${/<h2/i.test(blogBody) ? "✓" : "△"} H2 소제목 ${/<h2/i.test(blogBody) ? "있음" : "없음(구조화 권장)"}`);
-    r.push(`${/<table/i.test(blogBody) ? "✓" : "△"} 표 (인용률↑)`);
-    r.push(`${/<ol|<ul/i.test(blogBody) ? "✓" : "△"} 번호/불릿 목록`);
-    r.push(`${chars >= 800 ? "✓" : "△"} 본문 ${chars}자 / ${words}단어 (필수 800자 이상)`);
-    r.push(`${/자주 묻는|faq/i.test(blogBody) ? "✓" : "△"} FAQ 섹션`);
-    r.push(`${/<img/i.test(blogBody) ? "✓" : "△"} 이미지 ${/<img/i.test(blogBody) ? "있음" : "없음"}`);
-    r.push(`${flavorArr.length && flavorArr.some((n) => blogBody.includes(n)) ? "✓" : "△"} 플레이버 키워드 포함`);
-    setSeoReport(r);
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const has = (re: RegExp) => re.test(blogBody);
+    const bannedHit = BANNED_WORDS.filter((w) => blogBody.includes(w));
+    const items: { axis: string; ok: boolean; label: string }[] = [
+      { axis: "정보이득", ok: /차노토네이도|찬호토네이도|가평|로스터리|팩토리|대회|거래처/.test(text), label: "1차 경험/정보 이득(차노토네이도·가평 로스터리·대회·거래처) 포함" },
+      { axis: "경험/저자", ok: !/\[홍찬호 대표/.test(blogBody), label: "저자 코멘트 슬롯 작성(placeholder 제거)" },
+      { axis: "인용가능성", ok: /(란|이란)\s*[^<]{0,60}(이다|입니다)/.test(text), label: "정의형 문장(‘X란 ~이다/입니다’)" },
+      { axis: "인용가능성", ok: has(/<h2/i), label: "H2 소제목 구조화" },
+      { axis: "인용가능성", ok: has(/<table/i), label: "표(인용률↑)" },
+      { axis: "인용가능성", ok: has(/<ol|<ul/i), label: "번호/불릿 목록" },
+      { axis: "인용가능성", ok: /자주 묻는|faq/i.test(blogBody), label: "FAQ 섹션(→ FAQPage 스키마)" },
+      { axis: "검증/신선도", ok: /월·화|월,\s?화|로스팅/.test(text), label: "신선도 표기(월·화 로스팅 / 화·수 출고)" },
+      { axis: "검증/신선도", ok: bannedHit.length === 0, label: bannedHit.length ? `금지표현 발견: ${bannedHit.join(", ")}` : "금지표현 0(최고의·유일한·완벽한·구 블렌드명)" },
+      { axis: "검증/신선도", ok: findUnsourcedStats(blogBody).length === 0, label: (() => { const u = findUnsourcedStats(blogBody); return u.length ? `출처 없는 수치 ${u.length}건: ${u.slice(0, 5).join(", ")} (게시 잠금 대상)` : "모든 통계·수치에 출처(자사/KB/링크) 태깅됨"; })() },
+      { axis: "분량", ok: chars >= 1200, label: `본문 ${chars}자 / ${words}단어 (발행 가능선 1,200자+)` },
+      { axis: "제목", ok: blogTitle.length >= 15 && blogTitle.length <= 60, label: `제목 ${blogTitle.length}자 (15–60)` },
+      { axis: "이미지", ok: has(/<img/i), label: "본문 이미지(alt 포함)" },
+    ];
+    const coreAxes = ["정보이득", "인용가능성", "검증/신선도", "분량"];
+    const core = items.filter((i) => coreAxes.includes(i.axis));
+    const corePass = core.every((i) => i.ok);
+    const passed = items.filter((i) => i.ok).length;
+    setSeoReport([
+      `${corePass ? "✅ 발행 가능선 충족" : "⚠️ 발행 전 보완 필요"} · 통과 ${passed}/${items.length} · 핵심축 ${core.filter((i) => i.ok).length}/${core.length}`,
+      ...items.map((i) => `${i.ok ? "✓" : "△"} [${i.axis}] ${i.label}`),
+    ]);
+  }
+
+  // 휴먼화 패스 — AI 상투어·절대화·em대시 정리(규칙 기반, 제안서 §3.3). 의미 보존 위주의 안전 교정.
+  function humanize() {
+    let body = blogBody;
+    body = body.replace(/—/g, ", ");
+    body = body.replace(/결론적으로,?\s*/g, "");
+    body = body.replace(/에 대해 알아보겠습니다/g, "를 살펴봅니다");
+    body = body.replace(/게다가,?\s*/g, "").replace(/나아가,?\s*/g, "").replace(/(^|>)\s*또한,?\s*/g, "$1");
+    body = body.replace(/가장\s*완벽한/g, "안정적인").replace(/완벽한/g, "안정적인").replace(/최고의/g, "좋은").replace(/유일한\s*/g, "");
+    body = body.replace(/[ \t]{2,}/g, " ");
+    pushEditor(body, blogTitle);
+    setBlogStatus("휴먼화 적용됨 ✓ (AI 상투어·절대화·em대시 정리) · [홍찬호 대표 코멘트] 슬롯을 채워주세요.");
+    setTimeout(checkSeo, 0);
   }
   function autoOptimize() {
     let body = blogBody;
@@ -325,8 +381,17 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   }
 
   // 보관(draft) / 게시(published) → content_post. 게시글은 홈 블로그 섹션 노출, 관리에서 수정.
+  // 팩트체크 게이트(D-042): 게시 시 출처 없는 통계·수치가 있으면 잠금(보관은 허용).
   async function saveBlog(status: "draft" | "published") {
     if (!blogTitle.trim()) { setBlogStatus("제목을 입력하세요"); return; }
+    if (status === "published") {
+      const unsourced = findUnsourcedStats(blogBody);
+      const banned = BANNED_WORDS.filter((w) => blogBody.includes(w));
+      if (unsourced.length || banned.length) {
+        setBlogStatus(`⛔ 게시 잠금 — ${unsourced.length ? `출처 없는 수치 ${unsourced.length}건(${unsourced.slice(0, 6).join(", ")})` : ""}${unsourced.length && banned.length ? " · " : ""}${banned.length ? `금지표현(${banned.join(", ")})` : ""}. ‘자사 근거 삽입’·‘KB 정의 인용’으로 출처를 붙이거나 ‘보관’으로 저장하세요.`);
+        return;
+      }
+    }
     setBlogStatus(status === "published" ? "게시 중…" : "보관 중…");
     try {
       const res = await fetch("/api/studio/blog", {
@@ -356,7 +421,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   // 리서치 결과를 본문 하단에 '관련 동향·참고' 섹션으로 삽입(출처 링크 포함, 원문 확인 유도)
   function insertResearch() {
     if (!researchItems.length) return;
-    const links = researchItems.slice(0, 6).map((it) => `<li>${esc(it.title)} — <a href="${esc(it.link)}" rel="noopener" target="_blank">출처</a></li>`).join("");
+    const links = researchItems.slice(0, 6).map((it) => `<li>${srcTag("출처", `${esc(it.title)} — <a href="${esc(it.link)}" rel="noopener" target="_blank">출처</a>`)}</li>`).join("");
     const section = `\n<h2>관련 동향 · 참고 자료</h2>\n<p>${esc(f.ko || "이 주제")}와 관련해 최근 온라인에서 다뤄진 맥락입니다. 사실관계는 원문을 확인해 인용하세요.</p>\n<ul>${links}</ul>`;
     pushEditor(blogBody + section, blogTitle);
     setResearchMsg("본문 하단에 참고 자료 반영됨 ✓");
@@ -368,6 +433,32 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     await reloadKbKeywords();
     if (researchOn) await runResearch();
     else setResearchMsg("지식베이스 키워드 최신화됨 ✓");
+  }
+
+  // 자사 1차 데이터 → 출처 태깅(자사)해 본문 하단 삽입
+  function insertEvidence() {
+    const ev = f.evidence ?? {};
+    const lines = EVIDENCE_FIELDS.map((fld) => {
+      const v = (ev as Record<string, string | undefined>)[fld.key];
+      return v ? `<li>${srcTag("자사", `${esc(fld.ko.replace(/\s*\(.*?\)\s*/, ""))} — ${esc(v)}`)}</li>` : "";
+    }).filter(Boolean).join("");
+    if (!lines) { setBlogStatus("이 제품에 입력된 자사 1차 데이터가 없습니다. 제품 수정 > ‘자사 1차 데이터’에서 입력하세요."); return; }
+    pushEditor(blogBody + `\n<h2>자사 로스팅·추출 데이터</h2>\n<ul>${lines}</ul>\n<p>위 수치는 MTSPACE COFFEE 로스터리의 자체 실측·기록입니다.</p>`, blogTitle);
+    setBlogStatus("자사 1차 데이터를 출처 태깅해 삽입했습니다 ✓");
+  }
+  // KB 정의 인용 — 지식베이스(정본)에서 term/definition 삽입, data-src="KB:term" 태깅
+  async function openKbFacts() {
+    setKbOpen(true);
+    try {
+      const j = await fetch("/api/studio/kb-facts", { cache: "no-store" }).then((r) => r.ok ? r.json() : { items: [] });
+      setKbFacts(j.items ?? []);
+    } catch { setKbFacts([]); }
+  }
+  function insertKbFact(t: { term: string; definition: string }) {
+    const html = srcTag(`KB:${t.term}`, `<strong>${esc(t.term)}</strong>란 ${esc(t.definition)}`);
+    pushEditor(blogBody + `\n<p>${html}</p>`, blogTitle);
+    setBlogStatus(`KB 정의 인용 삽입 ✓ (${t.term})`);
+    setKbOpen(false);
   }
 
   function openNewWindow(url: string) { window.open(url, "_blank", "noopener,width=1200,height=900"); }
@@ -449,7 +540,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
                   {m === "product" ? "제품정보" : m === "keyword" ? "키워드" : "빈 문서"}
                 </button>
               ))}
-              <span className="text-[11px] text-neutral-400">AIEO/SEO 기준(800자 이상·구조화)으로 초안이 생성되며, 제품 정보 + 지식베이스 + 네이버 리서치 키워드를 반영합니다.</span>
+              <span className="text-[11px] text-neutral-400">보도자료·논문급 기준(1,200자+·정의형·정보이득·인용/출처)으로 초안이 생성되며, 제품 정보 + 지식베이스 + 네이버 리서치 키워드를 반영합니다.</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-neutral-50 px-3 py-2">
               <button onClick={runResearch} disabled={!researchOn || researchBusy} className="rounded-full border bg-white px-3 py-1 text-xs disabled:opacity-40" title={researchOn ? "네이버 검색 API로 실시간 리서치" : "NAVER_CLIENT_ID/SECRET 환경변수 설정 필요"}>
@@ -457,15 +548,19 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
               </button>
               {researchItems.length > 0 && <button onClick={insertResearch} className="rounded-full bg-clayDeep px-3 py-1 text-xs text-white">본문에 참고 반영</button>}
               <button onClick={refreshKeywordPool} disabled={researchBusy} className="rounded-full border bg-white px-3 py-1 text-xs disabled:opacity-40" title="지식베이스 + 리서치 키워드 재조회">↻ 키워드 최신화</button>
+              <span className="mx-1 h-4 w-px bg-neutral-300" />
+              <button onClick={insertEvidence} className="rounded-full border bg-white px-3 py-1 text-xs" title="제품의 자사 1차 데이터를 출처 태깅해 삽입(신뢰 핵심)">＋ 자사 근거 삽입</button>
+              <button onClick={openKbFacts} className="rounded-full border bg-white px-3 py-1 text-xs" title="지식베이스 정의를 정본 인용으로 삽입">＋ KB 정의 인용</button>
               {researchMsg && <span className="text-[11px] text-neutral-500">{researchMsg}</span>}
               {!researchOn && <span className="text-[11px] text-neutral-400">네이버 개발자센터에서 앱 등록 후 키를 Vercel env에 추가하면 활성화됩니다(무료).</span>}
             </div>
             <input value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="제목" className="w-full rounded border px-3 py-2 text-sm font-medium" />
             <ImageUpload name="studio_cover" defaultValue={blogCover} folder="blog-cover" label="커버 이미지 첨부" />
-            <RichEditor key={editorKey} name="studio_body" defaultValue={blogBody} minWords={800} onChange={setBlogBody} />
+            <RichEditor key={editorKey} name="studio_body" defaultValue={blogBody} minWords={1200} onChange={setBlogBody} />
             <div className="flex flex-wrap gap-2">
-              <button onClick={checkSeo} className="rounded border px-3 py-1 text-xs">AIEO/SEO 점검</button>
-              <button onClick={autoOptimize} className="rounded-full bg-clayDeep px-3 py-1 text-xs text-white">자동 다듬기</button>
+              <button onClick={checkSeo} className="rounded border px-3 py-1 text-xs">AIEO/SEO 점검(루브릭)</button>
+              <button onClick={autoOptimize} className="rounded-full border px-3 py-1 text-xs">자동 다듬기</button>
+              <button onClick={humanize} className="rounded-full bg-clayDeep px-3 py-1 text-xs text-white" title="AI 상투어·절대화·em대시 정리">휴먼화</button>
               <span className="flex-1" />
               <button onClick={() => saveBlog("draft")} className="rounded-full border px-4 py-1.5 text-xs">보관(초안)</button>
               <button onClick={() => saveBlog("published")} className="rounded-full bg-ink px-4 py-1.5 text-xs text-oat">게시(홈 노출)</button>
@@ -473,6 +568,28 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
             {blogStatus && <p className="text-xs text-neutral-600">{blogStatus}</p>}
             {seoReport && <ul className="rounded-lg border bg-neutral-50 p-3 text-xs">{seoReport.map((r, i) => <li key={i}>{r}</li>)}</ul>}
             <p className="text-[11px] text-neutral-400">보관/게시한 글은 <a href="/admin/blog" className="underline">블로그 관리</a>에서 다시 수정할 수 있습니다.</p>
+
+            {/* KB 정의 인용 팝업 — 지식베이스(정본) term/definition 삽입 */}
+            {kbOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setKbOpen(false)}>
+                <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-xl bg-white p-5 shadow-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-bold">KB 정의 인용 <span className="font-normal text-neutral-400">(지식베이스 정본 · 클릭하면 출처 태깅되어 삽입)</span></h3>
+                    <button onClick={() => setKbOpen(false)} className="rounded-full border px-3 py-1 text-xs">닫기</button>
+                  </div>
+                  <input value={kbFactQuery} onChange={(e) => setKbFactQuery(e.target.value)} placeholder="용어·정의 검색…" className="mb-2 w-full rounded border px-3 py-1.5 text-sm" />
+                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                    {kbFacts.filter((t) => !kbFactQuery || (t.term + t.definition).toLowerCase().includes(kbFactQuery.toLowerCase())).slice(0, 60).map((t) => (
+                      <button key={t.term} onClick={() => insertKbFact(t)} className="block w-full rounded border p-2 text-left text-xs hover:bg-neutral-50">
+                        <span className="font-semibold">{t.term}</span>{t.category ? <span className="ml-1 text-neutral-400">· {t.category}</span> : null}
+                        <span className="mt-0.5 block text-neutral-500">{t.definition.slice(0, 120)}{t.definition.length > 120 ? "…" : ""}</span>
+                      </button>
+                    ))}
+                    {kbFacts.length === 0 && <p className="py-6 text-center text-xs text-neutral-400">불러오는 중이거나 KB 항목이 없습니다.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 키워드 선택 팝업 — 제품 정보 + 지식베이스에서 산출, 1~3개 선택 */}
             {kwOpen && (

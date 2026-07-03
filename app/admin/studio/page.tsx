@@ -18,7 +18,7 @@ export default async function AdminStudioPage({ searchParams }: { searchParams: 
     .from("product")
     .select(`slug,title_ko,title_en,one_liner,one_liner_en,roast_level,roast_level_en,flavor_notes,flavor_notes_en,
       origin,producer,producer_en,variety,variety_en,altitude,altitude_en,process,process_en,weight_g,key_color,hashtags,
-      story,story_en,brew_recipe,recipe,product_variant(base_price,is_active)`)
+      story,story_en,brew_recipe,recipe,evidence,product_variant(base_price,is_active)`)
     .eq("status", "active")
     .order("title_ko");
 
@@ -45,6 +45,7 @@ export default async function AdminStudioPage({ searchParams }: { searchParams: 
       story: p.story ?? p.one_liner ?? "", story_en: p.story_en ?? p.one_liner_en ?? "",
       rcp_es: r.espresso ?? r.es ?? "", rcp_fil: r.filter ?? r.fil ?? "", rcp_milk: r.milk ?? "",
       recipe: p.recipe ?? null,
+      evidence: p.evidence ?? null,
       hash: Array.isArray(p.hashtags) ? p.hashtags.join(" ") : "",
       key_color: p.key_color ?? "#B0764A", price,
     };

@@ -11,7 +11,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const supabase = createClient();
   const { data: p } = await supabase
     .from("product")
-    .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,product_type,status,is_b2b_only,roast_level,roast_level_en,flavor_notes,flavor_notes_en,origin,variety,variety_en,process,process_en,weight_g,key_color,report_no,material,story,story_en,cost,recipe,
+    .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,product_type,status,is_b2b_only,roast_level,roast_level_en,flavor_notes,flavor_notes_en,origin,variety,variety_en,process,process_en,weight_g,key_color,report_no,material,story,story_en,cost,recipe,evidence,
       brand(code), product_variant(id,sku,base_price), product_categories(category(slug))`)
     .eq("slug", params.slug).maybeSingle();
   if (!p) notFound();
@@ -59,6 +59,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     report_no: px.report_no ?? "", material: px.material ?? "",
     story: px.story ?? "", story_en: px.story_en ?? "", cost: px.cost ?? null,
     recipe: px.recipe ?? null,
+    evidence: px.evidence ?? null,
   };
 
   return (

@@ -161,19 +161,25 @@ export default async function ProductPage({ params }: { params: { slug: string }
     if (r.filter || r.fil) legacyRecipe.push(["FILTER", r.filter ?? r.fil]);
   }
   const hasRecipe = recipeBlocks.length > 0 || legacyRecipe.length > 0;
-  const brewModes = recipeBlocks.length ? recipeBlocks.map((b) => b.title) : legacyRecipe.map((x) => x[0]);
 
-  // FAQ (제품 데이터에서 생성 — AIEO)
+  // FAQ (통합 내용 — 제품별 상이 X, 브랜드 공통 답변 · AIEO)
+  //  ① 추출 어울림: 블렌드(에스프레소·아메리카노·라떼) vs 싱글오리진(필터·에스프레소)
+  //  ② MTSPACE 로스팅 스타일  ③ 에이징·출고일(상세 more information 참조)
+  const isSingleOrigin = p.categories.some((c) => c.slug === "single-origins");
   const faqs: { q: string; a: string }[] = locale === "en"
     ? [
-        { q: `What does ${title} taste like?`, a: `A ${roastTxt || ""} coffee with notes of ${flavorArr.join(" · ") || "balanced flavour"}. ${oneLiner ?? ""}`.trim() },
-        { q: "Which brew methods suit it best?", a: hasRecipe ? `It shines with ${brewModes.join(" · ")}.` : "It works beautifully across espresso, pour-over (V60), and cold brew." },
-        { q: "How should I store it?", a: "After opening, seal it and keep it at room temperature away from direct sunlight, and enjoy within 2–3 weeks." },
+        { q: "Which brew methods suit it best?", a: isSingleOrigin
+          ? "Single origins express their origin character most clearly through filter (pour-over) and espresso."
+          : "Blends are built for daily menus and perform reliably across espresso, americano, and latte." },
+        { q: "What is MTSPACE COFFEE's roasting style?", a: "We roast to reveal the bean's own character clearly, rather than layering flavour through sugar browning — so each coffee is at its most vivid when freshly roasted." },
+        { q: "When is it roasted and shipped, and how does aging work?", a: "We roast every Monday and Tuesday and ship on Tuesday and Wednesday. Beans settle into their fullest flavour after a short resting (aging) period — see the recommended drinking window under more information below." },
       ]
     : [
-        { q: `${title}은(는) 어떤 맛인가요?`, a: `${flavorArr.join(" · ") || "균형 잡힌 향미"}의 특징을 지닌 ${roastTxt || ""} 커피입니다. ${oneLiner ?? ""}`.trim() },
-        { q: "어떤 추출에 잘 어울리나요?", a: hasRecipe ? `${brewModes.join(" · ")} 등으로 안정적으로 즐기실 수 있습니다.` : "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다." },
-        { q: "보관은 어떻게 하나요?", a: "개봉 후 밀폐하여 직사광선을 피해 상온 보관하고 2~3주 내 소비를 권장합니다." },
+        { q: "어떤 추출에 잘 어울리나요?", a: isSingleOrigin
+          ? "싱글 오리진은 필터 커피(핸드드립)와 에스프레소에서 산지 본연의 개성이 가장 또렷하게 드러납니다."
+          : "블렌드는 에스프레소 · 아메리카노 · 라떼 등 데일리 메뉴에 안정적으로 어울립니다." },
+        { q: "MTSPACE COFFEE의 로스팅 스타일은 어떤가요?", a: "당화(sugar browning)로 향을 덧입히기보다 원두 본연의 향미를 선명하게 살리는 방향으로 로스팅합니다. 그래서 갓 볶은 신선한 상태에서 개성이 가장 또렷하게 살아납니다." },
+        { q: "언제 로스팅·출고되며 에이징은 어떻게 하나요?", a: "매주 월·화요일 로스팅해 화·수요일에 출고합니다. 원두는 로스팅 후 짧은 에이징(숙성)을 거치면 풍미가 안정되며, 권장 음용 시점은 아래 more information을 참고해 주세요." },
       ];
 
   const jsonLd = {

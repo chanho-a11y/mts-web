@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     excerpt: excerpt || null,
     cover_image: String(p.cover_image || "") || null,
     storefront_id: storefrontId,
-    status, author: "통합 스튜디오",
+    status, author: "홍찬호",
     published_at: status === "published" ? new Date().toISOString() : null,
   }, { onConflict: "slug" });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

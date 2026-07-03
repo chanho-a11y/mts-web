@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { upsertProductAction } from "@/app/admin/products/actions";
 import { type ReportPreset, normReportNo } from "@/lib/report-no";
-import { KEY_COLOR_PALETTE } from "@/lib/point-color";
+import { EXPANDED_PALETTE } from "@/lib/point-color";
 import { RECIPE_ROWS, RECIPE_MODE_LABEL, type RecipeMode, type RecipeData } from "@/lib/recipe";
+import { EVIDENCE_FIELDS, type EvidenceData } from "@/lib/evidence";
 
 export interface ProductFormData {
   slug?: string; brand?: string; title_ko?: string; title_en?: string; one_liner?: string; one_liner_en?: string;
@@ -15,6 +16,7 @@ export interface ProductFormData {
   sku?: string; base_price?: number; category?: string;
   report_no?: string; material?: string; story?: string; story_en?: string; cost?: number | null;
   recipe?: RecipeData | null;
+  evidence?: EvidenceData | null;
 }
 
 export interface CategoryOption { slug: string; name: string }
@@ -129,6 +131,20 @@ export default function ProductForm({
         </div>
       </fieldset>
 
+      {/* 자사 1차 데이터 — 블로그 근거(자사 실측/기록). 신뢰의 핵심 소스, 날조 위험 0. */}
+      <fieldset className="rounded-card border border-line p-4">
+        <legend className="px-1 text-sm font-semibold">자사 1차 데이터 <span className="font-normal text-neutral-400">(블로그 근거 · 자사 실측/기록 — 통계·주장의 출처가 됩니다)</span></legend>
+        <p className="mb-2 text-xs text-neutral-400">여기 입력한 값은 블로그 초안에 <b>‘자사 실측/기록’ 출처로 태깅</b>되어 삽입됩니다. 경쟁사가 복제할 수 없는 1차 경험이 신뢰·AI 인용을 가장 크게 올립니다. 빈 칸은 넣지 않습니다.</p>
+        <div className="space-y-2">
+          {EVIDENCE_FIELDS.map((f) => (
+            <label key={f.key} className="block text-sm">
+              <span className="text-xs font-medium text-neutral-600">{f.ko}</span>
+              <input name={`ev_${f.key}`} defaultValue={(i.evidence ?? {})[f.key] ?? ""} placeholder={f.hint} className={input} />
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       {/* 라벨 표시정보 — 품목보고번호 드롭다운 → 원재료명 자동 */}
       <div className="grid grid-cols-2 gap-4">
         <div className="text-sm">
@@ -148,18 +164,47 @@ export default function ProductForm({
           <input name="material" value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="커피원두 100% (에티오피아 100%)" className={input} /></label>
       </div>
 
-      {/* 키 컬러 — 팔레트 선택(+ 자동) */}
+      {/* 키 컬러 — 자유 색상 선택 + 확장 팔레트(12 flavor × 3 roast) + 자동 */}
       <div className="text-sm">
-        <div className="font-medium">키 컬러 <span className="font-normal text-neutral-400">(팔레트에서 선택 · 자동 = flavor×roast 매트릭스)</span></div>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="font-medium">키 컬러 <span className="font-normal text-neutral-400">(자유 선택 또는 팔레트 · 자동 = flavor×roast 매트릭스)</span></div>
+
+        {/* 모드: 자동 / 자유 색상 */}
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <button type="button" onClick={() => setKeyColor("")}
             className={`rounded-full border px-3 py-1.5 text-xs ${keyColor === "" ? "border-ink bg-ink text-oat" : "hover:bg-neutral-100"}`}>자동</button>
-          {KEY_COLOR_PALETTE.map((c) => (
-            <button key={c.hex} type="button" title={`${c.label} ${c.hex}`} onClick={() => setKeyColor(c.hex)}
-              className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${keyColor.toLowerCase() === c.hex.toLowerCase() ? "border-ink ring-2 ring-ink/30" : "hover:bg-neutral-100"}`}>
-              <span className="inline-block h-4 w-4 rounded-full" style={{ background: c.hex }} />
-              <span className="hidden sm:inline">{c.label}</span>
-            </button>
+          <label className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+            <span className="text-neutral-500">자유 색상</span>
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(keyColor) ? keyColor : "#C68D62"}
+              onChange={(e) => setKeyColor(e.target.value)} className="h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0" />
+            <input value={keyColor} onChange={(e) => setKeyColor(e.target.value)} placeholder="#C68D62"
+              className="w-24 rounded border px-2 py-1 font-mono text-[11px]" />
+          </label>
+          {keyColor !== "" && (
+            <span className="flex items-center gap-1 text-[11px] text-neutral-500">
+              <span className="inline-block h-4 w-4 rounded-full border" style={{ background: /^#[0-9a-fA-F]{6}$/.test(keyColor) ? keyColor : "transparent" }} />
+              선택됨
+            </span>
+          )}
+        </div>
+
+        {/* 확장 팔레트 — 플레이버 행 × 로스팅(Light/Medium/Dark) */}
+        <div className="mt-3 space-y-1.5 rounded-card border border-line p-3">
+          <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide text-neutral-400">
+            <span className="w-14">Flavor</span><span className="w-10 text-center">Light</span><span className="w-10 text-center">Medium</span><span className="w-10 text-center">Dark</span>
+          </div>
+          {EXPANDED_PALETTE.map((fS) => (
+            <div key={fS.flavor} className="flex items-center gap-2">
+              <span className="w-14 text-[11px] text-neutral-600">{fS.ko}</span>
+              {(["light", "medium", "dark"] as const).map((r) => {
+                const hex = fS[r];
+                const active = keyColor.toLowerCase() === hex.toLowerCase();
+                return (
+                  <button key={r} type="button" title={`${fS.ko} · ${r} ${hex}`} onClick={() => setKeyColor(hex)}
+                    className={`h-6 w-10 rounded ${active ? "ring-2 ring-ink ring-offset-1" : "hover:opacity-80"}`}
+                    style={{ background: hex }} />
+                );
+              })}
+            </div>
           ))}
         </div>
         <input type="hidden" name="key_color" value={keyColor} />

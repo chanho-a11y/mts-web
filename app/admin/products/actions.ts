@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateDrafts, buildDesignedDetailHtml } from "@/lib/content-gen";
 import { buildRecipeFromForm } from "@/lib/recipe";
+import { buildEvidenceFromForm } from "@/lib/evidence";
 
 function csv(v: string): string[] {
   return v.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
@@ -58,6 +59,7 @@ export async function upsertProductAction(formData: FormData) {
     story_en: orNull(g("story_en")),
     cost: parseInt(g("cost"), 10) || null,
     recipe: buildRecipeFromForm(g),
+    evidence: buildEvidenceFromForm(g),
   };
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);

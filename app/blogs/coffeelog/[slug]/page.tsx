@@ -23,14 +23,42 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
     .maybeSingle();
   if (!post || post.status !== "published") notFound();
 
+  // E-E-A-T 저자(실명 홍찬호 + 약력) — 발행 페이지 공통 정본
+  const AUTHOR = {
+    name: "홍찬호",
+    role: "MTSPACE COFFEE 대표 · 경쟁 바리스타",
+    bio: "한·호주 스페셜티 커피 경쟁 바리스타(입상 14회). 그린빈 QA·로스팅·카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
+    url: "https://mtspace.coffee/about",
+  };
+  const authorName = post.author && post.author !== "통합 스튜디오" ? post.author : AUTHOR.name;
+  const pageUrl = `https://mtspace.coffee/blogs/coffeelog/${params.slug}`;
+  const dateModified = post.published_at; // 갱신 시 dateModified 관리(P2)
+
+  // 본문에서 FAQ(Q./답변) 추출 → FAQPage 스키마(AIEO 인용 대상)
+  const strip = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const faqEntities: { "@type": "Question"; name: string; acceptedAnswer: { "@type": "Answer"; text: string } }[] = [];
+  const faqRe = /<p>\s*<strong>\s*Q\.\s*([\s\S]*?)<\/strong>\s*(?:<br\s*\/?>)?\s*([\s\S]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = faqRe.exec(post.body_html || "")) !== null) {
+    const q = strip(m[1]); const a = strip(m[2]);
+    if (q && a) faqEntities.push({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } });
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    image: post.cover_image ? [post.cover_image] : undefined,
-    author: { "@type": "Organization", name: post.author || "MTSPACE COFFEE" },
-    datePublished: post.published_at,
-    publisher: { "@type": "Organization", name: "MTSPACE COFFEE" },
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: post.title,
+        image: post.cover_image ? [post.cover_image] : undefined,
+        author: { "@type": "Person", name: authorName, jobTitle: "대표 · 경쟁 바리스타", worksFor: { "@type": "Organization", name: "MTSPACE COFFEE" }, url: AUTHOR.url },
+        datePublished: post.published_at,
+        dateModified,
+        publisher: { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" },
+        mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+      },
+      ...(faqEntities.length ? [{ "@type": "FAQPage", mainEntity: faqEntities }] : []),
+    ],
   };
 
   return (
@@ -38,10 +66,12 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Link href="/blogs/coffeelog" className="text-sm text-neutral-500 hover:underline">← Coffeelog</Link>
       <h1 className="mt-3 text-3xl font-bold leading-tight">{post.title}</h1>
-      <p className="mt-2 text-sm text-neutral-500">
-        {post.author && <span>{post.author}</span>}
-        {post.published_at && <span> · {new Date(post.published_at).toLocaleDateString("ko-KR")}</span>}
-      </p>
+      <div className="mt-3 border-l-2 border-neutral-200 pl-3 text-sm text-neutral-500">
+        <p><span className="font-semibold text-neutral-700">{authorName}</span> · {AUTHOR.role}
+          {post.published_at && <span> · {new Date(post.published_at).toLocaleDateString("ko-KR")}</span>}
+        </p>
+        <p className="mt-0.5 text-xs text-neutral-400">{AUTHOR.bio}</p>
+      </div>
       {post.cover_image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.cover_image} alt={post.title} className="mt-6 aspect-[3/2] w-full rounded-xl object-cover" />

@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// 환율(원→USD) 근사값. 운영 시 실시간 환율 API로 대체.
-export const KRW_PER_USD = 1350;
+// 환율은 lib/fx.ts(getKrwPerUsd)의 실시간 값을 사용한다. 여기서는 KRW만 다룬다.
 
 export interface ShippingQuote {
   feeKRW: number;

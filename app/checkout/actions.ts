@@ -2,7 +2,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { getAdapter, type Provider } from "@/lib/payments";
-import { computeShipping, KRW_PER_USD } from "@/lib/shipping";
+import { computeShipping } from "@/lib/shipping";
+import { getKrwPerUsd } from "@/lib/fx";
 
 export interface CheckoutItem { variantId: string; qty: number }
 export interface CheckoutPayload {
@@ -87,10 +88,12 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const disc = await resolveDiscount(db, payload.code ?? "", subtotal);
 
   // 합계 (KRW 기준 산출 후, 해외/페이팔이면 USD 환산)
+  // USD 주문일 때만 실시간 환율 1회 조회(체크아웃당 1회, 이후 모든 환산에 동일 rate 적용).
+  const fxRate = usd ? await getKrwPerUsd() : 1;
   const grandKRW = Math.max(0, subtotal - disc.amount) + tip + shippingFeeKRW;
-  const grand = usd ? Math.max(1, Math.round(grandKRW / KRW_PER_USD)) : grandKRW;
-  const shippingFee = usd ? Math.round(shippingFeeKRW / KRW_PER_USD) : shippingFeeKRW;
-  const discountTotal = usd ? Math.round(disc.amount / KRW_PER_USD) : disc.amount;
+  const grand = usd ? Math.max(1, Math.round(grandKRW / fxRate)) : grandKRW;
+  const shippingFee = usd ? Math.round(shippingFeeKRW / fxRate) : shippingFeeKRW;
+  const discountTotal = usd ? Math.round(disc.amount / fxRate) : disc.amount;
   // 부가세율(설정값, 기본 10%) — 국내는 부가세 포함가에서 역산, 해외 0
   let vatRate = 10;
   try {
@@ -110,7 +113,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
       order_no: orderNo, profile_id: profileId, customer_type: guest ? "guest" : "individual",
       status: "created", email: user?.email ?? payload.email ?? null, phone: payload.shipping.phone,
       shipping_address: { ...payload.shipping, shipping_label: ship.label },
-      items_subtotal: usd ? Math.round(subtotal / KRW_PER_USD) : subtotal, tip_amount: tip,
+      items_subtotal: usd ? Math.round(subtotal / fxRate) : subtotal, tip_amount: tip,
       discount_total: discountTotal, coupon_code: disc.label || null,
       shipping_fee: shippingFee, tax_amount: tax, grand_total: grand, currency,
       channel: "web",

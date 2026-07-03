@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import ProductForm from "@/components/product-form";
 import DiscountModal from "@/components/discount-modal";
 import { adjustInventoryAction, deleteCustomerPriceAction } from "@/app/admin/products/actions";
-import { getReportPresets } from "@/lib/report-no";
+import { getReportPresets } from "@/lib/report-no-server";
 
 export const dynamic = "force-dynamic";
 

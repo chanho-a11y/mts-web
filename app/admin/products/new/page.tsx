@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ProductForm from "@/components/product-form";
-import { getReportPresets } from "@/lib/report-no";
+import { getReportPresets } from "@/lib/report-no-server";
 
 export const dynamic = "force-dynamic";
 

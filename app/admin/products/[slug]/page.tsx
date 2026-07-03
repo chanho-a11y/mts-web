@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import ProductForm from "@/components/product-form";
 import DiscountModal from "@/components/discount-modal";
 import { adjustInventoryAction, deleteCustomerPriceAction } from "@/app/admin/products/actions";
+import { getReportPresets } from "@/lib/report-no";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     isB2b ? supabase.from("profiles").select("id,name,email").eq("role", "business").order("name") : Promise.resolve({ data: [] as any[] }),
   ]);
   const categoryOptions = (cats ?? []).map((c: any) => ({ slug: c.slug, name: c.name_ko }));
+  const reportPresets = await getReportPresets();
 
   // 기존 고객별 단가 (이 제품 변형에 한해)
   let customerPrices: any[] = [];
@@ -64,7 +66,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
       <div>
         <h1 className="mb-1 text-2xl font-bold">제품 수정</h1>
         <p className="mb-4 text-sm text-neutral-500">{p.slug}</p>
-        <ProductForm initial={initial} categories={categoryOptions} />
+        <ProductForm initial={initial} categories={categoryOptions} reportPresets={reportPresets} />
       </div>
 
       {/* 재고 */}

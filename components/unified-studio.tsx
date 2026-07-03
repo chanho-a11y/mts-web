@@ -113,10 +113,25 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   const [blogStatus, setBlogStatus] = useState<string | null>(null);
   const [kbKeywords, setKbKeywords] = useState<string[]>([]);
 
-  // 지식베이스 + 온라인 리서치 큐레이션 키워드 로드(관리자 API)
+  // 네이버 실시간 리서치
+  const [researchOn, setResearchOn] = useState(false);
+  const [researchItems, setResearchItems] = useState<{ title: string; snippet: string; link: string; source: string }[]>([]);
+  const [researchKw, setResearchKw] = useState<string[]>([]);
+  const [researchBusy, setResearchBusy] = useState(false);
+  const [researchMsg, setResearchMsg] = useState("");
+
+  // 지식베이스 키워드 + 네이버 리서치 설정 여부 로드(관리자 API)
   useEffect(() => {
-    fetch("/api/studio/keywords").then((r) => r.ok ? r.json() : { keywords: [] }).then((j) => setKbKeywords(j.keywords ?? [])).catch(() => {});
+    reloadKbKeywords();
+    fetch("/api/studio/research").then((r) => r.ok ? r.json() : { configured: false }).then((j) => setResearchOn(!!j.configured)).catch(() => {});
   }, []);
+
+  async function reloadKbKeywords() {
+    try {
+      const j = await fetch("/api/studio/keywords", { cache: "no-store" }).then((r) => r.ok ? r.json() : { keywords: [] });
+      setKbKeywords(j.keywords ?? []);
+    } catch { /* keep prev */ }
+  }
 
   const flavorArr = useMemo(() => (f.flavor || "").split(/[,·]/).map((s) => s.trim()).filter(Boolean), [f.flavor]);
   const accent = f.key_color || "#B0764A";
@@ -135,22 +150,45 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   const keywordPool = useMemo(() => {
     const fromProduct = [f.ko, f.country, f.variety, f.process, f.roast, ...flavorArr].map((s) => (s || "").trim()).filter(Boolean);
     const fallback = ["스페셜티 커피", "싱글 오리진", "블렌드 로스팅", "핸드드립 레시피", "B2B 원두 도매", "홈카페", "라이트 로스트"];
-    return Array.from(new Set([...fromProduct, ...(kbKeywords.length ? kbKeywords : fallback)]));
-  }, [f, flavorArr, kbKeywords]);
+    return Array.from(new Set([...fromProduct, ...researchKw, ...(kbKeywords.length ? kbKeywords : fallback)]));
+  }, [f, flavorArr, kbKeywords, researchKw]);
 
   function copy(text: string) { navigator.clipboard?.writeText(text); }
   function downloadSVG(svg: string, name: string) {
     const blob = new Blob([svg], { type: "image/svg+xml" }); const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
   }
-  async function exportRaster(svg: string, name: string, type: "png" | "jpeg", w = 1080, h = 1080) {
+  async function svgToDataUrl(svg: string, type: "png" | "jpeg", w = 1080, h = 1080): Promise<string> {
     const img = new Image();
     await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
     const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return "";
     if (type === "jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h); }
     ctx.drawImage(img, 0, 0, w, h);
-    const a = document.createElement("a"); a.href = canvas.toDataURL("image/" + type, 0.95); a.download = name; a.click();
+    return canvas.toDataURL("image/" + type, 0.95);
+  }
+  async function exportRaster(svg: string, name: string, type: "png" | "jpeg", w = 1080, h = 1080) {
+    const url = await svgToDataUrl(svg, type, w, h);
+    if (!url) return;
+    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+  }
+
+  // 썸네일 → 제품 대표 이미지 적용
+  const [thumbStatus, setThumbStatus] = useState<string>("");
+  const [thumbBusy, setThumbBusy] = useState(false);
+  async function applyThumbnailToProduct() {
+    if (!f.slug) { setThumbStatus("먼저 제품을 선택하세요"); return; }
+    setThumbBusy(true); setThumbStatus("제품에 적용 중…");
+    try {
+      const dataurl = await svgToDataUrl(thumb, "png", 1080, 1080);
+      const r = await fetch("/api/studio/thumbnail-apply", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: f.slug, thumb_dataurl: dataurl }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setThumbStatus(r.ok ? "제품 대표 이미지로 적용됨 ✓ (상세·목록에 반영)" : `실패: ${j.error ?? r.status}`);
+    } catch { setThumbStatus("실패"); }
+    finally { setThumbBusy(false); }
   }
 
   function pushEditor(html: string, title?: string) {
@@ -158,25 +196,76 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     setEditorKey((k) => k + 1); setSeoReport(null);
   }
 
-  // md 가이드 구조의 초안 생성(TL;DR·정의문·표·번호목록·FAQ·CTA)
+  // 풍미 노트 → 감각적 설명(사실 주장 아님, 일반 감각 표현). 없으면 일반 문장으로 폴백.
+  function noteDescribe(n: string): string {
+    const key = n.replace(/\s+/g, "");
+    const bank: Record<string, string> = {
+      다크초콜릿: "카카오의 묵직한 단맛과 길게 남는 여운", 초콜릿: "부드러운 단맛과 고소한 무게감",
+      카라멜: "졸인 설탕의 진한 단맛", 캐러멜: "졸인 설탕의 진한 단맛", 견과류: "고소하게 감기는 너티함",
+      자두: "잘 익은 붉은 과일의 상큼한 산미", 베리: "베리류의 밝고 달콤한 산미", 산딸기: "톡 쏘는 붉은 베리의 산미",
+      적포도: "포도의 즙 많은 단맛", 시트러스: "감귤 계열의 산뜻한 산미", 오렌지: "오렌지의 밝은 산미와 단맛",
+      레몬: "레몬의 선명한 산미", 자스민: "재스민의 화사한 플로럴", 재스민: "재스민의 화사한 플로럴",
+      플로럴: "은은하게 퍼지는 꽃 향", 복숭아: "백도의 부드러운 단맛", 백도: "백도의 부드러운 단맛",
+      바닐라: "달콤하고 크리미한 잔향", 사과: "사과의 깔끔한 산미와 단맛", 헤이즐넛: "헤이즐넛의 고소한 단맛",
+    };
+    return bank[key] || `${n}의 개성 있는 풍미`;
+  }
+
+  // md 가이드 구조의 고품질 초안 생성(800자+ · TL;DR·표·목록·풍미분석·레시피·FAQ·CTA)
   function mdGuideBlog(name: string, keywords: string[]): string {
-    const kw = keywords.filter(Boolean);
-    const notes = flavorArr.length ? flavorArr.join(", ") : "밸런스 좋은 풍미";
-    const lead = `${name}은(는) ${notes}의 향미를 지닌 MTSPACE COFFEE의 커피입니다. ${f.story || "매주 월·화 로스팅해 화·수 신선하게 출고합니다."}`;
-    const tableRows = ([["로스팅", f.roast], ["원산지", f.country], ["품종", f.variety], ["가공", f.process]] as [string, string | undefined][])
+    const kw = Array.from(new Set([...keywords, ...researchKw, ...kbKeywords].filter(Boolean))).slice(0, 6);
+    const notes = flavorArr.length ? flavorArr : [];
+    const notesLine = notes.length ? notes.join(" · ") : "균형 잡힌 풍미";
+    const roast = f.roast || "정성껏 로스팅한";
+    const origin = f.country || "";
+    const typeWord = origin ? `${origin} 원산지의 싱글 오리진 성격` : "블렌드";
+
+    const lead = `${name}은(는) ${notesLine}의 향미를 지닌 ${roast} MTSPACE COFFEE의 커피입니다. ${f.story || `${name}은(는) 매주 월·화요일에 로스팅해 화·수요일에 갓 볶은 상태로 출고합니다.`} 이 글에서는 ${name}의 풍미 프로파일, 원산지 배경, 집에서 그대로 재현할 수 있는 추천 추출 레시피, 그리고 보관과 신선도 관리까지 한 번에 정리했습니다.`;
+
+    const tldr = notes.slice(0, 3).map((n) => `<li>${esc(n)} — ${esc(noteDescribe(n))}</li>`).join("")
+      + `<li>로스팅: ${esc(f.roast || "밸런스 로스팅")} · 신선도: 월·화 로스팅 / 화·수 출고</li>`;
+
+    const tableRows = ([["로스팅", f.roast], ["원산지", f.country], ["품종", f.variety], ["가공", f.process], ["중량", f.weight ? `${f.weight}g` : ""]] as [string, string | undefined][])
       .filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v as string)}</td></tr>`).join("");
+
+    const flavorDeep = notes.length
+      ? `<p>${esc(name)}의 향미는 ${notes.slice(0, 3).map((n) => `<strong>${esc(n)}</strong>(${esc(noteDescribe(n))})`).join(", ").replace(/<strong>/g, "").replace(/<\/strong>/g, "")}가 층을 이루며 전개됩니다. 추출 온도와 분쇄도에 따라 산미와 단맛의 균형이 달라지므로, 취향에 맞춰 물 온도를 1~2도 조절해 보시길 권합니다.</p>`
+      : `<p>${esc(name)}은(는) 특정 향미에 치우치지 않고 산미·단맛·바디가 고르게 균형을 이루도록 설계되었습니다.</p>`;
+
+    const recipeList = (rcp.length ? rcp : ([["기본 추출", "에스프레소 · 핸드드립(V60) · 콜드브루에 두루 어울립니다"]] as [string, string][]))
+      .map(([k, v]) => `<li><strong>${esc(k)}</strong> — ${esc(v)}</li>`).join("");
+
+    const conceptLine = kw.length ? `<p><strong>관련 개념:</strong> ${esc(kw.join(", "))}. 이 커피를 이해할 때 함께 살펴보면 좋은 키워드입니다.</p>` : "";
+
     return [
       `<p>${esc(lead)}</p>`,
+
+      `<h2>${esc(name)} 한눈에 보기 (TL;DR)</h2>`,
+      `<ul>${tldr}</ul>`,
+
       `<h2>${esc(name)}란</h2>`,
-      `<p>${esc(name)}는 ${esc(notes)}를 중심으로 설계한 커피입니다.${kw.length ? ` 핵심 키워드: ${esc(kw.slice(0, 3).join(", "))}.` : ""}</p>`,
-      tableRows ? `<h2>기본 정보</h2><table><tbody>${tableRows}</tbody></table>` : "",
-      `<h2>추천 추출</h2>`,
-      `<ol>${(rcp.length ? rcp : ([["기본", "에스프레소·핸드드립·콜드브루"]] as [string, string][])).map(([k, v]) => `<li><strong>${esc(k)}</strong> ${esc(v)}</li>`).join("")}</ol>`,
+      `<p>${esc(name)}는 ${esc(typeWord)}의 커피로, ${esc(notesLine)}를 중심으로 설계되었습니다. MTSPACE COFFEE는 로스팅 과정의 당화(sugar browning)로 향미를 덧입히기보다 원두 본연의 향미를 선명하게 드러내는 방향을 지향합니다. 그래서 ${esc(name)}는 갓 볶은 신선한 상태에서 그 개성이 가장 또렷하게 살아납니다.</p>`,
+      conceptLine,
+
+      tableRows ? `<h2>원산지와 가공 정보</h2><table><tbody>${tableRows}</tbody></table>` : "",
+
+      `<h2>풍미 프로파일 깊이 읽기</h2>`,
+      flavorDeep,
+
+      `<h2>추천 추출 레시피</h2>`,
+      `<p>아래는 ${esc(name)}의 개성을 가장 잘 끌어내는 기준 레시피입니다. 원두 상태와 그라인더에 따라 미세하게 조정하세요.</p>`,
+      `<ol>${recipeList}</ol>`,
+
+      `<h2>보관과 신선도</h2>`,
+      `<p>${esc(name)}은(는) 로스팅 후 평균 14~28일 구간에서 가장 이상적인 풍미를 냅니다. 개봉 후에는 밀폐하여 직사광선을 피해 상온에 보관하고, 2~3주 안에 소비하시길 권합니다. MTSPACE COFFEE는 매주 월·화요일에 로스팅하고 화·수요일에 출고하므로, 주문하신 원두는 늘 신선한 상태로 도착합니다.</p>`,
+
       `<h2>자주 묻는 질문</h2>`,
-      `<p><strong>Q. ${esc(name)}의 향미는 어떤가요?</strong><br/>${esc(notes)}의 노트를 느낄 수 있습니다.</p>`,
-      `<p><strong>Q. 언제 로스팅·배송되나요?</strong><br/>매주 월·화 로스팅, 화·수 출고로 신선하게 배송됩니다.</p>`,
+      `<p><strong>Q. ${esc(name)}의 향미는 어떤가요?</strong><br/>${esc(notesLine)}의 노트를 중심으로, ${esc(f.roast || "밸런스")} 로스팅의 균형 잡힌 컵을 경험하실 수 있습니다.</p>`,
+      `<p><strong>Q. 어떤 추출에 잘 어울리나요?</strong><br/>${rcp.length ? esc(rcp.map(([k]) => k).join(" · ")) : "에스프레소 · 핸드드립 · 콜드브루"} 등 다양한 방식에 두루 어울립니다.</p>`,
+      `<p><strong>Q. 언제 로스팅하고 배송되나요?</strong><br/>매주 월·화요일 로스팅, 화·수요일 출고로 신선하게 배송됩니다.</p>`,
+
       `<h2>구매 안내</h2>`,
-      `<p><a href="https://mtspace.coffee">mtspace.coffee</a>에서 ${esc(name)}을(를) 만나보세요.</p>`,
+      `<p><a href="https://mtspace.coffee">mtspace.coffee</a>에서 ${esc(name)}을(를) 만나보세요. 사업자 도매 문의도 함께 안내해 드립니다.</p>`,
     ].filter(Boolean).join("\n");
   }
 
@@ -192,7 +281,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   function applyBlogMode(m: BlogMode) {
     setBlogMode(m); setSeoReport(null);
     if (m === "blank") pushEditor("<p></p>", "");
-    else if (m === "keyword") { setKwSel([]); setKwOpen(true); }
+    else if (m === "keyword") { setKwSel([]); setKwOpen(true); refreshKeywordPool(); }
     else if (f.slug) loadProduct(f.slug);
     else pushEditor("<p></p>", "");
   }
@@ -208,11 +297,12 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     const r: string[] = [];
     const text = blogBody.replace(/<[^>]+>/g, " ");
     const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const chars = text.replace(/\s+/g, "").length;
     r.push(`${blogTitle.length >= 15 && blogTitle.length <= 60 ? "✓" : "△"} 제목 길이 ${blogTitle.length}자 (15–60 권장)`);
     r.push(`${/<h2/i.test(blogBody) ? "✓" : "△"} H2 소제목 ${/<h2/i.test(blogBody) ? "있음" : "없음(구조화 권장)"}`);
     r.push(`${/<table/i.test(blogBody) ? "✓" : "△"} 표 (인용률↑)`);
     r.push(`${/<ol|<ul/i.test(blogBody) ? "✓" : "△"} 번호/불릿 목록`);
-    r.push(`${words >= 800 ? "✓" : "△"} 본문 ${words}단어 (800+ 권장)`);
+    r.push(`${chars >= 800 ? "✓" : "△"} 본문 ${chars}자 / ${words}단어 (필수 800자 이상)`);
     r.push(`${/자주 묻는|faq/i.test(blogBody) ? "✓" : "△"} FAQ 섹션`);
     r.push(`${/<img/i.test(blogBody) ? "✓" : "△"} 이미지 ${/<img/i.test(blogBody) ? "있음" : "없음"}`);
     r.push(`${flavorArr.length && flavorArr.some((n) => blogBody.includes(n)) ? "✓" : "△"} 플레이버 키워드 포함`);
@@ -248,6 +338,36 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
         ? (status === "published" ? `게시됨 ✓ 홈 블로그 노출 (슬러그 ${j.slug})` : "보관됨 ✓ 블로그 관리에서 수정 가능")
         : `실패: ${j.error ?? res.status}`);
     } catch { setBlogStatus("실패"); }
+  }
+
+  // 네이버 실시간 리서치 — 제품/키워드로 검색해 스니펫·키워드 확보
+  async function runResearch() {
+    setResearchBusy(true); setResearchMsg("네이버 검색 중…");
+    const q = [f.ko, flavorArr[0] || "", "커피"].filter(Boolean).join(" ").trim() || (kwSel[0] || "스페셜티 커피 트렌드");
+    try {
+      const r = await fetch("/api/studio/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q }) });
+      const j = await r.json();
+      if (!j.ok) { setResearchMsg(j.error || "리서치 실패"); return; }
+      setResearchItems(j.items || []); setResearchKw(j.keywords || []);
+      setResearchMsg(`“${q}” · ${(j.items || []).length}건 로드 · 키워드 ${(j.keywords || []).length}개 추가됨`);
+    } catch { setResearchMsg("리서치 실패"); }
+    finally { setResearchBusy(false); }
+  }
+  // 리서치 결과를 본문 하단에 '관련 동향·참고' 섹션으로 삽입(출처 링크 포함, 원문 확인 유도)
+  function insertResearch() {
+    if (!researchItems.length) return;
+    const links = researchItems.slice(0, 6).map((it) => `<li>${esc(it.title)} — <a href="${esc(it.link)}" rel="noopener" target="_blank">출처</a></li>`).join("");
+    const section = `\n<h2>관련 동향 · 참고 자료</h2>\n<p>${esc(f.ko || "이 주제")}와 관련해 최근 온라인에서 다뤄진 맥락입니다. 사실관계는 원문을 확인해 인용하세요.</p>\n<ul>${links}</ul>`;
+    pushEditor(blogBody + section, blogTitle);
+    setResearchMsg("본문 하단에 참고 자료 반영됨 ✓");
+  }
+
+  // 키워드 풀 최신화 — 지식베이스 재조회 + (설정 시) 네이버 리서치 재실행
+  async function refreshKeywordPool() {
+    setResearchMsg("키워드 최신화 중…");
+    await reloadKbKeywords();
+    if (researchOn) await runResearch();
+    else setResearchMsg("지식베이스 키워드 최신화됨 ✓");
   }
 
   function openNewWindow(url: string) { window.open(url, "_blank", "noopener,width=1200,height=900"); }
@@ -303,12 +423,19 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
 
         {tab === "detail" && (
           <div className="space-y-3">
-            <p className="text-sm text-neutral-500">상세페이지는 실제 제품 상세와 <b>동일한 레이아웃</b>으로, 화면이 좁으니 <b>새 창</b>에서 엽니다. 표시되는 정보는 제품 등록 정보 그대로입니다.</p>
-            <button
-              disabled={!f.slug}
-              onClick={() => openNewWindow(`/products/${f.slug}`)}
-              className="rounded-full bg-ink px-5 py-2.5 text-sm text-oat disabled:opacity-40"
-            >새 창에서 상세페이지 열기 ↗</button>
+            <p className="text-sm text-neutral-500">상세페이지는 실제 제품 상세와 <b>동일한 레이아웃(고정)</b>으로 <b>새 창</b>에서 열립니다. 새 창에서 텍스트·숫자를 <b>클릭해 직접 수정</b>하고 저장하면 상세페이지에 바로 반영됩니다. (EN 전체·레시피는 제품 수정에서)</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                disabled={!f.slug}
+                onClick={() => openNewWindow(`/admin/products/${f.slug}/detail-edit`)}
+                className="rounded-full bg-ink px-5 py-2.5 text-sm text-oat disabled:opacity-40"
+              >새 창에서 상세페이지 수정 ↗</button>
+              <button
+                disabled={!f.slug}
+                onClick={() => openNewWindow(`/products/${f.slug}`)}
+                className="rounded-full border px-5 py-2.5 text-sm disabled:opacity-40"
+              >실제 상세 미리보기 ↗</button>
+            </div>
             {!f.slug && <p className="text-xs text-neutral-400">먼저 제품을 선택하세요.</p>}
           </div>
         )}
@@ -322,7 +449,16 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
                   {m === "product" ? "제품정보" : m === "keyword" ? "키워드" : "빈 문서"}
                 </button>
               ))}
-              <span className="text-[11px] text-neutral-400">가이드라인(블로그 작성 가이드) 구조로 초안이 생성됩니다.</span>
+              <span className="text-[11px] text-neutral-400">AIEO/SEO 기준(800자 이상·구조화)으로 초안이 생성되며, 제품 정보 + 지식베이스 + 네이버 리서치 키워드를 반영합니다.</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-neutral-50 px-3 py-2">
+              <button onClick={runResearch} disabled={!researchOn || researchBusy} className="rounded-full border bg-white px-3 py-1 text-xs disabled:opacity-40" title={researchOn ? "네이버 검색 API로 실시간 리서치" : "NAVER_CLIENT_ID/SECRET 환경변수 설정 필요"}>
+                {researchBusy ? "검색 중…" : researchOn ? "온라인 리서치(네이버)" : "온라인 리서치(키 미설정)"}
+              </button>
+              {researchItems.length > 0 && <button onClick={insertResearch} className="rounded-full bg-clayDeep px-3 py-1 text-xs text-white">본문에 참고 반영</button>}
+              <button onClick={refreshKeywordPool} disabled={researchBusy} className="rounded-full border bg-white px-3 py-1 text-xs disabled:opacity-40" title="지식베이스 + 리서치 키워드 재조회">↻ 키워드 최신화</button>
+              {researchMsg && <span className="text-[11px] text-neutral-500">{researchMsg}</span>}
+              {!researchOn && <span className="text-[11px] text-neutral-400">네이버 개발자센터에서 앱 등록 후 키를 Vercel env에 추가하면 활성화됩니다(무료).</span>}
             </div>
             <input value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="제목" className="w-full rounded border px-3 py-2 text-sm font-medium" />
             <ImageUpload name="studio_cover" defaultValue={blogCover} folder="blog-cover" label="커버 이미지 첨부" />
@@ -342,7 +478,10 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
             {kwOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4" onClick={() => setKwOpen(false)}>
                 <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-card" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-sm font-bold">키워드 선택 <span className="font-normal text-neutral-400">(1~3개 · 제품 정보 + 지식베이스)</span></h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold">키워드 선택 <span className="font-normal text-neutral-400">(1~3개 · 제품 + 지식베이스 + 네이버 리서치)</span></h3>
+                    <button onClick={refreshKeywordPool} disabled={researchBusy} className="rounded-full border px-3 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40">↻ 최신화</button>
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {keywordPool.map((k) => (
                       <button key={k} onClick={() => toggleKw(k)}
@@ -410,10 +549,14 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
             <p className="text-xs text-neutral-400">인스타 비율(1:1) · 제품 키컬러 배경 + 제품명 + 플레이버 노트</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={svgURI(thumb)} alt="썸네일 미리보기" className="w-full rounded-lg border" />
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <button onClick={() => exportRaster(thumb, `${f.slug || "thumbnail"}.png`, "png", 1080, 1080)} className="rounded border px-3 py-1 text-xs">PNG 다운로드</button>
               <button onClick={() => exportRaster(thumb, `${f.slug || "thumbnail"}.jpg`, "jpeg", 1080, 1080)} className="rounded border px-3 py-1 text-xs">JPG 다운로드</button>
               <button onClick={() => downloadSVG(thumb, `${f.slug || "thumbnail"}.svg`)} className="rounded border px-3 py-1 text-xs">SVG</button>
+            </div>
+            <div className="flex flex-col items-center gap-1 pt-1">
+              <button onClick={applyThumbnailToProduct} disabled={!f.slug || thumbBusy} className="rounded-full bg-ink px-5 py-2 text-xs text-oat disabled:opacity-40">제품에 적용 (대표 이미지)</button>
+              {thumbStatus && <p className="text-[11px] text-neutral-600">{thumbStatus}</p>}
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { upsertProductAction } from "@/app/admin/products/actions";
-import { REPORT_PRESETS, REPORT_MATERIAL } from "@/lib/label-presets";
+import { type ReportPreset, normReportNo } from "@/lib/report-no";
 import { KEY_COLOR_PALETTE } from "@/lib/point-color";
 import { RECIPE_ROWS, RECIPE_MODE_LABEL, type RecipeMode, type RecipeData } from "@/lib/recipe";
 
@@ -41,15 +41,16 @@ function BilingualField({ label, nameKo, nameEn, ko, en, textarea, placeholder }
 }
 
 export default function ProductForm({
-  initial = {}, categories,
-}: { initial?: ProductFormData; categories: CategoryOption[] }) {
+  initial = {}, categories, reportPresets = [],
+}: { initial?: ProductFormData; categories: CategoryOption[]; reportPresets?: ReportPreset[] }) {
   const i = initial;
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   const isNew = !i.slug;
 
-  // 품목보고번호 → 원재료명 자동 세트
-  const presetHit = REPORT_PRESETS.find((p) => p.reportNo === i.report_no);
-  const [reportSel, setReportSel] = useState<string>(presetHit ? i.report_no! : (i.report_no ? "__custom__" : ""));
+  // 품목보고번호 → 원재료명 자동 세트 (DB 마스터 = report_no). 구 공백포맷 대비 정규화 매칭.
+  const reportMaterial: Record<string, string> = Object.fromEntries(reportPresets.map((p) => [p.reportNo, p.material]));
+  const presetHit = reportPresets.find((p) => normReportNo(p.reportNo) === normReportNo(i.report_no ?? ""));
+  const [reportSel, setReportSel] = useState<string>(presetHit ? presetHit.reportNo : (i.report_no ? "__custom__" : ""));
   const [reportNo, setReportNo] = useState<string>(i.report_no ?? "");
   const [material, setMaterial] = useState<string>(i.material ?? "");
   const [keyColor, setKeyColor] = useState<string>(i.key_color ?? "");
@@ -59,7 +60,7 @@ export default function ProductForm({
     if (v === "__custom__") { setReportNo(""); return; }
     if (v === "") { setReportNo(""); return; }
     setReportNo(v);
-    if (REPORT_MATERIAL[v]) setMaterial(REPORT_MATERIAL[v]);
+    if (reportMaterial[v]) setMaterial(reportMaterial[v]);
   }
 
   const statusInit = i.status === "draft" ? "draft" : "published";
@@ -134,12 +135,13 @@ export default function ProductForm({
           품목보고번호(라벨)
           <select value={reportSel} onChange={(e) => onReportChange(e.target.value)} className={input}>
             <option value="">— 선택 —</option>
-            {REPORT_PRESETS.map((p) => <option key={p.reportNo} value={p.reportNo}>{p.reportNo} · {p.name}</option>)}
+            {reportPresets.map((p) => <option key={p.reportNo} value={p.reportNo}>{p.reportNo} · {p.name}</option>)}
             <option value="__custom__">직접 입력…</option>
           </select>
           {reportSel === "__custom__" && (
-            <input value={reportNo} onChange={(e) => setReportNo(e.target.value)} placeholder="2022026 4913101" className={`${input} mt-2`} />
+            <input value={reportNo} onChange={(e) => setReportNo(e.target.value)} placeholder="20220264913101" className={`${input} mt-2`} />
           )}
+          <p className="mt-1 text-[11px] text-neutral-400">목록은 <b>품목보고번호 관리</b>에서 추가·변경합니다.</p>
           <input type="hidden" name="report_no" value={reportNo} />
         </div>
         <label className="block text-sm">원재료명(라벨) <span className="text-neutral-400">(보고번호 선택 시 자동)</span>

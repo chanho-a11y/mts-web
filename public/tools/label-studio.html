@@ -232,6 +232,8 @@
 
     <div class="actions">
       <button class="btn primary" onclick="window.print()">인쇄 / PDF</button>
+      <button class="btn add" id="exportPNG">PNG 저장(고해상도)</button>
+      <button class="btn add" id="exportJPG">JPG 저장(고해상도)</button>
       <button class="btn add" id="exportJson">데이터 내보내기</button>
     </div>
   </div>
@@ -617,6 +619,33 @@ fitScale();
         status(d&&d.ok?'제품 라벨 저장 완료 ✓':('저장 실패: '+((d&&d.error)||'')));
       }catch(err){ status('저장 오류'); }
     })();
+  });
+
+  // 고해상도 PNG/JPG 저장 — 라벨을 원본 배율(--scale=1)로 되돌린 뒤 html2canvas 4배(≈384dpi) 캡처 후 다운로드.
+  async function captureLabel(scale){
+    var docEl=document.documentElement;
+    var prev=docEl.style.getPropertyValue('--scale')||'';
+    docEl.style.setProperty('--scale','1');
+    await new Promise(function(r){setTimeout(r,180);});
+    var el=document.getElementById('label');
+    var canvas=await html2canvas(el,{scale:scale,backgroundColor:'#F6F1E7',useCORS:true});
+    if(prev) docEl.style.setProperty('--scale',prev); if(typeof fitScale==='function') fitScale();
+    return canvas;
+  }
+  function labelFileName(ext){ var nm=(typeof state!=='undefined'&&state.tableName)?state.tableName:'label'; return nm.replace(/\s+/g,'_')+'_label.'+ext; }
+  async function downloadLabel(type){
+    status('고해상도 이미지 생성 중…');
+    try{
+      var canvas=await captureLabel(4); // 180mm × 4배 ≈ 2720px (약 384dpi)
+      var mime=type==='png'?'image/png':'image/jpeg';
+      var url=canvas.toDataURL(mime, type==='png'?undefined:0.95);
+      var a=document.createElement('a'); a.href=url; a.download=labelFileName(type==='png'?'png':'jpg'); a.click();
+      status('저장 완료 ✓ ('+(type==='png'?'PNG':'JPG')+' · 고해상도)');
+    }catch(err){ status('이미지 생성 오류'); }
+  }
+  document.addEventListener('click',function(e){
+    if(e.target&&e.target.id==='exportPNG'){ e.preventDefault(); downloadLabel('png'); }
+    if(e.target&&e.target.id==='exportJPG'){ e.preventDefault(); downloadLabel('jpg'); }
   });
 })();
 </script>

@@ -79,6 +79,8 @@ export default function RichEditor({
     if (!el) return;
     const text = el.innerText || "";
     const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const chars = text.replace(/\s+/g, "").length; // 공백 제외 글자수(한글 기준 분량)
+    const charMin = minWords || 800;
     const hasH2 = !!el.querySelector("h2, h3");
     const hasList = !!el.querySelector("ul, ol");
     const hasTable = !!el.querySelector("table");
@@ -87,7 +89,7 @@ export default function RichEditor({
     const absHit = ABS_WORDS.filter((w) => text.includes(w));
     const clicheHit = AI_CLICHES.map((w) => w.trim()).filter((w) => w && text.includes(w));
     setReport([
-      { ok: words >= (minWords || 300), label: `분량 ${words}단어 (권장 ${minWords || 300}+)` },
+      { ok: chars >= charMin, label: `분량 ${chars}자 / ${words}단어 (필수 ${charMin}자 이상)` },
       { ok: hasH2, label: "H2/H3 구조화 헤딩" },
       { ok: hasList, label: "번호/불릿 목록 1개 이상" },
       { ok: hasTable, label: "표 1개 이상 (인용률↑)" },

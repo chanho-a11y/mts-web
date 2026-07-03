@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { archiveProductAction, restoreProductAction } from "./actions";
+import ReportNoManager from "@/components/report-no-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
           </Link>
           {!showArchived && (
             <>
+              <ReportNoManager />
               <Link href="/admin/products/bulk" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-100">⬆ 일괄 등록</Link>
               <Link href="/admin/products/new" className="rounded-full bg-black px-4 py-2 text-sm text-white">+ 제품 등록</Link>
             </>

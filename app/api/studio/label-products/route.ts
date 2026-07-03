@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pointKey } from "@/lib/point-color";
+import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from("product")
-    .select(`slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,brew_recipe,body_html,product_type,report_no,material,label_point,
+    .select(`slug,title_ko,title_en,one_liner,story,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,brew_recipe,recipe,body_html,product_type,report_no,material,label_point,
       product_categories(category(slug))`)
     .eq("status", "active")
     .order("title_ko");
@@ -45,10 +46,19 @@ export async function GET() {
     if (p.variety) specs.push(["VARIETAL", p.variety]);
     if (p.process) specs.push(["PROCESS", p.process]);
 
+    // 레시피: 신규 구조화 recipe(jsonb) 우선 → 없으면 구 brew_recipe 폴백. (연동 오류 수정)
     const recipe: [string, string, string][] = [];
-    if (r.espresso || r.es) recipe.push(["ESPRESSO", r.espresso ?? r.es, ""]);
-    if (r.milk) recipe.push(["MILK", r.milk, ""]);
-    if (r.filter || r.fil) recipe.push(["FILTER", r.filter ?? r.fil, ""]);
+    const blocks = recipeDisplay((p.recipe ?? null) as RecipeData | null, "ko");
+    if (blocks.length) {
+      for (const b of blocks) {
+        const val = b.rows.map((rw) => `${rw.label} ${rw.value}`).join(", ");
+        recipe.push([b.title.toUpperCase(), val, ""]);
+      }
+    } else {
+      if (r.espresso || r.es) recipe.push(["ESPRESSO", r.espresso ?? r.es, ""]);
+      if (r.milk) recipe.push(["MILK", r.milk, ""]);
+      if (r.filter || r.fil) recipe.push(["FILTER", r.filter ?? r.fil, ""]);
+    }
 
     return {
       key: p.slug,
@@ -61,8 +71,8 @@ export async function GET() {
       notesEn: flavorStr,
       point: p.label_point || pointKey({ flavorNotes: p.flavor_notes, roast: p.roast_level }),
       nameSize, enSize,
-      material: p.material || "커피원두 100%",
-      desc: p.one_liner || strip(p.body_html).slice(0, 170),
+      material: p.material || "커피원두(100%)",
+      desc: p.story || p.one_liner || strip(p.body_html).slice(0, 170),
       infoLabel: isSingle ? "single origin Information" : "coffee Information",
       flavor: flavorStr,
       specs,

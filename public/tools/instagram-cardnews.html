@@ -1886,23 +1886,56 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 }
 
-/* ─── Refresh: fetch live from mtspace.coffee (CORS-enabled) ──── */
+/* ─── 등록 제품(/api/studio/products) → 카드뉴스 제품 형태 매핑 ── */
+function normalizeStudioProduct(p) {
+  const ko = String(p.ko || p.title_ko || "");
+  const shortTitle = ko.replace(/\[.*?\]\s*/g, "").replace(/\s*\d+\s*k?g.*$/i, "").trim() || ko;
+  let category = "기타";
+  if (/\[?\s*싱글/.test(ko) || /single/i.test(ko)) category = "싱글 오리진";
+  else if (/\[?\s*디카페인|decaf/i.test(ko)) category = "디카페인";
+  else if (/\[?\s*블렌드|blend/i.test(ko)) category = "블렌드";
+  else if (/normcore|놈코어/i.test(ko)) category = "Normcore";
+  const notes = String(p.flavor || "").split(/[,·]/).map(s => s.trim()).filter(Boolean);
+  return {
+    handle: p.slug,
+    title: ko,
+    shortTitle,
+    category,
+    color: p.key_color || BRAND,
+    signalLight: false,
+    tastingNotes: notes,
+    description: String(p.story || p.body_html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    country: p.country || "",
+    process: p.process || "",
+  };
+}
+
+/* ─── Refresh: 신규 자사몰 등록 제품(/api/studio/products) 우선, 실패 시 스냅샷 ── */
 async function refreshProducts(silent = false) {
   const btn = document.getElementById("refreshProducts");
   btn.classList.add("spinning");
   btn.disabled = true;
-  if (!silent) setStatus("mtspace.coffee에서 최신 카탈로그 가져오는 중…");
+  if (!silent) setStatus("등록된 제품 목록을 불러오는 중…");
   try {
-    const res = await fetch("https://mtspace.coffee/products.json?limit=250", { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const rawProducts = data.products || [];
-    // Normalize each product client-side
-    const normalized = rawProducts.map(normalizeProduct);
+    let normalized = [];
+    // 1순위: 관리자 세션으로 신규 등록 제품 로드(통합 스튜디오 iframe = 동일 출처)
+    try {
+      const r = await fetch("/api/studio/products", { credentials: "same-origin", cache: "no-store" });
+      if (r.ok) {
+        const j = await r.json();
+        normalized = (j.items || []).map(normalizeStudioProduct);
+      }
+    } catch (e) { /* 폴백 진행 */ }
+    // 2순위: (관리자 밖·오프라인) 구 라이브 카탈로그
+    if (!normalized.length) {
+      const res = await fetch("https://mtspace.coffee/products.json?limit=250", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      normalized = (data.products || []).map(normalizeProduct);
+    }
     normalized.sort((a, b) => (a.category + a.title).localeCompare(b.category + b.title, "ko"));
     state.products = normalized;
     populateProductDropdown(normalized);
-    // re-select previous product if still present
     if (state.product) {
       const still = normalized.find(p => p.handle === state.product.handle);
       if (still) {
@@ -1910,9 +1943,9 @@ async function refreshProducts(silent = false) {
         applyProduct(still);
       }
     }
-    setStatus(`mtspace.coffee 라이브 · ${normalized.length}개 제품 · ${new Date().toLocaleTimeString("ko-KR")}`, "ok");
+    setStatus(`등록 제품 ${normalized.length}개 로드됨 · ${new Date().toLocaleTimeString("ko-KR")}`, "ok");
   } catch (err) {
-    setStatus(`라이브 로드 실패 (${err.message}) — 내장 스냅샷(${SNAPSHOT_DATE}, ${INITIAL_PRODUCTS.length}개) 사용 중`, "error");
+    setStatus(`제품 로드 실패 (${err.message}) — 내장 스냅샷(${SNAPSHOT_DATE}, ${INITIAL_PRODUCTS.length}개) 사용 중`, "error");
   } finally {
     btn.classList.remove("spinning");
     btn.disabled = false;
@@ -2085,9 +2118,10 @@ document.getElementById("exportJPG").addEventListener("click", () => exportAll("
 
 /* ─── Boot ──────────────────────────────────────────────────────── */
 reRender();
-// Immediately use embedded snapshot (works offline)
+// 즉시 내장 스냅샷으로 표시(오프라인 대비) → 곧바로 등록 제품으로 자동 동기화
 populateProductDropdown(INITIAL_PRODUCTS);
-setStatus(`내장 스냅샷 ${INITIAL_PRODUCTS.length}개 제품 로드 (${SNAPSHOT_DATE}) · 새로고침으로 라이브 동기화`, "ok");
+setStatus(`내장 스냅샷 ${INITIAL_PRODUCTS.length}개 제품 로드 (${SNAPSHOT_DATE}) · 등록 제품 동기화 중…`, "ok");
+refreshProducts(true);
 </script>
 </body>
 </html>

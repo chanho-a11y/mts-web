@@ -171,15 +171,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
   //  ① 추출 어울림: 블렌드(에스프레소·아메리카노·라떼) vs 싱글오리진(필터·에스프레소)
   //  ② MTSPACE 로스팅 스타일  ③ 에이징·출고일(상세 more information 참조)
   const isSingleOrigin = p.categories.some((c) => c.slug === "single-origins");
-  // 로스팅 스타일 — 싱글/블렌드 분기 + 공통 마무리
-  const roastingAko = (isSingleOrigin
-    ? "싱글 오리진은 당화(sugar browning)로 향을 덧입히기보다 원두 본연의 향미를 선명하게 살리는 방향으로 로스팅합니다. 그래서 갓 볶은 신선한 상태에서 산지의 개성이 가장 또렷하게 살아납니다."
-    : "블렌드는 엠티스페이스만의 독창적인 캐릭터를 보여주며, 안정적인 공급을 위해 에티오피아 내추럴 커피와 에티오피아 워시드 커피를 로스팅 정도에 맞게 배합하여 제공합니다.")
-    + " 싱글 오리진과 블렌드 모두 언제 마셔도 훌륭한 퀄리티를 느낄 수 있도록 최적의 로스팅을 제공합니다.";
-  const roastingAen = (isSingleOrigin
-    ? "For single origins, we roast to reveal the bean's own character rather than layering flavour through sugar browning — so the origin's personality is clearest when freshly roasted."
-    : "Our blends express a character unique to MTSPACE: for consistent supply, we blend Ethiopian natural and Ethiopian washed coffees, each roasted to the right degree.")
-    + " Both single origins and blends are roasted to deliver excellent quality in every cup, whenever you drink them.";
+  // 로스팅 스타일 — 싱글 설명 + 블렌드 설명 + 공통 마무리를 하나로 합침(제품 공통)
+  const roastingAko = "싱글 오리진의 경우 당화(sugar browning)로 향을 덧입히기보다 원두 본연의 향미를 선명하게 살리는 방향으로 로스팅해, 갓 볶은 신선한 상태에서 산지의 개성이 가장 또렷하게 살아납니다. 블렌드는 엠티스페이스만의 독창적인 캐릭터를 보여주며, 안정적인 공급을 위해 에티오피아 내추럴 커피와 에티오피아 워시드 커피를 로스팅 정도에 맞게 배합하여 제공합니다. 싱글 오리진과 블렌드 모두 언제 마셔도 훌륭한 퀄리티를 느낄 수 있도록 최적의 로스팅을 제공합니다.";
+  const roastingAen = "For single origins, we roast to reveal the bean's own character rather than layering flavour through sugar browning, so the origin's personality is clearest when freshly roasted. Our blends express a character unique to MTSPACE: for consistent supply, we blend Ethiopian natural and Ethiopian washed coffees, each roasted to the right degree. Both single origins and blends are roasted to deliver excellent quality in every cup, whenever you drink them.";
   const faqs: { q: string; a: string }[] = locale === "en"
     ? [
         { q: "Which brew methods suit it best?", a: isSingleOrigin

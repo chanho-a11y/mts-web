@@ -10,13 +10,13 @@ export interface RecipeData {
 
 export type RecipeMode = "filter" | "espresso" | "milk";
 
-export interface RecipeRow { key: string; ko: string; en: string; unit?: string; bilingual?: boolean }
+export interface RecipeRow { key: string; ko: string; en: string; unit?: string; bilingual?: boolean; numeric?: boolean }
 
 // 렌더링·폼 공용 필드 정의(순서 = 표시 순서)
 export const RECIPE_ROWS: Record<RecipeMode, RecipeRow[]> = {
   filter: [
     { key: "dose_g", ko: "도징", en: "Dose", unit: "g" },
-    { key: "grind", ko: "그라인딩 사이즈", en: "Grind size", bilingual: true },
+    { key: "grind", ko: "그라인딩 사이즈", en: "Grind size", unit: "µm", numeric: true },
     { key: "bloom_g", ko: "블루밍", en: "Bloom", unit: "g" },
     { key: "bloom_time_s", ko: "블루밍 시간", en: "Bloom time", unit: "s" },
     { key: "pour_g", ko: "푸어링", en: "Pour", unit: "g" },

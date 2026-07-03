@@ -118,7 +118,10 @@ export default function ProductForm({
                 {RECIPE_ROWS[mode].map((r) => (
                   <div key={r.key}>
                     <label className="block text-xs text-neutral-500">{r.ko}{r.unit ? ` (${r.unit})` : ""}
-                      <input name={`rcp_${mode}_${r.key}`} defaultValue={rv(mode, r.key)} className="mt-0.5 w-full rounded border px-2 py-1.5 text-sm" />
+                      <input name={`rcp_${mode}_${r.key}`} defaultValue={rv(mode, r.key)}
+                        type={r.numeric ? "number" : "text"} inputMode={r.numeric ? "numeric" : undefined} min={r.numeric ? 0 : undefined}
+                        placeholder={r.numeric ? `숫자만 (${r.unit ?? ""})` : undefined}
+                        className="mt-0.5 w-full rounded border px-2 py-1.5 text-sm" />
                     </label>
                     {r.bilingual && (
                       <input name={`rcp_${mode}_${r.key}_en`} defaultValue={rv(mode, `${r.key}_en`)} placeholder={`${r.en} (EN)`} className="mt-1 w-full rounded border px-2 py-1.5 text-xs" />

@@ -22,7 +22,7 @@ function labelRecipeLines(recipe: RecipeData | null): [string, string, string][]
 
   const fi = recipe.filter;
   if (fi && Object.values(fi).some(Boolean)) {
-    const l1 = join([fi.dose_g ? `도징 ${withUnit(fi.dose_g, "g")}` : "", fi.grind ? `그라인딩 ${fi.grind}` : ""]);
+    const l1 = join([fi.dose_g ? `도징 ${withUnit(fi.dose_g, "g")}` : "", fi.grind ? `그라인딩 ${withUnit(fi.grind, "µm")}` : ""]);
     const l2 = [fi.bloom_g ? `블루밍 ${withUnit(fi.bloom_g, "g")}` : "", fi.bloom_time_s ? withUnit(fi.bloom_time_s, "s") : ""].filter(Boolean).join(" ");
     const l3 = join([fi.pour_g ? `푸어링 ${withUnit(fi.pour_g, "g")}` : "", fi.total_time ? `추출 ${fi.total_time}` : ""]);
     const lines = [l1, l2, l3].filter(Boolean).join("\n");

@@ -92,8 +92,9 @@
   .tbl{width:100%;border-top:.4mm solid var(--point);border-left:.1mm solid var(--hair);border-right:.1mm solid var(--hair)}
   /* K열(항목) 좁게 통일(10mm), V1(제품명·긴값) 넓게, V2(보고번호 등) 정렬 통일. 모두 한 줄(nowrap). */
   .trow{display:grid;grid-template-columns:10mm 1.28fr 10mm 1fr;border-bottom:.1mm solid var(--hair)}
-  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.04mm;line-height:1.22;padding:.5mm .7mm;
-    border-right:.1mm solid var(--hair);display:flex;align-items:center;min-height:3mm;white-space:nowrap}
+  /* 모든 셀 동일 높이(4mm) + 세로 중앙. 항목(k)=가로중앙, 설명(v)=좌정렬 */
+  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.04mm;line-height:1.2;padding:0 .8mm;
+    border-right:.1mm solid var(--hair);display:flex;align-items:center;height:4mm;min-height:4mm;white-space:nowrap}
   .trow .tcell:last-child{border-right:none}
   .tcell.k{color:var(--ink-soft);justify-content:center;text-align:center}
   .tcell.v{justify-content:flex-start;text-align:left}
@@ -262,6 +263,7 @@
         <span class="tag" id="zoomReset" style="cursor:pointer;user-select:none">화면맞춤</span>
         <span class="tag" id="nudgeToggle" style="cursor:pointer;user-select:none">✥ 위치 미세조정</span>
         <span class="tag" id="nudgeReset" style="cursor:pointer;user-select:none">위치 리셋</span>
+        <span class="tag" id="undoBtn" style="cursor:pointer;user-select:none" title="실행취소 (⌘/Ctrl+Z)">↶ 실행취소</span>
         <span id="toolHint">· 텍스트를 클릭해 직접 편집</span>
       </div>
 
@@ -631,6 +633,34 @@ document.addEventListener('keydown',function(e){
   const cur=selEl.__off||{x:0,y:0}; cur.x=+(cur.x+dx).toFixed(2); cur.y=+(cur.y+dy).toFixed(2); selEl.__off=cur;
   selEl.style.transform='translate('+cur.x+'mm,'+cur.y+'mm)';
 });
+
+/* ── 실행취소 (⌘/Ctrl+Z) — state·슬라이더·편집텍스트·위치 스냅샷 ── */
+var undoStack=[]; var UNDO_MAX=60; var restoring=false;
+function snapLabel(){
+  return {
+    state: JSON.parse(JSON.stringify(state)),
+    sliders: { fsNameMid:document.getElementById('fsNameMid').value, fsEnMid:document.getElementById('fsEnMid').value,
+      fsDesc:document.getElementById('fsDesc').value, fsInfo:document.getElementById('fsInfo').value,
+      fsBrand:document.getElementById('fsBrand').value, barW:document.getElementById('barW').value },
+    edits: Array.prototype.map.call(document.querySelectorAll('#label [data-editable]'), function(e){ return {f:e.getAttribute('data-field'), html:e.innerHTML, tf:e.style.transform||''}; })
+  };
+}
+function pushUndo(){ if(restoring) return; undoStack.push(snapLabel()); if(undoStack.length>UNDO_MAX) undoStack.shift(); }
+function applyUndo(s){
+  restoring=true;
+  state = s.state;
+  setSlider('fsNameMid',s.sliders.fsNameMid); setSlider('fsEnMid',s.sliders.fsEnMid);
+  setSlider('fsDesc',s.sliders.fsDesc); setSlider('fsInfo',s.sliders.fsInfo);
+  setSlider('fsBrand',s.sliders.fsBrand); setSlider('barW',s.sliders.barW);
+  applyVars(); syncFormFromState(); renderLabel();
+  s.edits.forEach(function(ed){ var el=document.querySelector('#label [data-field="'+ed.f+'"]'); if(el){ el.innerHTML=ed.html; el.style.transform=ed.tf; } });
+  restoring=false;
+}
+function doUndo(){ if(!undoStack.length) return; applyUndo(undoStack.pop()); var h=document.getElementById('toolHint'); if(h) h.textContent='· 실행취소됨 ('+undoStack.length+'단계 남음)'; }
+document.getElementById('undoBtn').addEventListener('click',doUndo);
+document.addEventListener('keydown',function(e){ if((e.metaKey||e.ctrlKey)&&(e.key==='z'||e.key==='Z')&&!e.shiftKey){ e.preventDefault(); doUndo(); } });
+document.addEventListener('focusin',function(e){ var t=e.target; if(t&&t.closest&&(t.closest('#label [data-editable]')||t.closest('.panel input, .panel textarea, .panel select'))) pushUndo(); });
+document.addEventListener('pointerdown',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.sw, input[type=range], .panel .btn.add, .panel .btn.del')) pushUndo(); },true);
 
 buildSwatches();
 loadPreset('2022026 4913101');

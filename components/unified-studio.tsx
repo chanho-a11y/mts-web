@@ -193,9 +193,45 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
         body: JSON.stringify({ slug: f.slug, thumb_dataurl: dataurl }),
       });
       const j = await r.json().catch(() => ({}));
-      setThumbStatus(r.ok ? "제품 대표 이미지로 적용됨 ✓ (상세·목록에 반영)" : `실패: ${j.error ?? r.status}`);
+      setThumbStatus(r.ok ? "제품 대표 썸네일로 적용됨 ✓ (스튜디오 저장분 1개만 유지)" : `실패: ${j.error ?? r.status}`);
     } catch { setThumbStatus("실패"); }
     finally { setThumbBusy(false); }
+  }
+
+  // 추가 이미지(상세 갤러리) — 대표 썸네일과 별도. 스튜디오에서 업로드/삭제.
+  const [extraImgs, setExtraImgs] = useState<{ id: string; storage_path: string; is_primary: boolean }[]>([]);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [imgMsg, setImgMsg] = useState("");
+  async function loadExtraImages(slug: string) {
+    if (!slug) { setExtraImgs([]); return; }
+    try {
+      const j = await fetch(`/api/studio/product-images?slug=${encodeURIComponent(slug)}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : { items: [] });
+      setExtraImgs(j.items ?? []);
+    } catch { setExtraImgs([]); }
+  }
+  async function uploadExtraImage(file: File) {
+    if (!f.slug) { setImgMsg("먼저 제품을 선택하세요"); return; }
+    setImgBusy(true); setImgMsg("업로드 중…");
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("folder", "gallery");
+      const up = await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json());
+      if (!up.url) throw new Error(up.error || "업로드 실패");
+      const r = await fetch("/api/studio/product-images", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: f.slug, url: up.url }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "저장 실패");
+      setImgMsg("추가 이미지 등록됨 ✓ (상세페이지 갤러리 반영)");
+      await loadExtraImages(f.slug);
+    } catch (e) { setImgMsg(e instanceof Error ? e.message : "실패"); }
+    finally { setImgBusy(false); }
+  }
+  async function deleteExtraImage(id: string) {
+    if (!confirm("이 추가 이미지를 삭제할까요?")) return;
+    setImgBusy(true);
+    try {
+      await fetch("/api/studio/product-images", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, slug: f.slug }) });
+      await loadExtraImages(f.slug);
+    } catch { /* noop */ }
+    finally { setImgBusy(false); }
   }
 
   function pushEditor(html: string, title?: string) {
@@ -297,6 +333,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
   function loadProduct(slug: string) {
     const p = items.find((i) => i.slug === slug);
     setF(p ? { ...EMPTY, ...p } : EMPTY);
+    loadExtraImages(slug);
     if (p && blogMode === "product") {
       const fa = (p.flavor || "").split(/[,·]/).map((s) => s.trim()).filter(Boolean);
       pushEditor(mdGuideBlog(p.ko || slug, fa), `${p.ko || slug} — ${fa.slice(0, 2).join(", ") || "스페셜티 커피"} | MTSPACE COFFEE`);
@@ -622,9 +659,9 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-neutral-500">카드뉴스 제작기(원본과 동일). 화면이 좁으면 새 창에서 여세요.</p>
-              <button onClick={() => openNewWindow("/tools/instagram-cardnews.html")} className="rounded-full bg-ink px-4 py-1.5 text-xs text-oat">새 창에서 열기 ↗</button>
+              <button onClick={() => openNewWindow(`/tools/instagram-cardnews.html${f.slug ? `?slug=${encodeURIComponent(f.slug)}` : ""}`)} className="rounded-full bg-ink px-4 py-1.5 text-xs text-oat">새 창에서 열기 ↗</button>
             </div>
-            <iframe src="/tools/instagram-cardnews.html" title="Instagram Card News" className="h-[78vh] w-full rounded-lg border" />
+            <iframe key={f.slug || "cn"} src={`/tools/instagram-cardnews.html${f.slug ? `?slug=${encodeURIComponent(f.slug)}` : ""}`} title="Instagram Card News" className="h-[78vh] w-full rounded-lg border" />
 
             <details className="rounded-lg border p-3">
               <summary className="cursor-pointer text-xs text-neutral-500">빠른 자동 생성(참고) — 선택 제품으로 5장 즉시 생성</summary>
@@ -655,9 +692,9 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-neutral-500">180×130mm 정밀 레이블 편집기. 화면이 좁으니 새 창에서 여세요.</p>
-              <button onClick={() => openNewWindow("/tools/label-studio.html")} className="rounded-full bg-ink px-4 py-1.5 text-xs text-oat">새 창에서 열기 ↗</button>
+              <button onClick={() => openNewWindow(`/tools/label-studio.html${f.slug ? `?slug=${encodeURIComponent(f.slug)}` : ""}`)} className="rounded-full bg-ink px-4 py-1.5 text-xs text-oat">새 창에서 열기 ↗</button>
             </div>
-            <iframe src="/tools/label-studio.html" title="Label Studio" className="h-[78vh] w-full rounded-lg border" />
+            <iframe key={f.slug || "lb"} src={`/tools/label-studio.html${f.slug ? `?slug=${encodeURIComponent(f.slug)}` : ""}`} title="Label Studio" className="h-[78vh] w-full rounded-lg border" />
           </div>
         )}
 
@@ -672,8 +709,31 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
               <button onClick={() => downloadSVG(thumb, `${f.slug || "thumbnail"}.svg`)} className="rounded border px-3 py-1 text-xs">SVG</button>
             </div>
             <div className="flex flex-col items-center gap-1 pt-1">
-              <button onClick={applyThumbnailToProduct} disabled={!f.slug || thumbBusy} className="rounded-full bg-ink px-5 py-2 text-xs text-oat disabled:opacity-40">제품에 적용 (대표 이미지)</button>
+              <button onClick={applyThumbnailToProduct} disabled={!f.slug || thumbBusy} className="rounded-full bg-ink px-5 py-2 text-xs text-oat disabled:opacity-40">제품에 적용 (대표 썸네일 · 1개)</button>
               {thumbStatus && <p className="text-[11px] text-neutral-600">{thumbStatus}</p>}
+            </div>
+
+            {/* 추가 이미지 — 상세페이지 갤러리(대표 썸네일과 별도) */}
+            <div className="mt-5 border-t pt-3 text-left">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold">추가 이미지 <span className="font-normal text-neutral-400">(상세 갤러리 · 대표 썸네일과 별도)</span></p>
+                <label className={`cursor-pointer rounded-full border px-3 py-1 text-xs hover:bg-neutral-100 ${(!f.slug || imgBusy) ? "pointer-events-none opacity-40" : ""}`}>
+                  {imgBusy ? "처리 중…" : "＋ 이미지 추가"}
+                  <input type="file" accept="image/*" className="hidden" disabled={imgBusy || !f.slug}
+                    onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadExtraImage(file); e.currentTarget.value = ""; }} />
+                </label>
+              </div>
+              {imgMsg && <p className="mt-1 text-[11px] text-neutral-500">{imgMsg}</p>}
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {extraImgs.filter((im) => !im.is_primary).map((im) => (
+                  <div key={im.id} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={im.storage_path} alt="" className="aspect-square w-full rounded border object-cover" />
+                    <button onClick={() => deleteExtraImage(im.id)} className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-[11px] leading-tight text-white">×</button>
+                  </div>
+                ))}
+                {extraImgs.filter((im) => !im.is_primary).length === 0 && <p className="col-span-3 py-3 text-center text-[11px] text-neutral-400">{f.slug ? "추가 이미지가 없습니다." : "제품을 선택하세요."}</p>}
+              </div>
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { pointTheme } from "@/lib/point-color";
+import { resolveTheme } from "@/lib/point-color";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 import DetailInlineEditor, { type DetailInitial } from "@/components/detail-inline-editor";
 
@@ -17,7 +17,7 @@ export default async function DetailEditPage({ params }: { params: { slug: strin
   if (!p) notFound();
   const px = p as any;
 
-  const theme = pointTheme({ labelPoint: px.label_point, flavorNotes: px.flavor_notes ?? [], roast: px.roast_level });
+  const theme = resolveTheme({ keyColor: px.key_color, labelPoint: px.label_point, flavorNotes: px.flavor_notes ?? [], roast: px.roast_level });
   const blocks = recipeDisplay((px.recipe ?? null) as RecipeData | null, "ko");
 
   const init: DetailInitial = {

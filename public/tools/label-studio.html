@@ -87,17 +87,19 @@
   .brandtxt{font-family:'Noto Serif KR',serif;font-size:var(--fs-brand);line-height:1.74;color:#5c574e;font-weight:300;text-align:left}
   .brandtxt.two{color:#7a7263;margin-top:2.2mm}
   .ig{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.8mm;letter-spacing:.06mm;color:var(--ink);font-weight:500;margin-bottom:2.6mm}
-  /* 한글표시사항 표 — 고정 4열 그리드(열폭·구분선 일관). K1|V1|K2|V2, span은 2~4열 병합 */
-  .tbl{width:100%;border-top:.4mm solid var(--point);border-left:.1mm solid var(--hair)}
-  .trow{display:grid;grid-template-columns:12.5mm 1fr 12.5mm 1.35fr;border-bottom:.1mm solid var(--hair)}
-  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.16mm;line-height:1.28;padding:.7mm 1mm;
-    border-right:.1mm solid var(--hair);display:flex;align-items:center;min-height:3.2mm}
+  /* 한글표시사항 표 — 고정 4열 그리드(열폭·구분선 일관). K1|V1|K2|V2, span은 2~4열 병합.
+     항목열(K1·K2)은 좁게 통일, 모든 셀 한 줄(nowrap), 좌/우/상/하 테두리 모두 표시 */
+  .tbl{width:100%;border-top:.4mm solid var(--point);border-left:.1mm solid var(--hair);border-right:.1mm solid var(--hair)}
+  /* K열(항목) 좁게 통일(10mm), V1(제품명·긴값) 넓게, V2(보고번호 등) 정렬 통일. 모두 한 줄(nowrap). */
+  .trow{display:grid;grid-template-columns:10mm 1.28fr 10mm 1fr;border-bottom:.1mm solid var(--hair)}
+  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.04mm;line-height:1.22;padding:.5mm .7mm;
+    border-right:.1mm solid var(--hair);display:flex;align-items:center;min-height:3mm;white-space:nowrap}
   .trow .tcell:last-child{border-right:none}
-  .tcell.k{color:var(--ink-soft);justify-content:center;text-align:center;white-space:nowrap}
-  .tcell.v{justify-content:flex-start;text-align:left;white-space:normal}
-  .tcell.v.rno{white-space:nowrap;font-size:1.02mm;letter-spacing:-.01mm}
+  .tcell.k{color:var(--ink-soft);justify-content:center;text-align:center}
+  .tcell.v{justify-content:flex-start;text-align:left}
+  .tcell.v.rno{font-size:1.0mm;letter-spacing:-.01mm}
   .tcell.span2{grid-column:2 / 5}
-  .tcell.spanAll{grid-column:1 / 5;justify-content:flex-start;color:var(--ink-soft);white-space:nowrap}
+  .tcell.spanAll{grid-column:1 / 5;justify-content:flex-start;color:var(--ink-soft)}
   /* 엘레먼트 미세조정 선택 표시 */
   body.nudge-mode [data-editable]{cursor:move}
   .nudge-sel{outline:.25mm dashed var(--point)!important;outline-offset:.4mm}
@@ -132,10 +134,11 @@
   .infoRow .ik{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.32mm;letter-spacing:.2mm;color:#b0a690;flex:none}
   .infoRow .iv{font-size:var(--fs-info);line-height:1.35;color:#4a443a;text-align:right}
   .infoRow .iv.flavour{color:var(--point-text);font-weight:500}
-  .recRow{display:flex;justify-content:space-between;align-items:baseline;gap:2.4mm;padding:.6mm 0;text-align:left}
-  .recRow .rk{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.32mm;letter-spacing:.2mm;color:#b0a690;flex:none}
+  .recRow{display:flex;justify-content:space-between;align-items:baseline;gap:2.4mm;padding:.4mm 0;margin-bottom:1.5mm;text-align:left}
+  .recRow:last-child{margin-bottom:0}
+  .recRow .rk{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.28mm;letter-spacing:.2mm;color:#b0a690;flex:none}
   .recRow .rv{text-align:right}
-  .recRow .rn{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:var(--fs-recipe);line-height:1.35;color:#4a443a}
+  .recRow .rn{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:calc(var(--fs-recipe) - .16mm);line-height:1.4;color:#4a443a}
   .recRow .rc{font-size:1.4mm;line-height:1.3;color:var(--ink-soft);margin-top:.2mm}
 
   @media print{
@@ -414,8 +417,13 @@ function applyVars(){
 
 function setText(field,val){ const el=document.querySelector('[data-field="'+field+'"]'); if(el && el.textContent!==val) el.textContent=val; }
 
+// 임의 hex → {point,text,check} (제품 key_color 최우선). 밝으면 텍스트 어둡게.
+function hexLum(hex){ const h=hex.replace('#',''); const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g+0.114*b)/255; }
+function darkenHex(hex,amt){ const h=hex.replace('#',''); const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); return '#'+c.map(v=>Math.max(0,Math.round(v*(1-amt))).toString(16).padStart(2,'0')).join(''); }
+function keyTheme(hex){ const light=hexLum(hex)>0.62; return { point:hex, text:light?darkenHex(hex,0.42):hex, check:light?'rgba(0,0,0,.10)':'rgba(255,255,255,.14)', name:'KEY COLOR' }; }
 function renderLabel(){
-  const pc = POINTS[state.point]||POINTS['chocolate-dark'];
+  const validKey = state.keyColor && /^#[0-9a-fA-F]{6}$/.test(state.keyColor);
+  const pc = validKey ? keyTheme(state.keyColor) : (POINTS[state.point]||POINTS['chocolate-dark']);
   const L = document.getElementById('label');
   L.style.setProperty('--point',pc.point);
   L.style.setProperty('--point-text',pc.text);
@@ -516,7 +524,7 @@ document.querySelectorAll('[data-bind]').forEach(inp=>{ inp.addEventListener('in
 
 function buildSwatches(){
   const w=document.getElementById('swatches'); w.innerHTML='';
-  Object.entries(POINTS).forEach(([key,v])=>{ const s=document.createElement('div'); s.className='sw'; s.style.background=v.point; s.title=v.name; s.dataset.key=key; s.onclick=()=>{ state.point=key; markSwatch(); renderLabel(); }; w.appendChild(s); });
+  Object.entries(POINTS).forEach(([key,v])=>{ const s=document.createElement('div'); s.className='sw'; s.style.background=v.point; s.title=v.name; s.dataset.key=key; s.onclick=()=>{ state.point=key; state.keyColor=''; markSwatch(); renderLabel(); }; w.appendChild(s); });
 }
 function markSwatch(){ document.querySelectorAll('.sw').forEach(s=>s.classList.toggle('active',s.dataset.key===state.point)); }
 
@@ -636,7 +644,7 @@ fitScale();
   function load(d){
     if(typeof state==='undefined') return;
     window.__mtsLabelSlug=d.slug;
-    state={ reportNo:d.reportNo||'', tableName:d.tableName, name_en:d.name_en, name_en2:d.name_en2||d.name_en,
+    state={ reportNo:(d.reportNo||'').replace(/\s+/g,''), keyColor:d.keyColor||'', tableName:d.tableName, name_en:d.name_en, name_en2:d.name_en2||d.name_en,
       typeKr:d.typeKr||'', typeEn:d.typeEn||'', notesEn:d.notesEn||'', point:d.point||'chocolate-dark',
       nameSize:d.nameSize||6, enSize:d.enSize||2.4, material:d.material||'커피원두 100%', desc:d.desc||'',
       infoLabel:d.infoLabel||'coffee Information', flavor:d.flavor||'',
@@ -655,7 +663,12 @@ fitScale();
     var ps=document.getElementById('presetSelect');
     if(ps){ var clone=ps.cloneNode(false); ps.parentNode.replaceChild(clone,ps); clone.id='presetSelect'; fillSelect(clone);
       clone.addEventListener('change',function(){ var it=items.filter(function(x){return x.key===clone.value;})[0]; if(it) load(it); }); }
-    var note=document.querySelector('#presetSelect ~ .note'); if(note) note.textContent='기존 저장된 제품을 불러오면 제품명·품목보고번호·원재료·소개·정보·레시피·포인트 컬러가 자동으로 채워집니다.';
+    var note=document.querySelector('#presetSelect ~ .note'); if(note) note.textContent='기존 저장된 제품을 불러오면 제품명·품목보고번호·원재료·소개·정보·레시피·키 컬러가 자동으로 채워집니다.';
+    // 통합 스튜디오에서 ?slug=로 넘어온 제품 자동 로드(제품관리 정보 최우선)
+    try{ var qs=new URLSearchParams(location.search); var wantSlug=qs.get('slug');
+      if(wantSlug){ var it=items.filter(function(x){return x.slug===wantSlug||x.key===wantSlug;})[0];
+        if(it){ load(it); var ps=document.getElementById('presetSelect'); if(ps) ps.value=it.key;
+          var top=document.getElementById('__mtsLabelProduct'); if(top) top.value=it.key; } } }catch(e){}
     status(items.length?(items.length+'개 제품 로드됨'):'표시할 제품 없음');
   }).catch(function(){ status('제품 로드 실패 — 관리자 로그인 필요'); });
   document.addEventListener('change',function(e){

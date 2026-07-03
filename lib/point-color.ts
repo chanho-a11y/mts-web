@@ -82,6 +82,33 @@ export function pointTheme(opts: { labelPoint?: string | null; flavorNotes?: str
   return THEME[key] || THEME["chocolate-dark"];
 }
 
+// ── 키컬러(제품관리 값) 최우선 해석 ─────────────────────────────────────────
+// 제품에 key_color(hex)가 지정되면 그것을 단일 정본으로 삼아 테마를 파생한다.
+// 없을 때만 label_point / flavor×roast 매트릭스로 폴백.
+function hexRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function luminance(hex: string): number {
+  const [r, g, b] = hexRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+function darkenHex(hex: string, amt: number): string {
+  const [r, g, b] = hexRgb(hex);
+  const f = (v: number) => Math.max(0, Math.min(255, Math.round(v * (1 - amt)))).toString(16).padStart(2, "0");
+  return `#${f(r)}${f(g)}${f(b)}`;
+}
+export function isValidHex(v?: string | null): v is string { return !!v && /^#[0-9a-fA-F]{6}$/.test(v); }
+// 임의 hex → PointTheme(point 배경 + 텍스트 + 그리드 오버레이). 밝은 색이면 텍스트를 어둡게.
+export function deriveTheme(hex: string): PointTheme {
+  const light = luminance(hex) > 0.62;
+  return { point: hex, pointText: light ? darkenHex(hex, 0.42) : hex, check: light ? "rgba(0,0,0,.10)" : "rgba(255,255,255,.14)" };
+}
+export function resolveTheme(opts: { keyColor?: string | null; labelPoint?: string | null; flavorNotes?: string[] | null; roast?: string | null }): PointTheme {
+  if (isValidHex(opts.keyColor)) return deriveTheme(opts.keyColor);
+  return pointTheme({ labelPoint: opts.labelPoint, flavorNotes: opts.flavorNotes, roast: opts.roast });
+}
+
 export function pointKey(opts: { flavorNotes?: string[] | null; roast?: string | null }): string {
   const fam = flavorFamily((opts.flavorNotes ?? []).join(", "));
   const r = roastLevel(opts.roast);

@@ -1973,6 +1973,13 @@ async function refreshProducts(silent = false) {
         document.getElementById("productSelect").value = still.handle;
         applyProduct(still);
       }
+    } else {
+      // 통합 스튜디오에서 ?slug=로 넘어온 제품 자동 선택(제품관리 키컬러 최우선)
+      const want = new URLSearchParams(location.search).get("slug");
+      if (want) {
+        const it = normalized.find(p => p.handle === want);
+        if (it) { document.getElementById("productSelect").value = it.handle; applyProduct(it); }
+      }
     }
     setStatus(`등록 제품 ${normalized.length}개 로드됨 · ${new Date().toLocaleTimeString("ko-KR")}`, "ok");
   } catch (err) {

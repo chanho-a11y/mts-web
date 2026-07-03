@@ -8,7 +8,7 @@ import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
 import ProductCard from "@/components/product-card";
 import { addReviewAction } from "@/app/products/review-action";
-import { pointTheme } from "@/lib/point-color";
+import { resolveTheme } from "@/lib/point-color";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 
 export const dynamic = "force-dynamic";
@@ -75,9 +75,14 @@ const CSS = `
 .mtpdp .kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--hair2)}
 .mtpdp .kv .k{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.7px;color:#b0a690;flex:none}
 .mtpdp .kv .v{font-size:13px;text-align:right}
-.mtpdp .rec{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:11px 0;border-bottom:1px solid var(--hair2)}
-.mtpdp .rec .rk{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.8px;color:var(--point-text);flex:none;width:120px}
-.mtpdp .rec .rn{font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+/* 레시피 — 메서드별 카드(레이블 디자인 참조): 포인트 헤더 + 정렬된 행 */
+.mtpdp .recgrp{border:1px solid var(--hair2);border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--paper)}
+.mtpdp .recgrp-h{background:var(--point);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;padding:8px 15px}
+.mtpdp .recgrp-b{padding:4px 15px 6px}
+.mtpdp .rec{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:9px 0;border-bottom:1px solid var(--hair2)}
+.mtpdp .recgrp-b .rec:last-child{border-bottom:none}
+.mtpdp .rec .rk{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.6px;color:var(--mute);flex:none}
+.mtpdp .rec .rn{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);text-align:right}
 .mtpdp .rec .rc{font-size:10.5px;color:var(--faint);margin-top:2px}
 .mtpdp .faq{padding:13px 0;border-bottom:1px solid var(--hair)}
 .mtpdp .faq .q{font-weight:700;font-size:13.5px}
@@ -120,7 +125,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   const isNormcore = p.title_ko.toLowerCase().includes("normcore");
   const pBrand = isNormcore ? BRANDS.normcore : BRANDS.mtspace;
-  const theme = pointTheme({ labelPoint: p.label_point, flavorNotes: p.flavor_notes, roast: p.roast_level });
+  const theme = resolveTheme({ keyColor: p.key_color, labelPoint: p.label_point, flavorNotes: p.flavor_notes, roast: p.roast_level });
   const title = (locale === "en" && p.title_en ? p.title_en : p.title_ko).replace(/\[.*?\]\s*/g, "");
   const en = p.title_en ?? "";
   const weightTxt = p.weight_g ? `${p.weight_g}g` : "";
@@ -166,19 +171,28 @@ export default async function ProductPage({ params }: { params: { slug: string }
   //  ① 추출 어울림: 블렌드(에스프레소·아메리카노·라떼) vs 싱글오리진(필터·에스프레소)
   //  ② MTSPACE 로스팅 스타일  ③ 에이징·출고일(상세 more information 참조)
   const isSingleOrigin = p.categories.some((c) => c.slug === "single-origins");
+  // 로스팅 스타일 — 싱글/블렌드 분기 + 공통 마무리
+  const roastingAko = (isSingleOrigin
+    ? "싱글 오리진은 당화(sugar browning)로 향을 덧입히기보다 원두 본연의 향미를 선명하게 살리는 방향으로 로스팅합니다. 그래서 갓 볶은 신선한 상태에서 산지의 개성이 가장 또렷하게 살아납니다."
+    : "블렌드는 엠티스페이스만의 독창적인 캐릭터를 보여주며, 안정적인 공급을 위해 에티오피아 내추럴 커피와 에티오피아 워시드 커피를 로스팅 정도에 맞게 배합하여 제공합니다.")
+    + " 싱글 오리진과 블렌드 모두 언제 마셔도 훌륭한 퀄리티를 느낄 수 있도록 최적의 로스팅을 제공합니다.";
+  const roastingAen = (isSingleOrigin
+    ? "For single origins, we roast to reveal the bean's own character rather than layering flavour through sugar browning — so the origin's personality is clearest when freshly roasted."
+    : "Our blends express a character unique to MTSPACE: for consistent supply, we blend Ethiopian natural and Ethiopian washed coffees, each roasted to the right degree.")
+    + " Both single origins and blends are roasted to deliver excellent quality in every cup, whenever you drink them.";
   const faqs: { q: string; a: string }[] = locale === "en"
     ? [
         { q: "Which brew methods suit it best?", a: isSingleOrigin
           ? "Single origins express their origin character most clearly through filter (pour-over) and espresso."
           : "Blends are built for daily menus and perform reliably across espresso, americano, and latte." },
-        { q: "What is MTSPACE COFFEE's roasting style?", a: "We roast to reveal the bean's own character clearly, rather than layering flavour through sugar browning — so each coffee is at its most vivid when freshly roasted." },
+        { q: "What is MTSPACE COFFEE's roasting style?", a: roastingAen },
         { q: "When is it roasted and shipped, and how does aging work?", a: "We roast every Monday and Tuesday and ship on Tuesday and Wednesday. Beans settle into their fullest flavour after a short resting (aging) period — see the recommended drinking window under more information below." },
       ]
     : [
         { q: "어떤 추출에 잘 어울리나요?", a: isSingleOrigin
           ? "싱글 오리진은 필터 커피(핸드드립)와 에스프레소에서 산지 본연의 개성이 가장 또렷하게 드러납니다."
           : "블렌드는 에스프레소 · 아메리카노 · 라떼 등 데일리 메뉴에 안정적으로 어울립니다." },
-        { q: "MTSPACE COFFEE의 로스팅 스타일은 어떤가요?", a: "당화(sugar browning)로 향을 덧입히기보다 원두 본연의 향미를 선명하게 살리는 방향으로 로스팅합니다. 그래서 갓 볶은 신선한 상태에서 개성이 가장 또렷하게 살아납니다." },
+        { q: "MTSPACE COFFEE의 로스팅 스타일은 어떤가요?", a: roastingAko },
         { q: "언제 로스팅·출고되며 에이징은 어떻게 하나요?", a: "매주 월·화요일 로스팅해 화·수요일에 출고합니다. 원두는 로스팅 후 짧은 에이징(숙성)을 거치면 풍미가 안정되며, 권장 음용 시점은 아래 more information을 참고해 주세요." },
       ];
 
@@ -304,17 +318,23 @@ export default async function ProductPage({ params }: { params: { slug: string }
                     <h3 className="head" style={{ margin: "0 0 12px" }}>{locale === "en" ? "Recipe" : "Recipe · 레시피"}</h3>
                     {recipeBlocks.length > 0 ? (
                       recipeBlocks.map((b) => (
-                        <div key={b.mode} style={{ marginBottom: 14 }}>
-                          <div className="mono" style={{ fontSize: 10, letterSpacing: 1.5, color: "var(--point-text)", textTransform: "uppercase", marginBottom: 4 }}>{b.title}</div>
-                          {b.rows.map((row) => (
-                            <div className="rec" key={row.label}><span className="rk">{row.label}</span><div style={{ textAlign: "right" }}><div className="rn">{row.value}</div></div></div>
-                          ))}
+                        <div className="recgrp" key={b.mode}>
+                          <div className="recgrp-h">{b.title}</div>
+                          <div className="recgrp-b">
+                            {b.rows.map((row) => (
+                              <div className="rec" key={row.label}><span className="rk">{row.label}</span><span className="rn">{row.value}</span></div>
+                            ))}
+                          </div>
                         </div>
                       ))
                     ) : (
-                      legacyRecipe.map(([k, v]) => (
-                        <div className="rec" key={k}><span className="rk">{k}</span><div style={{ textAlign: "right" }}><div className="rn">{v}</div></div></div>
-                      ))
+                      <div className="recgrp">
+                        <div className="recgrp-b">
+                          {legacyRecipe.map(([k, v]) => (
+                            <div className="rec" key={k}><span className="rk">{k}</span><span className="rn">{v}</span></div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}

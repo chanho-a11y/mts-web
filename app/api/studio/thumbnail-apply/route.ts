@@ -35,7 +35,9 @@ export async function POST(req: Request) {
   if (up.error) return NextResponse.json({ error: "upload_failed" }, { status: 500 });
 
   const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-assets/${path}`;
-  // 기존 대표 해제 후 신규 대표 등록
+  // 썸네일은 '스튜디오 저장분 한 개'만 유지: 기존 스튜디오 썸네일(thumb/*) 제거 후 단일 대표 등록.
+  // 추가 이미지(is_primary=false·다른 경로)는 보존.
+  await admin.from("product_image").delete().eq("product_id", pid).like("storage_path", "%/thumb/%");
   await admin.from("product_image").update({ is_primary: false }).eq("product_id", pid);
   await admin.from("product_image").insert({ product_id: pid, storage_path: publicUrl, alt: (product as any).title_ko || slug, is_primary: true, position: 0 });
 

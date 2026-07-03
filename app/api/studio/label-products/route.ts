@@ -31,14 +31,14 @@ function labelRecipeLines(recipe: RecipeData | null): [string, string, string][]
 
   const es = recipe.espresso;
   if (es && Object.values(es).some(Boolean)) {
-    const line = join([es.dose_g ? `도징 ${withUnit(es.dose_g, "g")}` : "", es.yield_g ? `추출량 ${withUnit(es.yield_g, "g")}` : "", es.time ?? ""]);
+    const line = join([es.dose_g ? `도징 ${withUnit(es.dose_g, "g")}` : "", es.yield_g ? `추출량 ${withUnit(es.yield_g, "g")}` : "", es.time ? `추출시간 ${withUnit(es.time, "s")}` : ""]);
     if (line) out.push(["ESPRESSO", line, ""]);
   }
 
   const mk = recipe.milk;
   if (mk && Object.values(mk).some(Boolean)) {
     const l1 = join([mk.dose_g ? `도징 ${withUnit(mk.dose_g, "g")}` : "", mk.yield_g ? `추출량 ${withUnit(mk.yield_g, "g")}` : ""]);
-    const l2 = join([mk.time ?? "", mk.milk_ml ? `우유 ${withUnit(mk.milk_ml, "ml")}` : ""]);
+    const l2 = join([mk.time ? `추출시간 ${withUnit(mk.time, "s")}` : "", mk.milk_ml ? `우유 ${withUnit(mk.milk_ml, "ml")}` : ""]);
     const lines = [l1, l2].filter(Boolean).join("\n");
     if (lines) out.push(["MILK", lines, ""]);
   }
@@ -99,7 +99,8 @@ export async function GET() {
     return {
       key: p.slug,
       slug: p.slug,
-      reportNo: p.report_no || "",
+      reportNo: String(p.report_no || "").replace(/\s+/g, ""), // 불필요한 공백 제거(정본 포맷)
+      keyColor: p.key_color || "", // 제품관리 키컬러 = 레이블 포인트 최우선 소스
       tableName: ko,
       name_en: en,
       name_en2: en,

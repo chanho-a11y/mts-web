@@ -29,6 +29,24 @@ export async function POST(req: Request) {
     const status = action === "archive" ? "archived" : "active";
     const { error } = await supabase.from("product").update({ status }).in("slug", slugs);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // 게시(restore)는 스토어프론트 노출 링크를 보장해야 쇼핑에 뜬다(누락 시 게시해도 안 보이던 버그 수정).
+    const admin = hasServiceRole ? createAdminClient() : supabase;
+    const { data: sf } = await admin.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
+    const { data: prods } = await admin.from("product").select("id").in("slug", slugs);
+    const pids = (prods ?? []).map((p: { id: string }) => p.id);
+    if (sf && pids.length) {
+      if (action === "restore") {
+        for (const pid of pids) {
+          await admin.from("product_storefronts").upsert(
+            { product_id: pid, storefront_id: (sf as { id: string }).id, is_visible: true },
+            { onConflict: "product_id,storefront_id" },
+          );
+        }
+      } else {
+        await admin.from("product_storefronts").update({ is_visible: false }).in("product_id", pids);
+      }
+    }
     revalidatePath("/admin/products");
     return NextResponse.json({ ok: true, [action === "archive" ? "archived" : "restored"]: slugs.length });
   }

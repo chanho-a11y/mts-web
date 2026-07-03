@@ -1,22 +1,36 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { archiveProductAction, restoreProductAction } from "./actions";
+import { archiveProductAction, restoreProductAction, duplicateProductAction } from "./actions";
 import ReportNoManager from "@/components/report-no-manager";
 import BulkProductBar from "@/components/bulk-product-bar";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string; bulk?: string; ok?: string; fail?: string; failmsg?: string } }) {
+// 노출 제품명 정리: [블렌드] 등 대괄호, (사업자전용), 사업자 전용, wholesale, 용량(1kg/200g/125g) 제거
+function cleanTitle(s: string): string {
+  return (s || "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\([^)]*사업자[^)]*\)/g, "")
+    .replace(/사업자\s*전용/g, "")
+    .replace(/wholesale/gi, "")
+    .replace(/\b\d+\s*(kg|g)\b/gi, "")
+    .replace(/\s{2,}/g, " ").trim();
+}
+
+export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string; sort?: string; bulk?: string; ok?: string; fail?: string; failmsg?: string } }) {
   const showArchived = searchParams.show === "archived";
+  const sort = searchParams.sort === "type" ? "type" : "name";
   const supabase = createClient();
-  const { data: products } = await supabase
+  let q = supabase
     .from("product")
-    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,product_variant(sku,base_price)")
-    .eq("status", showArchived ? "archived" : "active")
-    .order("title_ko");
+    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,weight_g,product_variant(sku,base_price)")
+    .eq("status", showArchived ? "archived" : "active");
+  q = sort === "type" ? q.order("is_b2b_only", { ascending: true }).order("title_ko") : q.order("title_ko");
+  const { data: products } = await q;
 
   const { data: cats } = await supabase.from("category").select("slug,name_ko,position").order("position");
   const categoryOptions = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
+  const sortHref = (s: string) => `/admin/products?${new URLSearchParams({ ...(showArchived ? { show: "archived" } : {}), sort: s }).toString()}`;
 
   return (
     <main>
@@ -48,23 +62,33 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
       <p className="mb-4 text-sm text-neutral-500">
         {products?.length ?? 0}개 · {showArchived ? "보관된 제품 — 복구 가능" : "수정·보관 버튼으로 관리 (보관 = 스토어프론트 숨김·복구 가능)"}
       </p>
+      <div className="mb-2 flex items-center gap-2 text-sm">
+        <span className="text-neutral-400">정렬:</span>
+        <Link href={sortHref("name")} className={`rounded-full border px-3 py-1 text-xs ${sort === "name" ? "bg-black text-white" : "hover:bg-neutral-100"}`}>가나다순</Link>
+        <Link href={sortHref("type")} className={`rounded-full border px-3 py-1 text-xs ${sort === "type" ? "bg-black text-white" : "hover:bg-neutral-100"}`}>도매/소비자순</Link>
+      </div>
       <BulkProductBar showArchived={showArchived} categories={categoryOptions} />
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
-          <th className="w-8 py-2"></th><th>제품</th><th>유형</th><th>SKU·가격</th><th>구분</th><th>색</th><th className="text-right">관리</th>
+          <th className="w-8 py-2"></th><th>구분</th><th>제품명</th><th>용량</th><th>유형</th><th>SKU·가격</th><th>색</th><th className="text-right">관리</th>
         </tr></thead>
         <tbody>
           {(products ?? []).map((p: any) => (
             <tr key={p.slug} className="border-b align-top">
               <td className="py-3"><input type="checkbox" className="bulk-prod mt-1" value={p.slug} /></td>
-              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{p.title_ko}</Link></td>
+              <td className="py-3"><span className={`rounded-full px-2 py-0.5 text-xs ${p.is_b2b_only ? "bg-amber-100 text-amber-800" : "bg-neutral-100 text-neutral-600"}`}>{p.is_b2b_only ? "도매" : "소비자"}</span></td>
+              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{cleanTitle(p.title_ko)}</Link></td>
+              <td className="text-xs text-neutral-600">{p.weight_g ? `${p.weight_g}g` : "-"}</td>
               <td>{p.product_type}</td>
               <td className="text-xs">{(p.product_variant ?? []).map((v: any) => `${v.sku} · ₩${v.base_price.toLocaleString()}`).join("  /  ")}</td>
-              <td>{p.is_b2b_only ? "도매" : "소비자"}</td>
               <td>{p.key_color && <span className="inline-block h-4 w-4 rounded-full align-middle" style={{ background: p.key_color }} />}</td>
               <td className="text-right">
                 <div className="inline-flex items-center gap-2">
                   <Link href={`/admin/products/${p.slug}`} className="rounded border px-3 py-1 text-xs hover:bg-neutral-100">수정</Link>
+                  <form action={duplicateProductAction}>
+                    <input type="hidden" name="slug" value={p.slug} />
+                    <button className="rounded border px-3 py-1 text-xs hover:bg-neutral-100" title="전체 내용 복제 후 수정 화면으로">복제</button>
+                  </form>
                   {showArchived ? (
                     <form action={restoreProductAction}>
                       <input type="hidden" name="slug" value={p.slug} />

@@ -189,9 +189,43 @@ export async function restoreProductAction(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   if (!slug) redirect("/admin/products?error=slug");
   const supabase = createClient();
-  await supabase.from("product").update({ status: "active" }).eq("slug", slug);
+  const { data: prod } = await supabase.from("product").update({ status: "active" }).eq("slug", slug).select("id").maybeSingle();
+  // 게시 시 스토어프론트 노출 링크 보장(누락 시 게시해도 쇼핑에 안 뜨던 버그 수정)
+  const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
+  if (prod && sf) await supabase.from("product_storefronts").upsert({ product_id: (prod as { id: string }).id, storefront_id: (sf as { id: string }).id, is_visible: true }, { onConflict: "product_id,storefront_id" });
   revalidatePath("/admin/products");
   redirect("/admin/products");
+}
+
+// 제품 복제 — 전체 내용 복사 후 새 초안으로 생성하고 수정 화면으로 이동(사용자가 정보 재입력).
+export async function duplicateProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") || "").trim();
+  if (!slug) redirect("/admin/products?error=slug");
+  const supabase = createClient();
+  const { data: src } = await supabase.from("product").select("*").eq("slug", slug).maybeSingle();
+  if (!src) redirect(`/admin/products?error=${encodeURIComponent("원본 제품을 찾을 수 없습니다")}`);
+  const s = src as Record<string, unknown>;
+  const newSlug = `${slug}-copy-${Date.now().toString(36).slice(-4)}`;
+  const { id: srcId, created_at: _c, updated_at: _u, published_at: _p, ...rest } = s as { id: string; created_at?: unknown; updated_at?: unknown; published_at?: unknown };
+  const { data: np, error } = await supabase.from("product")
+    .insert({ ...rest, slug: newSlug, title_ko: `${String(s.title_ko ?? "")} (복사본)`, status: "draft" })
+    .select("id").single();
+  if (error || !np) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "복제 실패")}`);
+  const newId = (np as { id: string }).id;
+  // 카테고리 복사
+  const { data: pcs } = await supabase.from("product_categories").select("category_id").eq("product_id", srcId);
+  for (const pc of (pcs ?? []) as { category_id: string }[]) {
+    await supabase.from("product_categories").upsert({ product_id: newId, category_id: pc.category_id });
+  }
+  // 대표 변형 복사(SKU 유니크 → 접미사)
+  const { data: pv } = await supabase.from("product_variant").select("*").eq("product_id", srcId).order("position").limit(1).maybeSingle();
+  if (pv) {
+    const v = pv as Record<string, unknown>;
+    const { id: _vi, product_id: _vp, created_at: _vc, updated_at: _vu, ...vrest } = v as { id: string; product_id: string; created_at?: unknown; updated_at?: unknown };
+    await supabase.from("product_variant").insert({ ...vrest, product_id: newId, sku: `${String(v.sku ?? "SKU")}-C${Date.now().toString(36).slice(-3)}` });
+  }
+  revalidatePath("/admin/products");
+  redirect(`/admin/products/${newSlug}`);
 }
 
 export async function generateDraftsAction(formData: FormData) {

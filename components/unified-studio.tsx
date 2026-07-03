@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type DesignedFields } from "@/lib/content-gen";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 import { EVIDENCE_FIELDS, srcTag, findUnsourcedStats, type EvidenceData } from "@/lib/evidence";
+import { shrinkImage, readUploadJson } from "@/lib/client-image";
 import RichEditor from "@/components/rich-editor";
 import ImageUpload from "@/components/image-upload";
 
@@ -213,9 +214,11 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     if (!f.slug) { setImgMsg("먼저 제품을 선택하세요"); return; }
     setImgBusy(true); setImgMsg("업로드 중…");
     try {
-      const fd = new FormData(); fd.append("file", file); fd.append("folder", "gallery");
-      const up = await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json());
-      if (!up.url) throw new Error(up.error || "업로드 실패");
+      const shrunk = await shrinkImage(file); // 업로드 전 축소(4.5MB 한도 회피)
+      const fd = new FormData(); fd.append("file", shrunk); fd.append("folder", "gallery");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const up = await readUploadJson(res);
+      if (!res.ok || !up.url) throw new Error(up.error || "업로드 실패");
       const r = await fetch("/api/studio/product-images", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: f.slug, url: up.url }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "저장 실패");

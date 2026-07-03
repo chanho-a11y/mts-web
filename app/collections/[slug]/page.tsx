@@ -53,7 +53,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     <main className="mx-auto max-w-6xl px-4 py-10">
       <CategoryChips active={params.slug} isBusiness={isBusiness} locale={locale} />
       {/* 카테고리 배너 */}
-      <div className={`mt-grid mb-8 overflow-hidden rounded-card border border-line px-6 py-16 ${catRow.banner_path ? "text-oat" : "bg-sand"}`}
+      <div className={`mt-grid mb-8 flex flex-col justify-center overflow-hidden rounded-card border border-line px-6 py-28 ${catRow.banner_path ? "text-oat" : "bg-sand"}`}
         style={catRow.banner_path ? { backgroundImage: `linear-gradient(rgba(60,53,44,0.5),rgba(60,53,44,0.5)), url(${catRow.banner_path})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
         <h1 className="text-3xl font-extrabold tracking-tight">{locale === "en" && catRow.name_en ? catRow.name_en : catRow.name_ko}</h1>
         <p className={`mt-1 font-mono text-xs uppercase tracking-wider ${catRow.banner_path ? "text-oat/80" : "text-inkSoft"}`}>{products.length} {tt.items}</p>

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { shrinkImage, readUploadJson } from "@/lib/client-image";
 
 // 다중 이미지 첨부(홈 슬라이드 등) — 여러 장 업로드/순서 관리. hidden input[name]에 줄바꿈 구분 URL로 저장.
 export default function MultiImageUpload({
@@ -17,11 +18,12 @@ export default function MultiImageUpload({
     try {
       const added: string[] = [];
       for (const file of files) {
+        const shrunk = await shrinkImage(file); // 업로드 전 축소(4.5MB 한도 회피)
         const fd = new FormData();
-        fd.append("file", file); fd.append("folder", folder);
+        fd.append("file", shrunk); fd.append("folder", folder);
         const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.error || "업로드 실패");
+        const j = await readUploadJson(res);
+        if (!res.ok || !j.url) throw new Error(j.error || "업로드 실패");
         added.push(j.url);
       }
       setUrls((prev) => [...prev, ...added]);

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { shrinkImage, readUploadJson } from "@/lib/client-image";
 
 // 이미지 첨부(경로 입력 대체) — 파일 선택 → /api/upload → 공개 URL을 hidden input(name)에 저장.
 export default function ImageUpload({
@@ -14,12 +15,13 @@ export default function ImageUpload({
     if (!file) return;
     setBusy(true); setErr("");
     try {
+      const shrunk = await shrinkImage(file); // 업로드 전 축소(4.5MB 한도 회피)
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", shrunk);
       fd.append("folder", folder);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "업로드 실패");
+      const j = await readUploadJson(res);
+      if (!res.ok || !j.url) throw new Error(j.error || "업로드 실패");
       setUrl(j.url);
     } catch (e: any) {
       setErr(e?.message ?? "업로드 실패");

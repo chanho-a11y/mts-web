@@ -214,7 +214,8 @@ export default function ProductForm({
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <label className="block text-sm">SKU<input name="sku" defaultValue={i.sku} className={input} /></label>
+        <label className="block text-sm">SKU <span className="text-neutral-400">(= 슬러그 자동)</span>
+          <input value={i.slug ?? ""} readOnly placeholder="슬러그와 동일하게 자동 생성" className={`${input} bg-neutral-50 text-neutral-500`} /></label>
         <label className="block text-sm">소비자가(원)<input type="number" name="base_price" defaultValue={i.base_price ?? ""} className={input} /></label>
         <label className="block text-sm">제조원가(원) <span className="text-neutral-400">(gross profit)</span><input type="number" name="cost" defaultValue={i.cost ?? ""} className={input} /></label>
       </div>

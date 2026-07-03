@@ -10,7 +10,9 @@ export default function ProductCard({ p, locale, compact }: { p: ProductCardData
   const tt = t(locale);
   const title = (locale === "en" && p.title_en ? p.title_en : p.title_ko).replace(/\[.*?\]\s*/g, "");
   const dot = pointColor({ keyColor: p.key_color, flavorNotes: p.flavor_notes, roast: p.roast_level });
-  const series = p.is_b2b_only ? "WHOLESALE" : (p.product_type === "merch" ? "MERCH" : "SINGLE ORIGIN");
+  // 하단 라벨 = 실제 유형 반영(하드코딩 SINGLE ORIGIN 버그 수정)
+  const TYPE_LABEL: Record<string, string> = { "블렌드": "BLEND", "싱글 오리진": "SINGLE ORIGIN", "디카페인": "DECAF", "merch": "MERCH" };
+  const series = p.is_b2b_only ? "WHOLESALE" : (TYPE_LABEL[p.product_type ?? ""] ?? (p.product_type ? p.product_type.toUpperCase() : "COFFEE"));
   return (
     <Link href={`/products/${p.slug}`} className="group block">
       {/* 쇼핑 썸네일은 현재의 75% 크기(compact) — 셀 중앙 정렬 */}

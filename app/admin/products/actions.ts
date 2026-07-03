@@ -64,14 +64,16 @@ export async function upsertProductAction(formData: FormData) {
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);
 
-  // 대표 변형 (sku/가격)
-  const sku = String(formData.get("sku") || "").trim();
+  // 대표 변형 — SKU = 슬러그(자동). 기존 변형이 있으면 갱신(중복 변형 방지).
+  const sku = slug;
   const price = parseInt(String(formData.get("base_price") || "0"), 10) || 0;
-  if (sku && price > 0) {
-    await supabase.from("product_variant").upsert(
-      { product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 },
-      { onConflict: "sku" },
-    );
+  const { data: existV } = await supabase.from("product_variant").select("id").eq("product_id", prod.id).order("position").limit(1).maybeSingle();
+  if (existV) {
+    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g };
+    if (price > 0) upd.base_price = price;
+    await supabase.from("product_variant").update(upd).eq("id", (existV as { id: string }).id);
+  } else if (price > 0) {
+    await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
   }
   // 카테고리·스토어프론트 연결
   if (catSlug) {
@@ -133,13 +135,16 @@ async function saveProductRow(
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };
 
-  const sku = String(d.sku || "").trim();
+  // SKU = 슬러그(자동)
+  const sku = slug;
   const price = parseInt(String(d.base_price || "0"), 10) || 0;
-  if (sku && price > 0) {
-    await supabase.from("product_variant").upsert(
-      { product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 },
-      { onConflict: "sku" },
-    );
+  const { data: existBV } = await supabase.from("product_variant").select("id").eq("product_id", prod.id).order("position").limit(1).maybeSingle();
+  if (existBV) {
+    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g };
+    if (price > 0) upd.base_price = price;
+    await supabase.from("product_variant").update(upd).eq("id", (existBV as { id: string }).id);
+  } else if (price > 0) {
+    await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
   }
   const catSlug = String(d.category || "").trim();
   if (catSlug) {
@@ -222,7 +227,7 @@ export async function duplicateProductAction(formData: FormData) {
   if (pv) {
     const v = pv as Record<string, unknown>;
     const { id: _vi, product_id: _vp, created_at: _vc, updated_at: _vu, ...vrest } = v as { id: string; product_id: string; created_at?: unknown; updated_at?: unknown };
-    await supabase.from("product_variant").insert({ ...vrest, product_id: newId, sku: `${String(v.sku ?? "SKU")}-C${Date.now().toString(36).slice(-3)}` });
+    await supabase.from("product_variant").insert({ ...vrest, product_id: newId, sku: newSlug });
   }
   revalidatePath("/admin/products");
   redirect(`/admin/products/${newSlug}`);

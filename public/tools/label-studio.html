@@ -70,10 +70,9 @@
   .label{width:180mm;height:130mm;background:var(--oat);display:flex;box-shadow:0 2px 14px rgba(0,0,0,.14);font-family:'Helvetica Neue',Pretendard,Arial,sans-serif;color:var(--ink)}
   .box{width:60mm;height:130mm;padding:10.2mm 8.8mm;display:flex;flex-direction:column;align-items:center;text-align:center}
   .box.left{border-right:.3mm solid var(--border);justify-content:space-between}
+  /* 체크 그리드는 renderLabel에서 인라인 SVG 배경으로 적용(html2canvas가 mm 그라디언트를 못 그려 JPG에서 소실되던 문제 해결). */
   .box.mid{border-right:.3mm solid var(--border);justify-content:space-between;color:#fff;padding:12.4mm 7.8mm;
-    background-color:var(--point);
-    background-image:linear-gradient(var(--check) .2mm,transparent .2mm),linear-gradient(90deg,var(--check) .2mm,transparent .2mm);
-    background-size:4mm 4mm;}
+    background-color:var(--point);background-repeat:repeat;}
   .box.right{justify-content:space-between}
   [data-editable]{outline:none}
   [data-editable]:focus{box-shadow:0 0 0 1px #7c6, inset 0 0 0 100vmax rgba(124,160,110,.06)}
@@ -92,11 +91,11 @@
   .tbl{width:100%;border-top:.4mm solid var(--point);border-left:.1mm solid var(--hair);border-right:.1mm solid var(--hair)}
   /* K열(항목) 좁게 통일(10mm), V1(제품명·긴값) 넓게, V2(보고번호 등) 정렬 통일. 모두 한 줄(nowrap). */
   .trow{display:grid;grid-template-columns:10mm 1.28fr 10mm 1fr;border-bottom:.1mm solid var(--hair)}
-  /* 모든 셀 동일 높이(4mm) + 세로 중앙. 항목(k)=가로중앙, 설명(v)=좌정렬 */
-  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.04mm;line-height:1.2;padding:0 .8mm;
-    border-right:.1mm solid var(--hair);display:flex;align-items:center;height:4mm;min-height:4mm;white-space:nowrap}
+  /* 모든 셀 동일 높이(3mm, 기존 대비 75%) + 세로 중앙. 항목(k)·설명(v) 모두 좌정렬로 열 정렬 통일 */
+  .tcell{font-family:'IBM Plex Mono',Pretendard,monospace;font-size:1.02mm;line-height:1.15;padding:0 .8mm;
+    border-right:.1mm solid var(--hair);display:flex;align-items:center;height:3mm;min-height:3mm;white-space:nowrap}
   .trow .tcell:last-child{border-right:none}
-  .tcell.k{color:var(--ink-soft);justify-content:center;text-align:center}
+  .tcell.k{color:var(--ink-soft);justify-content:flex-start;text-align:left}
   .tcell.v{justify-content:flex-start;text-align:left}
   .tcell.v.rno{font-size:1.0mm;letter-spacing:-.01mm}
   .tcell.span2{grid-column:2 / 5}
@@ -430,6 +429,14 @@ function renderLabel(){
   L.style.setProperty('--point',pc.point);
   L.style.setProperty('--point-text',pc.text);
   L.style.setProperty('--check',pc.check);
+  // 중앙 박스 체크 그리드 = 인라인 SVG 배경(px). html2canvas가 mm 그라디언트를 못 그려 JPG에서 소실되던 문제 해결.
+  var midBox=document.querySelector('.box.mid');
+  if(midBox){ var MM=3.779527, tile=(4*MM).toFixed(3), lw=(0.2*MM).toFixed(3);
+    var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+tile+'" height="'+tile+'"><path d="M0 0H'+tile+'M0 0V'+tile+'" stroke="'+pc.check+'" stroke-width="'+lw+'" fill="none"/></svg>';
+    midBox.style.backgroundColor=pc.point;
+    midBox.style.backgroundImage='url("data:image/svg+xml,'+encodeURIComponent(svg)+'")';
+    midBox.style.backgroundSize=tile+'px '+tile+'px';
+  }
   document.getElementById('pointTag').textContent = pc.point+'  ·  '+pc.name;
   setText('nameMid', state.tableName);
   setText('enMid', state.name_en);

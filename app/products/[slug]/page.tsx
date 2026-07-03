@@ -9,6 +9,7 @@ import AddToCart from "@/components/add-to-cart";
 import ProductCard from "@/components/product-card";
 import { addReviewAction } from "@/app/products/review-action";
 import { resolveTheme } from "@/lib/point-color";
+import ProductGallery from "@/components/product-gallery";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 
 export const dynamic = "force-dynamic";
@@ -228,20 +229,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <div className="layout">
           {/* LEFT: sticky buy rail */}
           <aside className="rail">
-            <div className="imgslot" style={{ height: 264 }}>
-              {p.image
-                /* eslint-disable-next-line @next/next/no-img-element */
-                ? <img src={p.image} alt={p.imageAlt ?? title} />
-                : <div className="tag">IMAGE · 1:1</div>}
-            </div>
-            {p.images.length > 1 && (
-              <div className="thumbs">
-                {p.images.slice(0, 3).map((im, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <div className="t" key={i}><img src={im.storage_path} alt={im.alt ?? title} /></div>
-                ))}
-              </div>
-            )}
+            <ProductGallery primary={p.image} images={p.images} alt={p.imageAlt ?? title} />
             <div className="kicker">{typeLine}</div>
             <h1>{title}</h1>
             <div className="en">{en}{weightTxt ? ` · ${weightTxt}` : ""}</div>

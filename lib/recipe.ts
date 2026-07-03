@@ -25,12 +25,12 @@ export const RECIPE_ROWS: Record<RecipeMode, RecipeRow[]> = {
   espresso: [
     { key: "dose_g", ko: "도징", en: "Dose", unit: "g" },
     { key: "yield_g", ko: "추출량", en: "Yield", unit: "g" },
-    { key: "time", ko: "추출시간", en: "Time" },
+    { key: "time", ko: "추출시간", en: "Time", unit: "s" },
   ],
   milk: [
     { key: "dose_g", ko: "도징", en: "Dose", unit: "g" },
     { key: "yield_g", ko: "추출량", en: "Yield", unit: "g" },
-    { key: "time", ko: "추출시간", en: "Time" },
+    { key: "time", ko: "추출시간", en: "Time", unit: "s" },
     { key: "milk_ml", ko: "우유양", en: "Milk", unit: "ml" },
   ],
 };

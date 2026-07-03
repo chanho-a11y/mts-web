@@ -5,23 +5,50 @@ import CustomerDiscountForm from "@/components/customer-discount-form";
 
 export const dynamic = "force-dynamic";
 
+const pct = (base?: number | null, price?: number | null) =>
+  base && price != null && base > 0 ? Math.round((1 - price / base) * 100) : 0;
+
 export default async function AdminCustomerDetail({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: profile } = await supabase
-    .from("profiles").select("name,email,role").eq("id", params.id).maybeSingle();
+    .from("profiles").select("name,email,role,price_tier_id").eq("id", params.id).maybeSingle();
   const { data: productList } = await supabase
     .from("product").select("slug,title_ko").eq("status", "active").order("title_ko");
   const { data: cats } = await supabase.from("category").select("slug,name_ko,position").order("position");
   const { data: prices } = await supabase
-    .from("customer_variant_prices").select("id,price,variant_id,product_variant(sku)").eq("profile_id", params.id);
+    .from("customer_variant_prices")
+    .select("id,price,variant_id,product_variant(sku,base_price,product(title_ko))")
+    .eq("profile_id", params.id);
+
+  // 등급가(도매 등급) — 이 고객 등급에 적용되는 할인
+  let tierName: string | null = null;
+  let tierPrices: any[] = [];
+  if (profile?.price_tier_id) {
+    const { data: tier } = await supabase
+      .from("price_tier").select("name").eq("id", profile.price_tier_id).maybeSingle();
+    tierName = (tier as any)?.name ?? null;
+    const { data: vp } = await supabase
+      .from("variant_prices")
+      .select("price,product_variant(sku,base_price,product(title_ko))")
+      .eq("price_tier_id", profile.price_tier_id);
+    tierPrices = (vp ?? []).slice().sort((a: any, b: any) =>
+      (a.product_variant?.product?.title_ko ?? "").localeCompare(b.product_variant?.product?.title_ko ?? "", "ko"));
+  }
 
   const products = (productList ?? []).map((p: { slug: string; title_ko: string }) => ({ slug: p.slug, title: p.title_ko }));
   const categories = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
+  const indivCount = prices?.length ?? 0;
+  const tierCount = tierPrices.length;
+
   return (
     <main className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">{profile?.name || profile?.email}</h1>
-        <p className="text-sm text-neutral-500">{profile?.email} · {profile?.role}</p>
+        <p className="text-sm text-neutral-500">
+          {profile?.email} · {profile?.role}
+          {tierName && <> · 등급 <b className="text-neutral-700">{tierName}</b></>}
+        </p>
+        <p className="mt-1 text-xs text-neutral-500">적용 할인 품목 <b>{indivCount + tierCount}</b>건 (개별가 {indivCount} · 등급가 {tierCount})</p>
       </div>
 
       <section className="rounded-xl border p-5">
@@ -29,13 +56,18 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
         <p className="mb-3 text-xs text-neutral-500"><b>제품 할인</b> 또는 <b>카테고리 할인</b>을 선택하고 <b>할인 금액(원)</b> · <b>할인율(%)</b>로 입력합니다. ‘＋ 할인 추가’로 여러 건을 한 번에 등록할 수 있습니다.</p>
         <CustomerDiscountForm profileId={params.id} products={products} categories={categories} />
 
-        <table className="mt-5 w-full text-sm">
-          <thead><tr className="border-b text-left text-neutral-500"><th className="py-2">SKU</th><th>개별가</th><th></th></tr></thead>
+        {/* 개별가 — 이 고객에게만 지정된 단가 (resolve_price 최우선) */}
+        <h3 className="mt-6 mb-2 text-sm font-bold">개별가 <span className="font-normal text-neutral-400">· 이 고객 전용 (최우선 적용)</span></h3>
+        <table className="w-full text-sm">
+          <thead><tr className="border-b text-left text-neutral-500"><th className="py-2">SKU</th><th>제품</th><th className="text-right">정가</th><th className="text-right">개별가</th><th className="text-right">할인율</th><th></th></tr></thead>
           <tbody>
             {(prices ?? []).map((p: any) => (
               <tr key={p.id} className="border-b">
                 <td className="py-2">{p.product_variant?.sku}</td>
-                <td>{formatKRW(p.price)}</td>
+                <td className="text-neutral-500">{p.product_variant?.product?.title_ko}</td>
+                <td className="text-right text-neutral-400 line-through">{formatKRW(p.product_variant?.base_price)}</td>
+                <td className="text-right font-medium">{formatKRW(p.price)}</td>
+                <td className="text-right text-emerald-600">{pct(p.product_variant?.base_price, p.price)}%</td>
                 <td className="text-right">
                   <form action={deleteCustomerPriceAction}>
                     <input type="hidden" name="id" value={p.id} /><input type="hidden" name="profile_id" value={params.id} />
@@ -44,9 +76,32 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
                 </td>
               </tr>
             ))}
-            {(!prices || prices.length === 0) && <tr><td colSpan={3} className="py-4 text-neutral-400">설정된 개별가가 없습니다.</td></tr>}
+            {indivCount === 0 && <tr><td colSpan={6} className="py-4 text-neutral-400">설정된 개별가가 없습니다.</td></tr>}
           </tbody>
         </table>
+
+        {/* 등급가 — 고객 등급으로 적용되는 할인 (개별가 없을 때 적용) */}
+        <h3 className="mt-7 mb-2 text-sm font-bold">등급가 {tierName && <span className="font-normal text-neutral-400">· {tierName} 등급 (개별가 없을 때 적용)</span>}</h3>
+        {!profile?.price_tier_id ? (
+          <p className="py-3 text-xs text-neutral-400">배정된 등급이 없습니다. (등급 미배정 시 정가 적용)</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead><tr className="border-b text-left text-neutral-500"><th className="py-2">SKU</th><th>제품</th><th className="text-right">정가</th><th className="text-right">등급가</th><th className="text-right">할인율</th></tr></thead>
+            <tbody>
+              {tierPrices.map((v: any, i: number) => (
+                <tr key={i} className="border-b">
+                  <td className="py-2">{v.product_variant?.sku}</td>
+                  <td className="text-neutral-500">{v.product_variant?.product?.title_ko}</td>
+                  <td className="text-right text-neutral-400 line-through">{formatKRW(v.product_variant?.base_price)}</td>
+                  <td className="text-right font-medium">{formatKRW(v.price)}</td>
+                  <td className="text-right text-emerald-600">{pct(v.product_variant?.base_price, v.price)}%</td>
+                </tr>
+              ))}
+              {tierCount === 0 && <tr><td colSpan={5} className="py-4 text-neutral-400">이 등급에 설정된 등급가가 없습니다.</td></tr>}
+            </tbody>
+          </table>
+        )}
+        <p className="mt-2 text-[11px] text-neutral-400">등급가는 <b>가격 관리 &gt; 등급</b>에서 일괄 관리됩니다. 개별가가 있으면 개별가가 우선합니다(개별가 &gt; 등급가 &gt; 정가).</p>
       </section>
     </main>
   );

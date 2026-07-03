@@ -32,7 +32,7 @@ export default async function Home() {
   const slideRaw = settingsMap.home_slides || "";
 
   // 이미지 슬라이드(상품 아님): CMS 경로 우선, 없으면 기본 이미지
-  const defaultSlides = ["/images/hero.jpg", "/images/cat-single-origins.jpg", "/images/about-roastery.jpg", "/images/cat-blends.jpg"];
+  const defaultSlides = ["/images/main01.jpg", "/images/main02.jpg", "/images/main03.jpg", "/images/main04.jpg", "/images/main05.jpg", "/images/main06.jpg"];
   const slides = (slideRaw ? slideRaw.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean) : defaultSlides)
     .map((src) => ({ src, alt: brand.name }));
 

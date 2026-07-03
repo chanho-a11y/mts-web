@@ -14,11 +14,20 @@ export async function POST(req: Request) {
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (prof?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  let p: { action?: string; ids?: string[] } = {};
+  let p: { action?: string; ids?: string[]; role?: string } = {};
   try { p = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   const action = String(p.action || "");
   const ids = Array.isArray(p.ids) ? p.ids.map(String).filter(Boolean) : [];
   if (!ids.length) return NextResponse.json({ error: "선택된 고객이 없습니다" }, { status: 400 });
+
+  if (action === "setrole") {
+    const role = String(p.role || "");
+    if (role !== "business" && role !== "individual") return NextResponse.json({ error: "변경할 구분을 선택하세요(사업자/개인)" }, { status: 400 });
+    const { error } = await supabase.from("profiles").update({ role }).in("id", ids);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    revalidatePath("/admin/customers");
+    return NextResponse.json({ ok: true, changed: ids.length });
+  }
 
   if (action === "archive" || action === "restore") {
     const archived = action === "archive";

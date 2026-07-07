@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setOrderStatusAction, bulkOrdersAction } from "@/app/admin/orders/actions";
 import { formatKRW } from "@/lib/i18n";
@@ -9,8 +10,8 @@ export interface OrderRow {
   status: string; grand_total: number; currency: string; customer_type: string | null; placed_at: string;
 }
 const STATUS: Record<string, string> = {
-  created: "기본", preparing: "확인", shipped: "출고", in_transit: "배송중", delivered: "완료",
-  cancelled: "취소", refunded: "환불",
+  created: "기본", paid: "결제완료", preparing: "확인", shipped: "출고", in_transit: "배송중", delivered: "완료",
+  cancelled: "취소", refunded: "환불", partial_refunded: "부분취소",
 };
 
 export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
@@ -44,7 +45,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
           {orders.map((o) => (
             <tr key={o.id} className="border-b">
               <td className="py-2"><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} /></td>
-              <td className="font-mono text-xs">{o.order_no}</td>
+              <td className="font-mono text-xs"><Link href={`/admin/orders/${o.id}`} className="text-ink underline-offset-2 hover:underline">{o.order_no}</Link></td>
               <td>{o.email}</td>
               <td>{o.customer_type === "business" ? "기업" : o.customer_type === "guest" ? "비회원" : "일반"}</td>
               <td>{o.currency === "USD" ? `$${o.grand_total}` : formatKRW(o.grand_total)}</td>

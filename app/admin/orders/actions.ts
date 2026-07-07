@@ -1,7 +1,15 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { sendEmail, shipNotificationHtml } from "@/lib/email";
+import { inicisCancel } from "@/lib/payments-refund";
+
+// 취소/환불 등 관리자 쓰기는 RLS 우회(service-role) 우선, 없으면 세션 클라이언트
+function adminDb() {
+  return hasServiceRole ? createAdminClient() : createClient();
+}
 
 // 주문 상태: created(기본) → preparing(확인) → shipped(출고) → delivered
 export async function setOrderStatusAction(formData: FormData) {
@@ -25,10 +33,11 @@ export async function bulkOrdersAction(ids: string[], action: "confirm" | "ship"
 async function onShip(orderId: string) {
   const supabase = createClient();
   const { data: order } = await supabase.from("orders").select("order_no,email,shipping_address").eq("id", orderId).maybeSingle();
-  const { data: items } = await supabase.from("order_item").select("variant_id,qty").eq("order_id", orderId);
+  const { data: items } = await supabase.from("order_item").select("variant_id,qty,cancelled_qty").eq("order_id", orderId);
   for (const it of items ?? []) {
-    if (it.variant_id) {
-      await supabase.from("inventory_ledger").insert({ variant_id: it.variant_id, delta: -it.qty, reason: "order", ref_id: order?.order_no ?? orderId });
+    const ship = it.qty - (it.cancelled_qty ?? 0); // 취소분 제외한 실제 출고 수량만 차감
+    if (it.variant_id && ship > 0) {
+      await supabase.from("inventory_ledger").insert({ variant_id: it.variant_id, delta: -ship, reason: "order", ref_id: order?.order_no ?? orderId });
     }
   }
   const { data: existing } = await supabase.from("shipment").select("id").eq("order_id", orderId).maybeSingle();
@@ -40,4 +49,134 @@ async function onShip(orderId: string) {
     const name = (order.shipping_address as { name?: string } | null)?.name;
     await sendEmail(order.email, `[MTSPACE COFFEE] 주문 ${order.order_no} 출고 안내`, shipNotificationHtml(order.order_no, name));
   }
+}
+
+// ── 주문 취소/부분취소 (이니시스 카드) ──
+// mode=full: 잔여 전액 취소 / mode=partial: 선택 품목·수량 취소.
+// 흐름: 검증 → 금액산출 → 이니시스 취소 API → refund 기록 → order_item.cancelled_qty →
+//       (출고된 건만) 재고 복원 → payment/orders 상태 전이. 이니시스 실패 시 DB 무변경.
+export interface CancelItemInput { order_item_id: string; qty: number }
+export async function cancelOrderAction(input: {
+  order_id: string;
+  mode: "full" | "partial";
+  items?: CancelItemInput[];
+  reason?: string;
+}): Promise<{ ok: boolean; message: string }> {
+  const session = createClient();
+  const { data: { user } } = await session.auth.getUser();
+  if (!user) return { ok: false, message: "관리자 인증이 필요합니다." };
+  const db = adminDb();
+
+  const { data: order } = await db.from("orders")
+    .select("id,order_no,status,grand_total,currency")
+    .eq("id", input.order_id).maybeSingle();
+  if (!order) return { ok: false, message: "주문을 찾을 수 없습니다." };
+
+  const { data: pay } = await db.from("payment")
+    .select("id,provider,pg_tid,amount,status")
+    .eq("order_id", input.order_id).maybeSingle();
+  if (!pay) return { ok: false, message: "결제 정보가 없습니다." };
+  if (pay.provider !== "inicis") return { ok: false, message: "현재 이니시스 카드결제 취소만 지원합니다." };
+  if (!pay.pg_tid) return { ok: false, message: "결제 TID가 없어 취소할 수 없습니다." };
+  if (!["paid", "partial_cancelled"].includes(pay.status)) {
+    return { ok: false, message: `취소 가능한 결제 상태가 아닙니다 (${pay.status}).` };
+  }
+
+  const cancellable = ["paid", "preparing", "shipped", "in_transit", "delivered", "partial_refunded"];
+  if (!cancellable.includes(order.status)) {
+    return { ok: false, message: `취소 가능한 주문 상태가 아닙니다 (${order.status}).` };
+  }
+
+  // 이미 취소된 금액 → 잔여 취소가능액
+  const { data: refunds } = await db.from("refund").select("amount,status").eq("payment_id", pay.id);
+  const alreadyCancelled = (refunds ?? [])
+    .filter((r) => r.status === "success")
+    .reduce((s, r) => s + (r.amount || 0), 0);
+  const remaining = pay.amount - alreadyCancelled;
+  if (remaining <= 0) return { ok: false, message: "이미 전액 취소된 주문입니다." };
+
+  // 품목 로드
+  const { data: items } = await db.from("order_item")
+    .select("id,variant_id,qty,cancelled_qty,unit_price,title_snapshot")
+    .eq("order_id", input.order_id);
+  const itemMap = new Map((items ?? []).map((i) => [i.id, i]));
+
+  // 취소 대상 산출
+  type Line = { item: NonNullable<ReturnType<typeof itemMap.get>>; qty: number; amount: number };
+  const cancelItems: Line[] = [];
+  if (input.mode === "full") {
+    // 전체취소: 남은 모든 품목 수량을 재고복원 대상으로(금액은 잔여 전액=배송비 포함)
+    for (const it of items ?? []) {
+      const avail = it.qty - (it.cancelled_qty ?? 0);
+      if (avail > 0) cancelItems.push({ item: it, qty: avail, amount: it.unit_price * avail });
+    }
+  } else {
+    for (const sel of input.items ?? []) {
+      const it = itemMap.get(sel.order_item_id);
+      if (!it) return { ok: false, message: "선택한 품목을 찾을 수 없습니다." };
+      const avail = it.qty - (it.cancelled_qty ?? 0);
+      const q = Math.floor(Number(sel.qty) || 0);
+      if (q <= 0) continue;
+      if (q > avail) return { ok: false, message: `${it.title_snapshot}: 취소 수량 초과 (취소가능 ${avail}).` };
+      cancelItems.push({ item: it, qty: q, amount: it.unit_price * q });
+    }
+    if (cancelItems.length === 0) return { ok: false, message: "취소할 품목·수량을 선택하세요." };
+  }
+
+  // 금액: 전체취소=잔여 전액(배송비·할인 반영), 부분취소=선택 품목가 합.
+  const itemsAmount = cancelItems.reduce((s, c) => s + c.amount, 0);
+  const requested = input.mode === "full" ? remaining : itemsAmount;
+  if (requested <= 0 || requested > remaining) {
+    return { ok: false, message: `취소 금액(${requested.toLocaleString()}원)이 잔여 취소가능액(${remaining.toLocaleString()}원)을 초과합니다.` };
+  }
+
+  const reason = (input.reason || "관리자 취소").slice(0, 80);
+  const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim();
+
+  // 전체취소 API는 "최초 취소 & 전액"일 때만. 그 외(부분/추가취소)는 부분취소 API.
+  const useFullApi = alreadyCancelled === 0 && requested === pay.amount;
+  const cancelRes = await inicisCancel({
+    tid: pay.pg_tid,
+    reason,
+    clientIp: ip,
+    partial: useFullApi ? undefined : { price: requested, confirmPrice: remaining - requested },
+  });
+  if (!cancelRes.ok) return { ok: false, message: `이니시스 취소 실패: ${cancelRes.message}` };
+
+  // ── 이니시스 성공 후 DB 반영 ──
+  await db.from("refund").insert({
+    payment_id: pay.id, amount: requested, reason,
+    pg_cancel_id: cancelRes.cancelId ?? null, status: "success", created_by: user.id,
+  });
+
+  for (const c of cancelItems) {
+    await db.from("order_item")
+      .update({ cancelled_qty: (c.item.cancelled_qty ?? 0) + c.qty })
+      .eq("id", c.item.id);
+  }
+
+  // 재고 복원: 출고(shipment 존재)된 주문만 — 미출고 건은 애초에 차감된 적 없음
+  const { data: shp } = await db.from("shipment").select("id").eq("order_id", input.order_id).maybeSingle();
+  if (shp) {
+    for (const c of cancelItems) {
+      if (c.item.variant_id) {
+        await db.from("inventory_ledger").insert({
+          variant_id: c.item.variant_id, delta: c.qty, reason: "cancel", ref_id: order.order_no,
+        });
+      }
+    }
+  }
+
+  // 상태 전이
+  const newCancelled = alreadyCancelled + requested;
+  const full = newCancelled >= pay.amount;
+  await db.from("payment").update({ status: full ? "cancelled" : "partial_cancelled" }).eq("id", pay.id);
+  await db.from("orders").update({ status: full ? "cancelled" : "partial_refunded" }).eq("id", input.order_id);
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${input.order_id}`);
+  return {
+    ok: true,
+    message: full ? "전체 취소 완료" : `부분 취소 완료 (${requested.toLocaleString()}원 · 잔여 ${(remaining - requested).toLocaleString()}원)`,
+  };
 }

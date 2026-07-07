@@ -19,3 +19,6 @@ npm-debug.log*
 # proprietary font used only for local logo rendering — never deploy
 /public/HelveticaNeue.ttc
 *.ttc
+
+# INICIS INIAPI 인증서(취소/조회용) — 절대 커밋 금지
+/secrets/

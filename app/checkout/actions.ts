@@ -56,6 +56,13 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const db = guest ? createAdminClient() : supabase;
   const profileId = user?.id ?? null;
 
+  // 도매(사업자 전용) variant 구매 권한 — 사업자/관리자만. (D-055)
+  let isBusinessBuyer = false;
+  if (profileId) {
+    const { data: prof } = await db.from("profiles").select("role").eq("id", profileId).maybeSingle();
+    isBusinessBuyer = prof?.role === "business" || prof?.role === "admin";
+  }
+
   // 가격 서버 재계산 (resolve_price: 개별가→등급가→정가) + 무게 합산
   let subtotal = 0;
   let totalWeight = 0;
@@ -63,10 +70,13 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   for (const it of payload.items) {
     const { data: v } = await db
       .from("product_variant")
-      .select("id,sku,weight_g,option_values,product(title_ko)")
+      .select("id,sku,weight_g,option_values,is_b2b_only,product(title_ko)")
       .eq("id", it.variantId)
       .maybeSingle();
     if (!v) return { ok: false, message: "상품을 찾을 수 없습니다." };
+    if ((v as any).is_b2b_only && !isBusinessBuyer) {
+      return { ok: false, message: "사업자 전용 상품이 포함되어 있습니다. 사업자 계정으로 로그인 후 구매해 주세요." };
+    }
     const { data: rp } = await db.rpc("resolve_price", { p_variant_id: it.variantId, p_profile_id: profileId });
     const row = Array.isArray(rp) ? rp[0] : rp;
     const unit = row?.price ?? 0;

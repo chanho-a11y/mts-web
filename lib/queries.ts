@@ -11,6 +11,7 @@ export interface VariantLite {
   option_values: Record<string, unknown>;
   position: number;
   is_active: boolean;
+  is_b2b_only: boolean;
 }
 export interface ProductCardData {
   slug: string;
@@ -31,9 +32,12 @@ export interface ProductCardData {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function shape(row: any): ProductCardData {
-  const variants = (row.product_variant ?? []).filter((v: any) => v.is_active);
-  const minPrice = variants.length
-    ? Math.min(...variants.map((v: any) => v.base_price))
+  const activeVariants = (row.product_variant ?? []).filter((v: any) => v.is_active);
+  // 카드 최저가: 소비자(비-도매) variant 우선, 없으면(도매전용 제품) 전체 기준.
+  const consumerVariants = activeVariants.filter((v: any) => !v.is_b2b_only);
+  const priced = consumerVariants.length ? consumerVariants : activeVariants;
+  const minPrice = priced.length
+    ? Math.min(...priced.map((v: any) => v.base_price))
     : 0;
   const imgs = (row.product_image ?? []).slice().sort(
     (a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0) || a.position - b.position,
@@ -60,7 +64,7 @@ function shape(row: any): ProductCardData {
 }
 
 const SELECT = `slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,created_at,
-  product_variant(sku,base_price,weight_g,grind,option_values,position,is_active),
+  product_variant(sku,base_price,weight_g,grind,option_values,position,is_active,is_b2b_only),
   product_image(storage_path,alt,is_primary,position),
   product_categories(category(slug,name_ko,name_en,position)),
   product_storefronts!inner(storefront_id,is_visible)`;
@@ -114,7 +118,7 @@ export const getProductBySlug = cache(async function getProductBySlug(slug: stri
     .from("product")
     .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,roast_level,roast_level_en,flavor_notes,flavor_notes_en,key_color,product_type,is_b2b_only,created_at,
       body_html,origin,producer,producer_en,variety,variety_en,altitude,altitude_en,process,process_en,story,story_en,brew_recipe,recipe,recipe_en,weight_g,label_point,
-      product_variant(id,sku,base_price,weight_g,grind,option_values,position,is_active),
+      product_variant(id,sku,base_price,weight_g,grind,option_values,position,is_active,is_b2b_only),
       product_image(storage_path,alt,is_primary,position),
       product_categories(category(slug,name_ko,name_en,position))`)
     .eq("slug", slug)

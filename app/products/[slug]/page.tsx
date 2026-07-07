@@ -118,6 +118,20 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const related = await getRelatedProducts(storefrontId, p.slug, isBlend);
 
   const supabase = createClient();
+  // 뷰어 역할 — 도매(사업자 전용) variant 노출/구매 게이팅용. (D-055)
+  let viewerRole: string | null = null;
+  {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      viewerRole = prof?.role ?? "individual";
+    }
+  }
+  const isBusiness = viewerRole === "business" || viewerRole === "admin";
+  // 소비자에겐 도매 variant 숨김. 도매전용 제품을 비사업자가 열면 구매 옵션 없음.
+  const visibleVariants = p.variants.filter((v) => isBusiness || !v.is_b2b_only);
+  const visibleMinPrice = visibleVariants.length ? Math.min(...visibleVariants.map((v) => v.base_price)) : 0;
+
   const { data: reviews } = await supabase
     .from("review").select("rating,title,body,author_name,created_at")
     .eq("product_id", p.id).eq("status", "published").order("created_at", { ascending: false });
@@ -233,13 +247,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <div className="kicker">{typeLine}</div>
             <h1>{title}</h1>
             <div className="en">{en}{weightTxt ? ` · ${weightTxt}` : ""}</div>
-            <div className="price">{p.minPrice > 0 ? formatKRW(p.minPrice) : "-"} <span className="cur">KRW</span></div>
+            <div className="price">{visibleMinPrice > 0 ? formatKRW(visibleMinPrice) : "-"} <span className="cur">KRW</span></div>
             {!p.is_b2b_only && <div className="tax">{locale === "en" ? "Tax included · shipping calculated at checkout" : "세금 포함 · 배송비 결제 시 계산"}</div>}
             <div style={{ marginTop: 12 }}>
-              <AddToCart
-                slug={p.slug} title={title} image={p.image} label={tt.addToCart} locale={locale}
-                variants={p.variants.map((v) => ({ id: v.id, base_price: v.base_price, option: (v.option_values as { option?: string })?.option ?? null }))}
-              />
+              {visibleVariants.length > 0 ? (
+                <AddToCart
+                  slug={p.slug} title={title} image={p.image} label={tt.addToCart} locale={locale}
+                  variants={visibleVariants.map((v) => ({ id: v.id, base_price: v.base_price, option: (v.option_values as { option?: string })?.option ?? null }))}
+                />
+              ) : (
+                <div className="tax">{locale === "en" ? "Wholesale (business) accounts only. Please sign in with a business account." : "사업자 전용 상품입니다. 사업자 계정으로 로그인해 주세요."}</div>
+              )}
             </div>
             <div className="chips">
               {p.roast_level && <span className="chip">{p.roast_level}</span>}

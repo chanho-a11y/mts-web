@@ -23,6 +23,15 @@ const nextConfig = {
       // Coffeelog 블로그 handle 변경 (현행: coffeelog-커피로그 → 신규: coffeelog)
       { source: '/blogs/coffeelog-커피로그', destination: '/blogs/coffeelog', permanent: true },
       { source: '/blogs/coffeelog-커피로그/:slug*', destination: '/blogs/coffeelog/:slug*', permanent: true },
+      // 소비자/도매 variant 통합(D-055) — 폐 도매 제품 slug → 대표 제품으로 301.
+      { source: '/products/spotlight-1kg', destination: '/products/spotlight-125', permanent: true },
+      { source: '/products/aha-1kg', destination: '/products/aha-125', permanent: true },
+      { source: '/products/allrounder-1kg', destination: '/products/allrounder-125', permanent: true },
+      { source: '/products/ezpz-1kg', destination: '/products/ezpz-125', permanent: true },
+      { source: '/products/damn-good-1kg-wholesale', destination: '/products/damn-good-125g', permanent: true },
+      { source: '/products/yirga-decaf-1kg', destination: '/products/yirga-decaf-125', permanent: true },
+      { source: '/products/classic-200', destination: '/products/classic-1kg', permanent: true },
+      { source: '/products/house-200', destination: '/products/house-1kg', permanent: true },
     ];
   },
 };

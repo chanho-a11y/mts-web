@@ -56,18 +56,15 @@ const LABEL_TO_KEY: Record<string, string> = Object.fromEntries(
   COLUMNS.flatMap((c) => [[c.key.toLowerCase(), c.key], [c.label.toLowerCase(), c.key]]),
 );
 
-const SHEETJS_SRC = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/package/dist/xlsx.full.min.js";
-
-function loadSheetJS(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const w = window as any;
-    if (w.XLSX) return resolve(w.XLSX);
-    const s = document.createElement("script");
-    s.src = SHEETJS_SRC;
-    s.onload = () => resolve((window as any).XLSX);
-    s.onerror = () => reject(new Error("엑셀 라이브러리 로드 실패"));
-    document.head.appendChild(s);
-  });
+// 로컬 번들. 동적 import라 별도 청크로 분리되어 이 페이지를 열 때만 로드됨(메인 번들 영향 없음).
+// CDN 의존 제거 → 오프라인·CDN 장애·CSP 강화와 무관하게 항상 동작.
+async function loadSheetJS(): Promise<any> {
+  try {
+    const mod: any = await import("xlsx");
+    return mod.default ?? mod;
+  } catch {
+    throw new Error("엑셀 라이브러리 로드 실패");
+  }
 }
 
 type Row = Record<string, string>;

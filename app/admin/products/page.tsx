@@ -6,16 +6,7 @@ import BulkProductBar from "@/components/bulk-product-bar";
 
 export const dynamic = "force-dynamic";
 
-// 노출 제품명 정리: [블렌드] 등 대괄호, (사업자전용), 사업자 전용, wholesale, 용량(1kg/200g/125g) 제거
-function cleanTitle(s: string): string {
-  return (s || "")
-    .replace(/\[[^\]]*\]/g, "")
-    .replace(/\([^)]*사업자[^)]*\)/g, "")
-    .replace(/사업자\s*전용/g, "")
-    .replace(/wholesale/gi, "")
-    .replace(/\b\d+\s*(kg|g)\b/gi, "")
-    .replace(/\s{2,}/g, " ").trim();
-}
+// 제품명 표기: title_ko 정규화(제품명+용량) 완료(D-059) → 원본 그대로 노출(스튜디오 드롭다운과 일치).
 
 export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string; sort?: string; bulk?: string; ok?: string; fail?: string; failmsg?: string } }) {
   const showArchived = searchParams.show === "archived";
@@ -77,7 +68,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             <tr key={p.slug} className="border-b align-top">
               <td className="py-3"><input type="checkbox" className="bulk-prod mt-1" value={p.slug} /></td>
               <td className="py-3"><span className={`rounded-full px-2 py-0.5 text-xs ${p.is_b2b_only ? "bg-amber-100 text-amber-800" : "bg-neutral-100 text-neutral-600"}`}>{p.is_b2b_only ? "도매" : "소비자"}</span></td>
-              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{cleanTitle(p.title_ko)}</Link></td>
+              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{p.title_ko}</Link></td>
               <td className="text-xs text-neutral-600">{p.weight_g ? `${p.weight_g}g` : "-"}</td>
               <td>{p.product_type}</td>
               <td className="text-xs">{(p.product_variant ?? []).map((v: any) => `${v.sku} · ₩${v.base_price.toLocaleString()}`).join("  /  ")}</td>

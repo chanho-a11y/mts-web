@@ -8,10 +8,11 @@ interface PanelItem { id: string; title: string; unit_price: number; qty: number
 
 function money(a: number, cur: string) { return cur === "USD" ? `$${a}` : formatKRW(a); }
 
-export default function OrderCancelPanel({ orderId, items, remaining, currency }: {
-  orderId: string; items: PanelItem[]; remaining: number; currency: string;
+export default function OrderCancelPanel({ orderId, items, remaining, currency, provider }: {
+  orderId: string; items: PanelItem[]; remaining: number; currency: string; provider: string;
 }) {
   const router = useRouter();
+  const isPaypal = provider === "paypal";
   const [qty, setQty] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,8 +45,13 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-neutral-500">부분취소는 품목별 수량을 선택하면 금액이 자동 계산됩니다. 취소 성공 시 이니시스 승인취소 → 취소이력 기록 → (출고된 건) 재고 자동복원.</p>
+      <p className="text-xs text-neutral-500">
+        {isPaypal
+          ? "페이팔 주문은 전체 환불만 지원합니다. 환불 성공 시 취소이력 기록 → (출고된 건) 재고 자동복원."
+          : "부분취소는 품목별 수량을 선택하면 금액이 자동 계산됩니다. 취소 성공 시 이니시스 승인취소 → 취소이력 기록 → (출고된 건) 재고 자동복원."}
+      </p>
 
+      {!isPaypal && (
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-400">
           <th className="py-1">품목</th><th>단가</th><th>취소가능</th><th>취소수량</th><th className="text-right">취소액</th>
@@ -74,6 +80,7 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency }
           })}
         </tbody>
       </table>
+      )}
 
       <label className="block text-sm">취소 사유
         <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={80} placeholder="예: 고객 요청, 재고 부족"
@@ -81,13 +88,15 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency }
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled={busy || !anySelected} onClick={() => run("partial")}
-          className="rounded-full border px-4 py-2 text-sm disabled:opacity-40">
-          부분 취소{anySelected ? ` (${money(selectedAmount, currency)})` : ""}
-        </button>
+        {!isPaypal && (
+          <button type="button" disabled={busy || !anySelected} onClick={() => run("partial")}
+            className="rounded-full border px-4 py-2 text-sm disabled:opacity-40">
+            부분 취소{anySelected ? ` (${money(selectedAmount, currency)})` : ""}
+          </button>
+        )}
         <button type="button" disabled={busy} onClick={() => run("full")}
           className="rounded-full bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-40">
-          전체 취소 ({money(remaining, currency)})
+          {isPaypal ? "전체 환불" : "전체 취소"} ({money(remaining, currency)})
         </button>
         {busy && <span className="text-sm text-neutral-400">처리 중…</span>}
       </div>

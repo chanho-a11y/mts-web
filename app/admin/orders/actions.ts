@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { sendEmail, shipNotificationHtml } from "@/lib/email";
-import { inicisCancel } from "@/lib/payments-refund";
+import { inicisCancel, paypalRefund } from "@/lib/payments-refund";
 
 // 취소/환불 등 관리자 쓰기는 RLS 우회(service-role) 우선, 없으면 세션 클라이언트
 function adminDb() {
@@ -73,11 +73,18 @@ export async function cancelOrderAction(input: {
   if (!order) return { ok: false, message: "주문을 찾을 수 없습니다." };
 
   const { data: pay } = await db.from("payment")
-    .select("id,provider,pg_tid,amount,status")
+    .select("id,provider,pg_tid,capture_id,amount,status")
     .eq("order_id", input.order_id).maybeSingle();
   if (!pay) return { ok: false, message: "결제 정보가 없습니다." };
-  if (pay.provider !== "inicis") return { ok: false, message: "현재 이니시스 카드결제 취소만 지원합니다." };
-  if (!pay.pg_tid) return { ok: false, message: "결제 TID가 없어 취소할 수 없습니다." };
+  if (pay.provider !== "inicis" && pay.provider !== "paypal") {
+    return { ok: false, message: "이니시스·페이팔 결제만 취소를 지원합니다." };
+  }
+  if (pay.provider === "inicis" && !pay.pg_tid) return { ok: false, message: "결제 TID가 없어 취소할 수 없습니다." };
+  if (pay.provider === "paypal" && !pay.capture_id) return { ok: false, message: "페이팔 capture_id가 없어 환불할 수 없습니다." };
+  // 페이팔은 결제통화(USD)와 품목가(KRW) 불일치로 전체환불만 지원(부분취소는 이니시스 전용)
+  if (pay.provider === "paypal" && input.mode === "partial") {
+    return { ok: false, message: "페이팔 주문은 전체 환불만 지원합니다. (부분취소는 이니시스 카드 전용)" };
+  }
   if (!["paid", "partial_cancelled"].includes(pay.status)) {
     return { ok: false, message: `취소 가능한 결제 상태가 아닙니다 (${pay.status}).` };
   }
@@ -133,20 +140,29 @@ export async function cancelOrderAction(input: {
   const reason = (input.reason || "관리자 취소").slice(0, 80);
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim();
 
-  // 전체취소 API는 "최초 취소 & 전액"일 때만. 그 외(부분/추가취소)는 부분취소 API.
-  const useFullApi = alreadyCancelled === 0 && requested === pay.amount;
-  const cancelRes = await inicisCancel({
-    tid: pay.pg_tid,
-    reason,
-    clientIp: ip,
-    partial: useFullApi ? undefined : { price: requested, confirmPrice: remaining - requested },
-  });
-  if (!cancelRes.ok) return { ok: false, message: `이니시스 취소 실패: ${cancelRes.message}` };
+  // PG 취소 호출 — 이니시스(전체·부분) / 페이팔(전체환불 USD)
+  let pgCancelId: string | null = null;
+  if (pay.provider === "paypal") {
+    const r = await paypalRefund({ captureId: pay.capture_id!, amount: requested, currency: order.currency || "USD" });
+    if (!r.ok) return { ok: false, message: `페이팔 환불 실패: ${r.message}` };
+    pgCancelId = r.refundId ?? null;
+  } else {
+    // 전체취소 API는 "최초 취소 & 전액"일 때만. 그 외(부분/추가취소)는 부분취소 API.
+    const useFullApi = alreadyCancelled === 0 && requested === pay.amount;
+    const r = await inicisCancel({
+      tid: pay.pg_tid!,
+      reason,
+      clientIp: ip,
+      partial: useFullApi ? undefined : { price: requested, confirmPrice: remaining - requested },
+    });
+    if (!r.ok) return { ok: false, message: `이니시스 취소 실패: ${r.message}` };
+    pgCancelId = r.cancelId ?? null;
+  }
 
-  // ── 이니시스 성공 후 DB 반영 ──
+  // ── PG 성공 후 DB 반영 ──
   await db.from("refund").insert({
     payment_id: pay.id, amount: requested, reason,
-    pg_cancel_id: cancelRes.cancelId ?? null, status: "success", created_by: user.id,
+    pg_cancel_id: pgCancelId, status: "success", created_by: user.id,
   });
 
   for (const c of cancelItems) {

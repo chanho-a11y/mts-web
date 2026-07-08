@@ -44,6 +44,18 @@ export async function saveTaxAction(formData: FormData) {
   revalidatePath("/admin/store");
 }
 
+// 국내 무료배송 기준금액 설정 (site_setting free_ship_threshold_krw, 0/빈칸=무료 없음)
+export async function saveFreeShipAction(formData: FormData) {
+  const raw = String(formData.get("free_ship_threshold_krw") || "").replace(/[^0-9]/g, "");
+  const value = raw ? String(parseInt(raw, 10)) : "0";
+  const supabase = createClient();
+  const { data: brands } = await supabase.from("brand").select("id");
+  for (const b of brands ?? []) {
+    await supabase.from("site_setting").upsert({ brand_id: b.id, key: "free_ship_threshold_krw", value }, { onConflict: "brand_id,key" });
+  }
+  revalidatePath("/admin/store");
+}
+
 // 관리자/역할 지정 (이메일로 사용자 찾아 role 변경) — 관리자만 가능(레이아웃에서 보호)
 export async function setUserRoleAction(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();

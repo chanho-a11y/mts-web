@@ -29,7 +29,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
   const [{ data: items }, { data: pay }, { data: shp }] = await Promise.all([
     supabase.from("order_item").select("id,title_snapshot,option_snapshot,sku,unit_price,qty,cancelled_qty,line_total").eq("order_id", order.id).order("id"),
-    supabase.from("payment").select("id,provider,status,amount,pg_tid,approved_at").eq("order_id", order.id).maybeSingle(),
+    supabase.from("payment").select("id,provider,status,amount,pg_tid,capture_id,approved_at").eq("order_id", order.id).maybeSingle(),
     supabase.from("shipment").select("id").eq("order_id", order.id).maybeSingle(),
   ]);
 
@@ -44,9 +44,11 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   const remaining = paidAmount - alreadyCancelled;
   const shipAddr = order.shipping_address as { recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string } | null;
 
+  const providerCancelable =
+    (pay?.provider === "inicis" && !!pay?.pg_tid) ||
+    (pay?.provider === "paypal" && !!pay?.capture_id);
   const canCancel =
-    pay?.provider === "inicis" &&
-    !!pay?.pg_tid &&
+    providerCancelable &&
     ["paid", "partial_cancelled"].includes(pay?.status ?? "") &&
     remaining > 0;
 
@@ -132,11 +134,11 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
       <section className="rounded-card border border-line p-4">
         <h2 className="mb-3 font-bold">취소 / 부분취소</h2>
         {canCancel ? (
-          <OrderCancelPanel orderId={order.id} items={panelItems} remaining={remaining} currency={cur} />
+          <OrderCancelPanel orderId={order.id} items={panelItems} remaining={remaining} currency={cur} provider={pay?.provider ?? ""} />
         ) : (
           <p className="text-sm text-neutral-500">
-            {pay?.provider && pay.provider !== "inicis"
-              ? "이니시스 카드결제 건만 취소를 지원합니다."
+            {pay?.provider && !["inicis", "paypal"].includes(pay.provider)
+              ? "이니시스·페이팔 결제만 취소를 지원합니다."
               : remaining <= 0
                 ? "이미 전액 취소되었습니다."
                 : "현재 상태에서는 취소할 수 없습니다."}

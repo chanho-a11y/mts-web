@@ -12,7 +12,10 @@ export interface CheckoutPayload {
   provider: Provider;
   code?: string;
   email?: string;
-  shipping: { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string };
+  shipping: {
+    recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string;
+    state?: string; city?: string; countryName?: string; // 해외 배송지(주/도·도시·기타국가명)
+  };
 }
 
 // 쿠폰/프로모션 코드 → KRW subtotal 기준 할인액
@@ -90,8 +93,8 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const currency = usd ? "USD" : "KRW";
   const tip = !usd ? Math.max(0, payload.tip || 0) : 0;
 
-  // 배송비 (국내 무게구간 / 해외 EMS) — KRW 기준
-  const ship = await computeShipping(supabase, payload.shipping.country, totalWeight);
+  // 배송비 (국내 무게구간+무료임계 / 해외 EMS) — KRW 기준
+  const ship = await computeShipping(supabase, payload.shipping.country, totalWeight, subtotal);
   const shippingFeeKRW = ship.feeKRW;
 
   // 쿠폰/프로모션 코드 할인

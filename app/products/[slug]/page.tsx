@@ -62,7 +62,14 @@ const CSS = `
 .mtpdp .hero .notes{font-family:Spectral,serif;font-style:italic;font-size:16px;color:rgba(255,255,255,.85);line-height:1.5;max-width:460px}
 .mtpdp .sec{padding:38px 38px 0}
 .mtpdp .sec.first{padding-top:34px}
-.mtpdp h2.head{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--mute);text-transform:uppercase;margin:0 0 16px}
+.mtpdp h2.head,.mtpdp h3.head{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--point-text);text-transform:uppercase;margin:0 0 16px}
+.mtpdp .story{border:1px solid var(--hair2);border-radius:12px;overflow:hidden;margin:0;background:var(--paper)}
+.mtpdp .story>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--point-text)}
+.mtpdp .story>summary::-webkit-details-marker{display:none}
+.mtpdp .story .chev{transition:transform .2s ease;font-size:11px;color:var(--point-text)}
+.mtpdp .story[open] .chev{transform:rotate(180deg)}
+.mtpdp .story .story-b{padding:0 16px 16px}
+.mtpdp .story .story-b p{font-family:'Noto Serif KR',serif;font-weight:300;font-size:14px;line-height:1.95;color:var(--ink-soft);margin:10px 0 0;white-space:pre-line}
 .mtpdp .lead{font-family:'Noto Serif KR',serif;font-weight:300;font-size:15px;line-height:1.95;color:var(--ink);margin:0}
 .mtpdp .flav{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .mtpdp .flav .card{background:var(--tint2);border-top:2px solid var(--point);padding:18px 14px;text-align:center}
@@ -181,6 +188,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
     if (r.filter || r.fil) legacyRecipe.push(["FILTER", r.filter ?? r.fil]);
   }
   const hasRecipe = recipeBlocks.length > 0 || legacyRecipe.length > 0;
+  // 커피 스토리 (KO/EN) — 커피정보와 레시피 사이 접이식
+  const storyTxt = (locale === "en" && p.story_en ? p.story_en : p.story)?.trim() || null;
 
   // FAQ (통합 내용 — 제품별 상이 X, 브랜드 공통 답변 · AIEO)
   //  ① 추출 어울림: 블렌드(에스프레소·아메리카노·라떼) vs 싱글오리진(필터·에스프레소)
@@ -303,7 +312,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
               </div>
             </section>
 
-            {(infoRows.length > 0 || hasRecipe) && (
+            {(infoRows.length > 0 || hasRecipe || storyTxt) && (
               <section className="sec">
                 <h2 className="head">{locale === "en" ? "Coffee Information" : "Coffee Information · 커피 정보"}</h2>
                 {infoRows.length > 0 && (
@@ -313,8 +322,19 @@ export default async function ProductPage({ params }: { params: { slug: string }
                     ))}
                   </div>
                 )}
+                {storyTxt && (
+                  <details className="story" style={{ marginTop: infoRows.length > 0 ? 22 : 0 }}>
+                    <summary>
+                      <span>{locale === "en" ? "Story" : "Story · 스토리"}</span>
+                      <span className="chev" aria-hidden>▾</span>
+                    </summary>
+                    <div className="story-b">
+                      {storyTxt.split(/\n{2,}/).map((para, i) => <p key={i}>{para}</p>)}
+                    </div>
+                  </details>
+                )}
                 {hasRecipe && (
-                  <div style={{ marginTop: infoRows.length > 0 ? 22 : 0 }}>
+                  <div style={{ marginTop: (infoRows.length > 0 || storyTxt) ? 22 : 0 }}>
                     <h3 className="head" style={{ margin: "0 0 12px" }}>{locale === "en" ? "Recipe" : "Recipe · 레시피"}</h3>
                     {recipeBlocks.length > 0 ? (
                       recipeBlocks.map((b) => (

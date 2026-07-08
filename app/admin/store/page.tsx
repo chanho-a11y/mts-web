@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import {
-  saveDomesticRateAction, addDomesticRateAction, saveEmsRateAction, saveTaxAction,
+  saveDomesticRateAction, addDomesticRateAction, saveEmsRateAction, saveTaxAction, saveFreeShipAction,
 } from "@/app/admin/store/actions";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ export default async function AdminStorePage() {
   const { data: ems } = await supabase
     .from("ems_rate").select("id,country_code,weight_g,price").order("country_code").order("weight_g");
   const { data: vat } = await supabase.from("site_setting").select("value").eq("key", "vat_rate").limit(1).maybeSingle();
+  const { data: freeShip } = await supabase.from("site_setting").select("value").eq("key", "free_ship_threshold_krw").limit(1).maybeSingle();
 
   // EMS 국가별 그룹
   const byCountry = new Map<string, { id: string; weight_g: number; price: number }[]>();
@@ -32,6 +33,16 @@ export default async function AdminStorePage() {
         <form action={saveTaxAction} className="flex items-end gap-2 text-sm">
           <label>국내 부가세율(%)<input name="vat_rate" type="number" step="0.1" defaultValue={vat?.value ?? "10"} className={`mt-1 block ${input} w-28`} /></label>
           <span className="text-xs text-neutral-400">해외(USD/페이팔) 결제는 세금 0으로 자동 처리</span>
+          <button className="rounded-full bg-black px-4 py-1.5 text-white">저장</button>
+        </form>
+      </section>
+
+      {/* 무료배송 기준 */}
+      <section className="rounded-xl border p-5">
+        <h2 className="mb-3 font-bold">국내 무료배송 기준</h2>
+        <form action={saveFreeShipAction} className="flex items-end gap-2 text-sm">
+          <label>기준금액(원, 0=무료 없음)<input name="free_ship_threshold_krw" type="number" min="0" step="1000" defaultValue={freeShip?.value ?? "0"} className={`mt-1 block ${input} w-36`} /></label>
+          <span className="text-xs text-neutral-400">상품 소계가 이 금액 이상이면 국내 배송비 무료. 체크아웃에 &quot;○○원 이상 무료배송&quot; 자동 표시. (해외 미적용)</span>
           <button className="rounded-full bg-black px-4 py-1.5 text-white">저장</button>
         </form>
       </section>

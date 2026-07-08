@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction, deleteAddressAction, setDefaultAddressAction } from "@/app/account/actions";
 import AddressBookForm from "@/components/address-book-form";
+import OrderHistory, { type HistoryItem } from "@/components/order-history";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
 
@@ -117,22 +118,18 @@ async function Orders({ userId, locale }: { userId: string; locale: "ko" | "en" 
   const tt = t(locale);
   const supabase = createClient();
   const { data: orders } = await supabase.from("orders")
-    .select("order_no,status,grand_total,currency,placed_at").eq("profile_id", userId)
+    .select("order_no,status,grand_total,currency,placed_at,order_item(title_snapshot,sku,qty,unit_price,line_total)")
+    .eq("profile_id", userId)
     .order("placed_at", { ascending: false }).limit(20);
+  const list = (orders ?? []).map((o) => ({
+    order_no: o.order_no, status: o.status, grand_total: o.grand_total, currency: o.currency, placed_at: o.placed_at,
+    items: ((o as { order_item?: HistoryItem[] }).order_item ?? []),
+  }));
   return (
     <section className="mt-4 rounded-xl border p-5 text-sm">
-      <h2 className="mb-3 font-bold">{tt.purchaseHistory}</h2>
-      {orders && orders.length ? (
-        <ul className="divide-y">
-          {orders.map((o) => (
-            <li key={o.order_no} className="flex justify-between py-2">
-              <span className="font-mono text-xs">{o.order_no}</span>
-              <span>{o.status}</span>
-              <span>{o.currency === "USD" ? `$${o.grand_total}` : "₩" + o.grand_total.toLocaleString()}</span>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="text-neutral-400">{tt.noOrders}</p>}
+      <h2 className="mb-1 font-bold">{tt.purchaseHistory}</h2>
+      <p className="mb-3 text-xs text-neutral-400">{locale === "en" ? "Click an order to see items · Reorder available." : "주문을 클릭하면 구매 제품이 보이고, 재구매할 수 있습니다."}</p>
+      <OrderHistory orders={list} locale={locale} />
     </section>
   );
 }

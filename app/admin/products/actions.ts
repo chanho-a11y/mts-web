@@ -85,7 +85,7 @@ export async function upsertProductAction(formData: FormData) {
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
 
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${slug}`);
+  redirect(`/admin/products/${slug}?saved=1`);
 }
 
 /** 일괄 등록용 1행 저장 — 단건 폼과 동일 규칙으로 product/variant/category/storefront upsert.

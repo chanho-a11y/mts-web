@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getKrwPerUsd } from "./fx";
+
+// 해외 배송 공통 취급수수료 (USD). 최종 해외 배송비 = EMS 요율(원화) + 이 수수료(원화 환산).
+const INTL_SURCHARGE_USD = 20;
 
 // 환율은 lib/fx.ts(getKrwPerUsd)의 실시간 값을 사용한다. 여기서는 KRW만 다룬다.
 
@@ -39,7 +43,8 @@ export async function computeShipping(
       rows[rows.length - 1];
     return { feeKRW: tier?.fee ?? 0, label: tier?.label ?? "기본 배송", hasRate: true, freeThresholdKRW: threshold || undefined, freeApplies: false };
   }
-  // international → EMS premium: smallest bracket >= weight for that country
+  // international → EMS: smallest bracket >= weight for that country. + USD 20 취급수수료(원화 환산)
+  const surchargeKRW = Math.round(INTL_SURCHARGE_USD * (await getKrwPerUsd()));
   const { data } = await supabase
     .from("ems_rate")
     .select("price,weight_g")
@@ -48,13 +53,13 @@ export async function computeShipping(
     .order("weight_g", { ascending: true })
     .limit(1);
   const row = data?.[0];
-  if (row) return { feeKRW: row.price, label: `EMS ${country} (~${row.weight_g}g)`, hasRate: true };
+  if (row) return { feeKRW: row.price + surchargeKRW, label: `EMS ${country} (~${row.weight_g}g) +$${INTL_SURCHARGE_USD}`, hasRate: true };
 
   // fallback: heaviest bracket이라도 있으면 사용
   const { data: max } = await supabase
     .from("ems_rate").select("price,weight_g").eq("country_code", country)
     .order("weight_g", { ascending: false }).limit(1);
-  if (max?.[0]) return { feeKRW: max[0].price, label: `EMS ${country}`, hasRate: true };
+  if (max?.[0]) return { feeKRW: max[0].price + surchargeKRW, label: `EMS ${country} +$${INTL_SURCHARGE_USD}`, hasRate: true };
 
   // 요율 미등록 국가(예: OTHER, 요율표 없는 국가) → 결제 후 별도 안내
   return { feeKRW: 0, label: "해외배송비 별도 안내", hasRate: false };

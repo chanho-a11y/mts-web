@@ -42,9 +42,10 @@ export async function GET(req: Request) {
     const delayH = rule?.delay_hours ?? 12;
     const lo = new Date(now - 24 * 3600 * 1000).toISOString();
     const hi = new Date(now - delayH * 3600 * 1000).toISOString();
-    const { data: prods } = await db.from("product")
+    // 활성(is_active) 규칙이 있을 때만 발송
+    const { data: prods } = rule ? await db.from("product")
       .select("id,slug,title_ko,one_liner,published_at,status")
-      .eq("status", "active").gte("published_at", lo).lte("published_at", hi);
+      .eq("status", "active").gte("published_at", lo).lte("published_at", hi) : { data: [] as { id: string; slug: string; title_ko: string; one_liner: string | null; published_at: string; status: string }[] };
     for (const p of prods ?? []) {
       if (await already("new_product", p.id)) continue;
       // 수신: 마케팅 동의 회원
@@ -70,17 +71,23 @@ export async function GET(req: Request) {
     const rule = ruleFor("abandoned_cart");
     const delayH = rule?.delay_hours ?? 5;
     const hi = new Date(now - delayH * 3600 * 1000).toISOString();
-    const { data: orders } = await db.from("orders")
-      .select("id,order_no,email,placed_at,status").eq("status", "created").lte("placed_at", hi).limit(300);
+    // 활성(is_active) 규칙이 있을 때만 발송
+    const { data: orders } = rule ? await db.from("orders")
+      .select("id,order_no,email,placed_at,status,profile_id").eq("status", "created").lte("placed_at", hi).limit(300)
+      : { data: [] as { id: string; order_no: string; email: string | null; placed_at: string; status: string; profile_id: string | null }[] };
     for (const o of orders ?? []) {
       if (!o.email) continue;
       if (await already("abandoned_cart", o.id)) continue;
+      // 마케팅 수신 동의(marketing_opt_in) 회원에게만 — 비회원·미동의 제외
+      if (!o.profile_id) continue;
+      const { data: prof } = await db.from("profiles").select("marketing_opt_in").eq("id", o.profile_id).maybeSingle();
+      if (!prof?.marketing_opt_in) continue;
       const html = emailLayout("결제를 완료해 주세요",
         `<p>주문(<b>${o.order_no}</b>) 결제가 아직 완료되지 않았습니다. 장바구니가 사라지기 전에 마저 결제해 주세요.</p>
          <p style="margin-top:14px"><a href="https://mtspace.coffee/cart" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">결제 계속하기</a></p>`);
       const r = await sendEmail(o.email, `[MTSPACE] 결제를 완료해 주세요 (${o.order_no})`, html);
       if (r.reason === "no_provider") { result.skipped_provider++; continue; }
-      await logSend("abandoned_payment", o.id, o.email, r.sent);
+      await logSend("abandoned_cart", o.id, o.email, r.sent);
       if (r.sent) result.abandoned++;
     }
   }

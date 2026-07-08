@@ -6,6 +6,7 @@ import { EVIDENCE_FIELDS, srcTag, findUnsourcedStats, type EvidenceData } from "
 import { shrinkImage, readUploadJson } from "@/lib/client-image";
 import RichEditor from "@/components/rich-editor";
 import ImageUpload from "@/components/image-upload";
+import { adminToast } from "@/components/admin-toast";
 
 // 통합 스튜디오: 제품 관리에서 입력한 정보를 '불러와' 상세·블로그·카드뉴스·레이블·썸네일을 작업.
 // 스튜디오에서는 제품 정보를 입력하지 않는다(읽기전용). 텍스트 디테일(블로그 본문 등)만 편집.
@@ -195,6 +196,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
       });
       const j = await r.json().catch(() => ({}));
       setThumbStatus(r.ok ? "제품 대표 썸네일로 적용됨 ✓ (스튜디오 저장분 1개만 유지)" : `실패: ${j.error ?? r.status}`);
+      if (r.ok) adminToast("저장되었습니다");
     } catch { setThumbStatus("실패"); }
     finally { setThumbBusy(false); }
   }
@@ -223,6 +225,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "저장 실패");
       setImgMsg("추가 이미지 등록됨 ✓ (상세페이지 갤러리 반영)");
+      adminToast("저장되었습니다");
       await loadExtraImages(f.slug);
     } catch (e) { setImgMsg(e instanceof Error ? e.message : "실패"); }
     finally { setImgBusy(false); }
@@ -442,6 +445,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
       setBlogStatus(res.ok
         ? (status === "published" ? `게시됨 ✓ 홈 블로그 노출 (슬러그 ${j.slug})` : "보관됨 ✓ 블로그 관리에서 수정 가능")
         : `실패: ${j.error ?? res.status}`);
+      if (res.ok) adminToast(status === "published" ? "게시되었습니다" : "저장되었습니다");
     } catch { setBlogStatus("실패"); }
   }
 

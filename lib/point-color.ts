@@ -26,6 +26,13 @@ export const EXPANDED_PALETTE: FlavorSwatch[] = [
   { flavor: "raisin",     ko: "건포도",   light: "#AC8B79", medium: "#7E5F51", dark: "#533A30" },
   { flavor: "jasmine",    ko: "자스민",   light: "#DED6AE", medium: "#C3B487", dark: "#877A57" },
   { flavor: "apple",      ko: "사과",     light: "#ABC78D", medium: "#7FA35F", dark: "#52713A" },
+  // 로스트·단맛 계열(카라멜·초콜릿·설탕·허니) — 브랜드 clay/oat/ink 톤. light→medium→dark
+  { flavor: "caramel",    ko: "카라멜",   light: "#D8A96B", medium: "#BC8743", dark: "#8A5D26" },
+  { flavor: "chocolate",  ko: "초콜릿",   light: "#A87C52", medium: "#7E5636", dark: "#503620" },
+  { flavor: "honey",      ko: "허니",     light: "#E6C572", medium: "#D0A63F", dark: "#997120" },
+  { flavor: "white_sugar",ko: "설탕 · 화이트", light: "#ECE3CE", medium: "#D3C49B", dark: "#A08B5F" },
+  { flavor: "brown_sugar",ko: "설탕 · 황설탕", light: "#DBB57E", medium: "#BE9453", dark: "#8B662F" },
+  { flavor: "dark_sugar", ko: "설탕 · 흑설탕", light: "#B69874", medium: "#8B6844", dark: "#573A22" },
 ];
 const ROAST_KO: Record<"light" | "medium" | "dark", string> = { light: "Light", medium: "Medium", dark: "Dark" };
 

@@ -56,16 +56,34 @@ export async function signUpAction(formData: FormData) {
   }
 
   const supabase = createClient();
-  const { data: signUpData, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: meta },
-  });
-  if (error) redirect(`/account/signup?error=${encodeURIComponent(error.message)}`);
+
+  // 가입 즉시 이용(쇼핑) 가능해야 하므로 이메일 확인을 자동 처리한다.
+  // service-role 이 있으면 admin.createUser(email_confirm:true)로 '확인 완료' 상태로 생성 →
+  // 인증 메일 없이 바로 로그인/쇼핑 가능. (일반 회원은 승인 불필요, 사업자 승인 게이트는 checkout 에서 별도 처리)
+  // fallback: service-role 미설정 시 일반 signUp (이 경우 Supabase 대시보드 '이메일 확인' 설정을 따른다).
+  let newUserId: string | null | undefined = null;
+  if (hasServiceRole) {
+    const admin = createAdminClient();
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: meta,
+    });
+    if (error) redirect(`/account/signup?error=${encodeURIComponent(error.message)}`);
+    newUserId = created?.user?.id;
+  } else {
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: meta },
+    });
+    if (error) redirect(`/account/signup?error=${encodeURIComponent(error.message)}`);
+    newUserId = signUpData?.user?.id;
+  }
 
   // 사업자등록증 업로드(service-role 로 RLS 우회) 후 business_accounts 에 경로 저장.
   // handle_new_user 트리거가 business_accounts 행을 이미 생성하므로 UPDATE 로 경로만 채운다.
-  const newUserId = signUpData?.user?.id;
   if (role === "business" && hasBizFile && newUserId && hasServiceRole) {
     try {
       const file = bizFile as File;
@@ -84,7 +102,7 @@ export async function signUpAction(formData: FormData) {
     }
   }
 
-  // try immediate sign-in (works if email confirmation disabled)
+  // 즉시 로그인 — 위에서 이메일 확인을 완료했으므로 성공한다.
   await supabase.auth.signInWithPassword({ email, password });
   redirect("/account");
 }

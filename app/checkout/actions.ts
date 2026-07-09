@@ -60,10 +60,17 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const profileId = user?.id ?? null;
 
   // 도매(사업자 전용) variant 구매 권한 — 사업자/관리자만. (D-055)
+  // 관리자, 또는 '승인 완료(approved)'된 사업자만 도매 권한. 승인 대기(pending)·반려 사업자는
+  // 소매만 가능 → 도매 전용(is_b2b_only) variant 구매 차단, 도매가 미적용(티어 없음 → resolve_price 가 정가 반환).
   let isBusinessBuyer = false;
   if (profileId) {
     const { data: prof } = await db.from("profiles").select("role").eq("id", profileId).maybeSingle();
-    isBusinessBuyer = prof?.role === "business" || prof?.role === "admin";
+    if (prof?.role === "admin") {
+      isBusinessBuyer = true;
+    } else if (prof?.role === "business") {
+      const { data: biz } = await db.from("business_accounts").select("status").eq("profile_id", profileId).maybeSingle();
+      isBusinessBuyer = biz?.status === "approved";
+    }
   }
 
   // 가격 서버 재계산 (resolve_price: 개별가→등급가→정가) + 무게 합산

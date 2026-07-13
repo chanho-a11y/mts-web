@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "자주 묻는 질문 (FAQ)" };
@@ -48,7 +49,7 @@ export default async function FaqPage() {
             {list.map((f, i) => (
               <details key={i} className="group p-4">
                 <summary className="cursor-pointer list-none font-medium">{f.question}</summary>
-                <div className="mt-2 text-sm leading-relaxed text-neutral-700" dangerouslySetInnerHTML={{ __html: f.answer_html }} />
+                <div className="mt-2 text-sm leading-relaxed text-neutral-700" dangerouslySetInnerHTML={{ __html: sanitizeHtml(f.answer_html) }} />
               </details>
             ))}
           </div>

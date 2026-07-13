@@ -12,7 +12,9 @@ function db() {
   return hasServiceRole ? createAdminClient() : createClient();
 }
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
-const TEST = process.env.PAYMENTS_TEST_MODE === "true";
+// H-1: 테스트 모드는 프로덕션에서 절대 활성화되지 않도록 코드 레벨에서 차단.
+// (env 가 실수로 prod 에 남아도 결제 우회 불가)
+const TEST = process.env.PAYMENTS_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 
 // 공통 승인 처리. provider별 검증 후 approveOrder.
 async function handle(provider: string, q: URLSearchParams, body: Record<string, unknown>) {
@@ -32,7 +34,11 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     if (!token || !ppId) return { ok: false, reason: "paypal_unconfigured", orderNo };
     const cap = await paypalCapture(token, ppId);
     if (!cap.ok) return { ok: false, reason: "paypal_capture_failed", orderNo };
-    const r = await approveOrder(db(), orderId, { provider, tid: ppId, captureId: cap.captureId, raw: cap.raw });
+    // H-2: 캡처 금액(USD) 추출 → 주문 통화(USD) 정수와 대조
+    const capVal = (cap.raw as { purchase_units?: { payments?: { captures?: { amount?: { value?: string } }[] } }[] } | null)
+      ?.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value;
+    const paidAmount = capVal != null ? Math.round(Number(capVal)) : null;
+    const r = await approveOrder(db(), orderId, { provider, tid: ppId, captureId: cap.captureId, raw: cap.raw, paidAmount });
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 
@@ -51,7 +57,10 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     });
     const raw = await res.json().catch(() => null);
     if (!res.ok) return { ok: false, reason: "kakaopay_approve_failed", orderNo };
-    const r = await approveOrder(db(), orderId, { provider, tid, raw });
+    // H-2: 카카오 승인응답 amount.total(KRW) 대조
+    const kkTotal = (raw as { amount?: { total?: number } } | null)?.amount?.total;
+    const paidAmount = kkTotal != null ? Math.round(Number(kkTotal)) : null;
+    const r = await approveOrder(db(), orderId, { provider, tid, raw, paidAmount });
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 
@@ -74,7 +83,10 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     const res = await fetch(authUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() });
     const raw = await res.json().catch(() => null);
     if (!raw || String(raw.resultCode) !== "0000") return { ok: false, reason: "inicis_approve_failed", orderNo };
-    const r = await approveOrder(db(), orderId, { provider, tid: String(raw.tid ?? ""), raw });
+    // H-2: 이니시스 승인응답 TotPrice(KRW) 대조
+    const totPrice = (raw as { TotPrice?: string | number }).TotPrice;
+    const paidAmount = totPrice != null ? Math.round(Number(totPrice)) : null;
+    const r = await approveOrder(db(), orderId, { provider, tid: String(raw.tid ?? ""), raw, paidAmount });
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 

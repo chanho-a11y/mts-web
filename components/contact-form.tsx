@@ -17,6 +17,8 @@ export default function ContactForm({ locale = "ko" }: { locale?: Locale }) {
       <p className="mt-2 text-sm text-neutral-500">{tt.contactIntro}</p>
       {msg && <p className="mt-4 rounded bg-neutral-100 p-3 text-sm">{msg}</p>}
       <form action={submit} className="mt-5 space-y-4">
+        {/* M-5 허니팟 — 봇 차단용. 사람에게 숨김. */}
+        <input type="text" name="company_url" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
         <label className="block text-sm">{tt.name}<input name="name" className={input} /></label>
         <label className="block text-sm">{tt.email} *<input type="email" name="email" required className={input} /></label>
         <label className="block text-sm">{tt.phone}<input name="phone" className={input} /></label>

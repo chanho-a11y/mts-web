@@ -10,6 +10,37 @@ const nextConfig = {
   experimental: {
     // domain-based multi-storefront handled in middleware.ts
   },
+  // 보안 응답 헤더 (H-3). CSP 는 초기 회귀 방지를 위해 Report-Only 로 시작 → 검증 후 enforce 전환.
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      // Next 인라인/PG SDK(이니시스·카카오·페이팔)·GA·Meta 픽셀 허용
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.inicis.com https://*.kakaopay.com https://*.kakao.com https://*.paypal.com https://*.paypalobjects.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://*.inicis.com https://*.kakaopay.com https://*.paypal.com https://www.google-analytics.com https://region1.google-analytics.com https://connect.facebook.net",
+      "frame-src 'self' https://*.inicis.com https://*.kakaopay.com https://*.kakao.com https://*.paypal.com",
+      "form-action 'self' https://*.inicis.com https://*.kakaopay.com https://*.paypal.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "object-src 'none'",
+    ].join("; ");
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "Content-Security-Policy-Report-Only", value: csp },
+        ],
+      },
+    ];
+  },
   // 현행(Shopify) → 신규 자사몰 301 매핑 (SEO 보존, D-009).
   // · /products·/collections·/policies slug 는 동일 보존 → 리다이렉트 불필요.
   // · 아래는 Shopify /pages/* 프리픽스 및 blog handle 리네임만 처리.

@@ -30,7 +30,8 @@ export interface PaymentAdapter {
   init(p: PaymentInit): Promise<PaymentInitResult>;
 }
 
-const TEST = process.env.PAYMENTS_TEST_MODE === "true";
+// H-1: 프로덕션에서는 테스트 리다이렉트(키 없이 승인) 경로를 원천 차단.
+const TEST = process.env.PAYMENTS_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 const SITE = () => process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
 

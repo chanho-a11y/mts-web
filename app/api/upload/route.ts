@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 // 공용 이미지 업로드 — 관리자 전용. multipart(file) → product-assets(public) → { url }.
 // 블로그 커버·본문 이미지, 사이트 관리자 슬라이드/배너/디자인자산, 페이지 이미지 등에 공용.
-const ALLOWED = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
-const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg" };
+// M-3: SVG 업로드 제거(스크립트 삽입형 저장 XSS 벡터). 래스터 이미지만 허용.
+const ALLOWED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
 
 export async function POST(req: Request) {
   const supabase = createClient();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
       )}
       <article
         className="prose prose-neutral mt-8 max-w-none leading-relaxed [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-bold [&_li]:ml-5 [&_li]:list-disc [&_p]:mt-3"
-        dangerouslySetInnerHTML={{ __html: post.body_html || "" }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.body_html) }}
       />
       {post.tags && post.tags.length > 0 && (
         <div className="mt-8 flex flex-wrap gap-2">

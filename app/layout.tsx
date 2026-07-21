@@ -6,6 +6,7 @@ import SiteFooter from "@/components/site-footer";
 import PromoBanner from "@/components/promo-banner";
 import { CartProvider } from "@/components/cart-provider";
 import GoogleAnalytics from "@/components/google-analytics";
+import MetaPixel from "@/components/meta-pixel";
 import JsonLd from "@/components/json-ld";
 import { organizationJsonLd, webSiteJsonLd, siteBaseUrl } from "@/lib/seo";
 import "./globals.css";
@@ -22,8 +23,21 @@ export async function generateMetadata(): Promise<Metadata> {
     }
   } catch {}
   const base = siteBaseUrl();
+  // 도메인 소유권 인증 메타태그 (env 설정 시에만 렌더 — 구글 서치콘솔/머천트 · 메타 커머스)
+  const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+  const fbVerification = process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION;
+  const verification =
+    googleVerification || fbVerification
+      ? {
+          verification: {
+            ...(googleVerification ? { google: googleVerification } : {}),
+            ...(fbVerification ? { other: { "facebook-domain-verification": fbVerification } } : {}),
+          },
+        }
+      : {};
   return {
     metadataBase: new URL(base),
+    ...verification,
     title: { default: `${brand.name} — everyday excellence`, template: `%s · ${brand.name}` },
     description: brand.philosophy.ko,
     alternates: { canonical: "/" },
@@ -92,6 +106,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body style={bodyStyle}>
         <JsonLd data={[organizationJsonLd(brand, locale), webSiteJsonLd(brand)]} />
         <GoogleAnalytics />
+        <MetaPixel />
         <CartProvider>
           <PromoBanner message={promo} />
           <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} logo={cms.logo_path || undefined} />

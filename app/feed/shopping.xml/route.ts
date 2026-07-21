@@ -25,6 +25,9 @@ export async function GET() {
       const img = p.image ? (p.image.startsWith("http") ? p.image : `${base}${p.image}`) : "";
       const brand = p.title_ko.toLowerCase().includes("normcore") ? "Normcore Coffee" : "MTSPACE COFFEE";
       const cond = p.product_type === "merch" ? "new" : "new";
+      // Google product category: 커피 = 1868 (Food, Beverages & Tobacco > Beverages > Coffee).
+      // merch(굿즈)는 커피 카테고리 부적합 → 생략(구글 자동 분류).
+      const gpc = p.product_type === "merch" ? "" : `<g:google_product_category>1868</g:google_product_category>`;
       return `<item>
 <g:id>${esc(p.slug)}</g:id>
 <g:title>${esc(title)}</g:title>
@@ -37,6 +40,7 @@ ${img ? `<g:image_link>${esc(img)}</g:image_link>` : ""}
 <g:brand>${esc(brand)}</g:brand>
 <g:identifier_exists>false</g:identifier_exists>
 <g:product_type>${esc(p.product_type ?? "coffee")}</g:product_type>
+${gpc}
 </item>`;
     })
     .join("\n");

@@ -34,16 +34,8 @@ export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; 
           <a href="/policies/legal-notice">법적 고지</a>
           <a href="/faq">FAQ</a>
         </div>
-        <div className="mt-4 flex items-end justify-between gap-4">
+        <div className="mt-4">
           <p className="opacity-60">© 2026 {brand.name}. All Rights Reserved.</p>
-          {/* 관리자 진입 — 푸터 오른쪽 하단 */}
-          <a
-            href="/admin"
-            aria-label="관리자"
-            className="shrink-0 rounded-card border border-line bg-ink/90 px-3 py-1.5 text-[11px] font-medium text-oat transition hover:bg-ink"
-          >
-            관리자
-          </a>
         </div>
       </div>
     </footer>

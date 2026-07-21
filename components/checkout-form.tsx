@@ -66,7 +66,6 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   const en = locale === "en";
   const METHODS: { p: Provider; label: string }[] = [
     { p: "inicis", label: tt.pmInicis },
-    { p: "kakaopay", label: tt.pmKakao },
     { p: "paypal", label: tt.pmPaypal },
   ];
   const router = useRouter();
@@ -145,7 +144,7 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
     }
     setBusy(false);
     if (res.ok && res.pgReady && res.redirectUrl) {
-      // PG 결제창/승인 페이지로 이동 (PayPal·KakaoPay·테스트모드)
+      // PG 결제창/승인 페이지로 이동 (PayPal·테스트모드)
       clear();
       window.location.href = res.redirectUrl;
       return;

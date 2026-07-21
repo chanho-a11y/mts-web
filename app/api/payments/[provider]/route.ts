@@ -42,28 +42,6 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 
-  if (provider === "kakaopay") {
-    const pgToken = String(q.get("pg_token") || body.pg_token || "");
-    const secret = process.env.KAKAOPAY_SECRET, cid = process.env.KAKAOPAY_CID;
-    if (!secret || !cid || !pgToken) return { ok: false, reason: "kakaopay_unconfigured", orderNo };
-    // 저장된 tid 조회 (ready 단계에서 payment.pg_tid 에 저장되어 있어야 함)
-    const { data: pay } = await db().from("payment").select("pg_tid").eq("order_id", orderId).maybeSingle();
-    const tid = pay?.pg_tid;
-    if (!tid) return { ok: false, reason: "kakaopay_no_tid", orderNo };
-    const res = await fetch("https://open-api.kakaopay.com/online/v1/payment/approve", {
-      method: "POST",
-      headers: { Authorization: `SECRET_KEY ${secret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ cid, tid, partner_order_id: orderNo, partner_user_id: orderNo, pg_token: pgToken }),
-    });
-    const raw = await res.json().catch(() => null);
-    if (!res.ok) return { ok: false, reason: "kakaopay_approve_failed", orderNo };
-    // H-2: 카카오 승인응답 amount.total(KRW) 대조
-    const kkTotal = (raw as { amount?: { total?: number } } | null)?.amount?.total;
-    const paidAmount = kkTotal != null ? Math.round(Number(kkTotal)) : null;
-    const r = await approveOrder(db(), orderId, { provider, tid, raw, paidAmount });
-    return { ...r, orderNo: r.orderNo || orderNo };
-  }
-
   if (provider === "inicis") {
     // 이니시스 표준결제: 인증창 → returnUrl(POST)로 resultCode/authToken/authUrl 수신 → authUrl 승인요청(서명) → 검증.
     const mid = process.env.INICIS_MID, signKey = process.env.INICIS_SIGNKEY;

@@ -1,9 +1,9 @@
-// Payment provider adapters. 이니시스(INIStdPay·KRW) · 카카오페이(KRW) · 페이팔(USD).
+// Payment provider adapters. 이니시스(INIStdPay·KRW) · 페이팔(USD).
 // 실키 미설정 시: PAYMENTS_TEST_MODE=true 면 승인 라우트로 리다이렉트해 전체 플로우 검증.
 //               그 외에는 notConfigured(주문만 생성, 결제 대기).
 import crypto from "crypto";
 
-export type Provider = "inicis" | "kakaopay" | "paypal";
+export type Provider = "inicis" | "paypal";
 
 export interface PaymentInit {
   orderId: string;
@@ -17,9 +17,9 @@ export interface PaymentInit {
 }
 export interface PaymentInitResult {
   ready: boolean;          // true면 결제창/리다이렉트/폼 진행 가능
-  redirectUrl?: string;    // 리다이렉트형(PayPal·KakaoPay·테스트모드)
+  redirectUrl?: string;    // 리다이렉트형(PayPal·테스트모드)
   form?: { sdk: "inicis"; fields: Record<string, string> }; // SDK 폼 제출형(이니시스)
-  tid?: string;            // ready 단계에서 발급된 PG 거래ID(카카오페이) → payment.pg_tid 저장
+  tid?: string;            // ready 단계에서 발급된 PG 거래ID → payment.pg_tid 저장
   message: string;
 }
 
@@ -87,39 +87,6 @@ export const inicis: PaymentAdapter = {
   },
 };
 
-// ---- 카카오페이 (online v1, KRW) ----
-export const kakaopay: PaymentAdapter = {
-  provider: "kakaopay", label: "카카오페이", currency: "KRW",
-  async init(p) {
-    if (TEST) return testRedirect("kakaopay", p);
-    const cid = process.env.KAKAOPAY_CID, secret = process.env.KAKAOPAY_SECRET;
-    if (!cid || !secret) return notConfigured("kakaopay");
-    const origin = SITE();
-    const res = await fetch("https://open-api.kakaopay.com/online/v1/payment/ready", {
-      method: "POST",
-      headers: { Authorization: `SECRET_KEY ${secret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cid,
-        partner_order_id: p.orderNo,
-        partner_user_id: p.orderNo,
-        item_name: `MTSPACE COFFEE 주문 ${p.orderNo}`,
-        quantity: 1,
-        total_amount: p.amount,
-        tax_free_amount: 0,
-        approval_url: `${origin}/api/payments/kakaopay?oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`,
-        cancel_url: `${origin}/checkout/complete?order=${encodeURIComponent(p.orderNo)}&paid=0`,
-        fail_url: `${origin}/checkout/complete?order=${encodeURIComponent(p.orderNo)}&paid=0`,
-      }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.tid || !data?.next_redirect_pc_url) {
-      return { ready: false, message: "kakaopay ready 실패" };
-    }
-    // tid 는 approve 단계에서 필요 → payment.pg_tid 에 저장(호출측에서 처리)
-    return { ready: true, message: "kakaopay ready", redirectUrl: data.next_redirect_pc_url, tid: data.tid };
-  },
-};
-
 // ---- PayPal Orders v2 (REST, USD) ----
 export function paypalBase() {
   return process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
@@ -170,5 +137,5 @@ export const paypal: PaymentAdapter = {
   },
 };
 
-export const ADAPTERS: Record<Provider, PaymentAdapter> = { inicis, kakaopay, paypal };
+export const ADAPTERS: Record<Provider, PaymentAdapter> = { inicis, paypal };
 export function getAdapter(p: Provider): PaymentAdapter { return ADAPTERS[p]; }

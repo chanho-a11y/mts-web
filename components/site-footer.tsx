@@ -1,5 +1,5 @@
 import type { Brand } from "@/lib/brands";
-import { subscribeNewsletterAction } from "@/app/newsletter-action";
+import NewsletterForm from "@/components/newsletter-form";
 
 // 법정 판매자 정보 (공통). 로스터리·사업자 등록지 모두 경기도 가평 청평으로 통일(2026-06 결정).
 export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; bg?: string; phone?: string; email?: string }) {
@@ -12,11 +12,7 @@ export default function SiteFooter({ brand, bg, phone, email }: { brand: Brand; 
           <p className="mt-wordmark text-base text-ink">MTSPACE<span className="light"> COFFEE</span></p>
           <p className="mt-tagline mt-1 text-[10px]">everyday excellence</p>
         </div>
-        <form action={subscribeNewsletterAction} className="mb-6 flex max-w-sm gap-2">
-          <input type="email" name="email" required placeholder="뉴스레터 구독 (이메일)"
-            className="flex-1 rounded-card border border-line bg-paper px-4 py-2 text-xs" />
-          <button className="rounded-card bg-ink px-4 py-2 text-xs text-oat">구독</button>
-        </form>
+        <NewsletterForm />
         <div className="mb-4 flex gap-4">
           <a href="https://instagram.com/mtspacecoffee" target="_blank" rel="noreferrer">@mtspacecoffee</a>
         </div>

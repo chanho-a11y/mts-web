@@ -1,4 +1,5 @@
 "use server";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { getAdapter, type Provider } from "@/lib/payments";
@@ -146,9 +147,17 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     lines.map((l) => ({ order_id: order.id, variant_id: l.variant_id, sku: l.sku, title_snapshot: l.title, option_snapshot: l.option, unit_price: l.unit, price_source: l.source, qty: l.qty, line_total: l.unit * l.qty })),
   );
 
+  // 결제를 요청한 실제 페이지의 origin — 이니시스 closeUrl 도메인 일치 요건(V023).
+  // Vercel 뒤에서는 x-forwarded-host/proto, 로컬에서는 host 헤더 사용.
+  const h = headers();
+  const reqHost = h.get("x-forwarded-host") ?? h.get("host");
+  const reqProto = h.get("x-forwarded-proto") ?? (reqHost?.startsWith("localhost") ? "http" : "https");
+  const reqOrigin = reqHost ? `${reqProto}://${reqHost}` : undefined;
+
   const adapter = getAdapter(payload.provider);
   const init = await adapter.init({
     orderId: order.id, orderNo, amount: grand, currency, returnUrl: "/checkout/complete",
+    origin: reqOrigin,
     buyerName: payload.shipping.recipient, buyerTel: payload.shipping.phone,
     buyerEmail: user?.email ?? payload.email ?? "",
   });

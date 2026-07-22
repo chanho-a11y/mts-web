@@ -11,6 +11,7 @@ export interface PaymentInit {
   amount: number;
   currency: string; // KRW | USD
   returnUrl: string;
+  origin?: string; // 결제를 요청한 페이지의 origin(프로토콜+호스트). 이니시스 closeUrl은 요청 페이지와 도메인 일치 필수(V023 방지)
   buyerName?: string;
   buyerTel?: string;
   buyerEmail?: string;
@@ -44,7 +45,7 @@ const notConfigured = (provider: Provider): PaymentInitResult => ({
 const testRedirect = (provider: Provider, p: PaymentInit): PaymentInitResult => ({
   ready: true,
   message: `${provider} 테스트 모드`,
-  redirectUrl: `${SITE()}/api/payments/${provider}?oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`,
+  redirectUrl: `${p.origin || SITE()}/api/payments/${provider}?oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`,
 });
 
 // ---- 이니시스 INIStdPay (표준결제, KRW) ----
@@ -62,7 +63,9 @@ export const inicis: PaymentAdapter = {
     const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
     const verification = sha256(`oid=${oid}&price=${price}&signKey=${signKey}&timestamp=${timestamp}`);
     const mKey = sha256(signKey);
-    const origin = SITE();
+    // closeUrl은 결제창을 띄운 페이지와 같은 도메인이어야 함(이니시스 V023).
+    // env(SITE)가 아니라 실제 요청 도메인(p.origin)을 우선 사용.
+    const origin = p.origin || SITE();
     const fields: Record<string, string> = {
       version: "1.0",
       mid,
@@ -118,7 +121,7 @@ export const paypal: PaymentAdapter = {
     if (TEST) return testRedirect("paypal", p);
     const token = await paypalToken();
     if (!token) return notConfigured("paypal");
-    const origin = SITE();
+    const origin = p.origin || SITE();
     const res = await fetch(`${paypalBase()}/v2/checkout/orders`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({

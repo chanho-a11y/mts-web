@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail, orderConfirmationHtml } from "./email";
+import { sendEmail, orderConfirmationHtml, orderAdminNotifyHtml } from "./email";
 
 export interface ApproveExtra { provider?: string; tid?: string; captureId?: string; raw?: unknown;
   // H-2: PG 가 실제 승인한 금액(주문 통화 기준 정수). 제공 시 order.grand_total 과 일치할 때만 결제완료 전이.
@@ -7,11 +7,11 @@ export interface ApproveExtra { provider?: string; tid?: string; captureId?: str
 export interface ApproveResult { ok: boolean; already?: boolean; orderNo?: string; reason?: string }
 
 // 주문 결제 승인 확정 — 멱등. payment.paid + orders.paid 로 전이(created에서만).
-// 신규 결제완료 전이 시 1회에 한해 주문확인 메일 발송(메일 실패는 승인에 영향 없음).
+// 신규 결제완료 전이 시 1회에 한해 주문확인 메일(고객)+주문접수 알림(관리자) 발송(메일 실패는 승인에 영향 없음).
 export async function approveOrder(db: SupabaseClient, orderId: string, extra: ApproveExtra = {}): Promise<ApproveResult> {
   const { data: order } = await db
     .from("orders")
-    .select("id,order_no,status,grand_total,currency,email,shipping_address")
+    .select("id,order_no,status,grand_total,currency,email,shipping_address,order_item(title_snapshot,sku,qty,line_total)")
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return { ok: false, reason: "order_not_found" };
@@ -55,6 +55,33 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
       }
     } else {
       console.warn(`[order-confirm-email] skipped: no email on order ${order.order_no}`);
+    }
+
+    // 관리자 주문 접수 알림 (신규 결제완료 전이 시 1회). 수신처=ORDER_NOTIFY_TO(기본 chanho@mtspace.coffee).
+    // 고객 메일 유무와 무관하게 항상 발송. 실패는 승인에 영향 없음.
+    try {
+      const adminTo = process.env.ORDER_NOTIFY_TO || "chanho@mtspace.coffee";
+      const sa = (order.shipping_address as Record<string, unknown> | null) ?? {};
+      const amountLabel = order.currency === "USD"
+        ? `$${Number(order.grand_total).toLocaleString("en-US")}`
+        : `${Number(order.grand_total).toLocaleString("ko-KR")}원`;
+      const ra = await sendEmail(
+        adminTo,
+        `[MTSPACE COFFEE] 새 주문 ${order.order_no} · ${amountLabel}`,
+        orderAdminNotifyHtml({
+          order_no: order.order_no,
+          email: order.email,
+          grand_total: order.grand_total,
+          currency: order.currency,
+          shipping: sa as {
+            recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string; country?: string; shipping_label?: string;
+          },
+          items: ((order as { order_item?: { title_snapshot?: string | null; sku?: string | null; qty?: number | null; line_total?: number | null }[] }).order_item) ?? [],
+        }),
+      );
+      console.log(`[order-admin-notify] order=${order.order_no} to=${adminTo}`, ra);
+    } catch (e) {
+      console.warn(`[order-admin-notify] send threw for order=${order.order_no}:`, (e as Error)?.message);
     }
   }
   return { ok: true, already: alreadyPaid, orderNo: order.order_no };

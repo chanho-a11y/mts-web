@@ -85,6 +85,37 @@ export function orderConfirmationHtml(orderNo: string, name?: string, amount?: n
   );
 }
 
+// 템플릿: 관리자 새 주문 접수 알림 (내부용 — chanho@mtspace.coffee 등)
+export interface AdminNotifyOrder {
+  order_no: string;
+  email?: string | null;
+  grand_total?: number | null;
+  currency?: string | null;
+  shipping?: { recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string; country?: string; shipping_label?: string } | null;
+  items?: { title_snapshot?: string | null; sku?: string | null; qty?: number | null; line_total?: number | null }[];
+}
+export function orderAdminNotifyHtml(o: AdminNotifyOrder): string {
+  const money = (n?: number | null) =>
+    n == null ? "" : o.currency === "USD" ? `$${n.toLocaleString("en-US")}` : `${n.toLocaleString("ko-KR")}원`;
+  const rows = (o.items ?? [])
+    .map((it) =>
+      `<tr><td style="padding:6px 0;border-bottom:1px solid #eee">${it.title_snapshot ?? it.sku ?? "-"} <span style="color:#999">× ${it.qty ?? 1}</span></td><td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right">${money(it.line_total)}</td></tr>`,
+    )
+    .join("");
+  const s = o.shipping ?? {};
+  const addr = [s.zipcode ? `(${s.zipcode})` : "", s.addr1 ?? "", s.addr2 ?? ""].filter(Boolean).join(" ");
+  const intl = s.country && s.country !== "KR" ? `${s.country} ` : "";
+  return emailLayout(
+    "새 주문이 접수되었습니다",
+    `<p style="margin:4px 0"><b>주문번호</b> ${o.order_no}</p>
+     <p style="margin:4px 0"><b>결제금액</b> ${money(o.grand_total)}</p>
+     <table style="width:100%;border-collapse:collapse;margin:12px 0">${rows}</table>
+     <p style="margin:4px 0"><b>주문자</b> ${s.recipient ?? "-"} · ${o.email ?? "-"} · ${s.phone ?? "-"}</p>
+     <p style="margin:4px 0"><b>배송지</b> ${intl}${addr || "-"}${s.shipping_label ? ` · ${s.shipping_label}` : ""}</p>
+     <p style="margin-top:16px"><a href="https://mtspace.coffee/admin/orders" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">관리자 주문 보기</a></p>`,
+  );
+}
+
 // 템플릿: 출고 알림
 export function shipNotificationHtml(orderNo: string, name?: string): string {
   return emailLayout(

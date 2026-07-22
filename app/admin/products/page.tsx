@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { archiveProductAction, restoreProductAction, duplicateProductAction } from "./actions";
 import ReportNoManager from "@/components/report-no-manager";
 import BulkProductBar from "@/components/bulk-product-bar";
+import InventoryCell from "@/components/inventory-cell";
 
 export const dynamic = "force-dynamic";
 
@@ -10,14 +11,23 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage({ searchParams }: { searchParams: { show?: string; sort?: string; bulk?: string; ok?: string; fail?: string; failmsg?: string } }) {
   const showArchived = searchParams.show === "archived";
-  const sort = searchParams.sort === "type" ? "type" : "name";
+  // 기본 정렬 = 도매/소비자순(소비자 → 도매), ?sort=name 일 때만 가나다순
+  const sort = searchParams.sort === "name" ? "name" : "type";
   const supabase = createClient();
   let q = supabase
     .from("product")
-    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,weight_g,product_variant(sku,base_price)")
+    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,weight_g,product_variant(id,sku,base_price)")
     .eq("status", showArchived ? "archived" : "active");
   q = sort === "type" ? q.order("is_b2b_only", { ascending: true }).order("title_ko") : q.order("title_ko");
   const { data: products } = await q;
+
+  // 변형별 현재고 — current_stock RPC(원장 합계)를 병렬 조회해 map 구성
+  const variantIds = (products ?? []).flatMap((p: any) => (p.product_variant ?? []).map((v: any) => v.id as string));
+  const stockEntries = await Promise.all(variantIds.map(async (vid) => {
+    const { data: stock } = await supabase.rpc("current_stock", { p_variant_id: vid });
+    return [vid, Number(stock) || 0] as const;
+  }));
+  const stockMap = new Map(stockEntries);
 
   const { data: cats } = await supabase.from("category").select("slug,name_ko,position").order("position");
   const categoryOptions = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
@@ -61,7 +71,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
       <BulkProductBar showArchived={showArchived} categories={categoryOptions} />
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
-          <th className="w-8 py-2"></th><th>구분</th><th>제품명</th><th>용량</th><th>유형</th><th>SKU·가격</th><th>색</th><th className="text-right">관리</th>
+          <th className="w-8 py-2"></th><th>구분</th><th>제품명</th><th>용량</th><th>유형</th><th>SKU·가격</th><th>재고</th><th>색</th><th className="text-right">관리</th>
         </tr></thead>
         <tbody>
           {(products ?? []).map((p: any) => (
@@ -72,6 +82,13 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
               <td className="text-xs text-neutral-600">{p.weight_g ? `${p.weight_g}g` : "-"}</td>
               <td>{p.product_type}</td>
               <td className="text-xs">{(p.product_variant ?? []).map((v: any) => `${v.sku} · ₩${v.base_price.toLocaleString()}`).join("  /  ")}</td>
+              <td className="py-2">
+                <div className="flex flex-col gap-1">
+                  {(p.product_variant ?? []).map((v: any) => (
+                    <InventoryCell key={v.id} variantId={v.id} sku={v.sku} initial={stockMap.get(v.id) ?? 0} />
+                  ))}
+                </div>
+              </td>
               <td>{p.key_color && <span className="inline-block h-4 w-4 rounded-full align-middle" style={{ background: p.key_color }} />}</td>
               <td className="text-right">
                 <div className="inline-flex items-center gap-2">

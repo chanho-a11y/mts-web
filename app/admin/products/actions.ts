@@ -187,7 +187,7 @@ export async function archiveProductAction(formData: FormData) {
   // 소프트 삭제: status=archived 로 전환(주문·재고 FK 보존, 스토어프론트 자동 숨김)
   await supabase.from("product").update({ status: "archived" }).eq("slug", slug);
   revalidatePath("/admin/products");
-  redirect("/admin/products");
+  redirect(`/admin/products?saved=1&msg=${encodeURIComponent("보관되었습니다")}`);
 }
 
 export async function restoreProductAction(formData: FormData) {
@@ -199,7 +199,7 @@ export async function restoreProductAction(formData: FormData) {
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (prod && sf) await supabase.from("product_storefronts").upsert({ product_id: (prod as { id: string }).id, storefront_id: (sf as { id: string }).id, is_visible: true }, { onConflict: "product_id,storefront_id" });
   revalidatePath("/admin/products");
-  redirect("/admin/products");
+  redirect(`/admin/products?show=archived&saved=1&msg=${encodeURIComponent("복구되었습니다")}`);
 }
 
 // 제품 복제 — 전체 내용 복사 후 새 초안으로 생성하고 수정 화면으로 이동(사용자가 정보 재입력).
@@ -230,7 +230,7 @@ export async function duplicateProductAction(formData: FormData) {
     await supabase.from("product_variant").insert({ ...vrest, product_id: newId, sku: newSlug });
   }
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${newSlug}`);
+  redirect(`/admin/products/${newSlug}?saved=1&msg=${encodeURIComponent("복제되었습니다 — 내용을 수정 후 저장하세요")}`);
 }
 
 export async function generateDraftsAction(formData: FormData) {
@@ -260,7 +260,7 @@ export async function saveCustomerPriceAction(formData: FormData) {
     await supabase.from("customer_variant_prices").insert({ profile_id: profileId, variant_id: variantId, price, note, created_by: user?.id ?? null });
   }
   revalidatePath(`/admin/products/${slug}`);
-  redirect(`/admin/products/${slug}?priced=1`);
+  redirect(`/admin/products/${slug}?saved=1&msg=${encodeURIComponent("고객 단가가 저장되었습니다")}`);
 }
 
 export async function deleteCustomerPriceAction(formData: FormData) {
@@ -269,7 +269,7 @@ export async function deleteCustomerPriceAction(formData: FormData) {
   const slug = String(formData.get("slug") || "");
   if (id) await supabase.from("customer_variant_prices").delete().eq("id", id);
   revalidatePath(`/admin/products/${slug}`);
-  redirect(`/admin/products/${slug}`);
+  redirect(`/admin/products/${slug}?saved=1&msg=${encodeURIComponent("고객 단가가 삭제되었습니다")}`);
 }
 
 export async function adjustInventoryAction(formData: FormData) {
@@ -281,6 +281,24 @@ export async function adjustInventoryAction(formData: FormData) {
     await supabase.from("inventory_ledger").insert({ variant_id: variantId, delta, reason: "adjust" });
   }
   revalidatePath(`/admin/products/${slug}`);
+  redirect(`/admin/products/${slug}?saved=1&msg=${encodeURIComponent("재고가 조정되었습니다")}`);
+}
+
+/** 제품 목록 인라인 재고 저장 — 목표 재고(절대값)를 받아 현재고 대비 delta 를 ledger 에 기록.
+ *  현재고는 서버에서 재계산(current_stock RPC)하므로 목록 화면이 낡아도 최종값은 입력값과 일치. */
+export async function setStockAction(variantId: string, target: number): Promise<{ ok: true; stock: number } | { ok: false; error: string }> {
+  if (!variantId || !Number.isFinite(target) || target < 0) return { ok: false, error: "재고 값을 확인하세요" };
+  const t = Math.floor(target);
+  const supabase = createClient();
+  const { data: current, error: rpcErr } = await supabase.rpc("current_stock", { p_variant_id: variantId });
+  if (rpcErr) return { ok: false, error: rpcErr.message };
+  const delta = t - (Number(current) || 0);
+  if (delta !== 0) {
+    const { error } = await supabase.from("inventory_ledger").insert({ variant_id: variantId, delta, reason: "adjust" });
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath("/admin/products");
+  return { ok: true, stock: t };
 }
 
 async function generateForProduct(productId: string) {

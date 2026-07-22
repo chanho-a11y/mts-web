@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminToast from "@/components/admin-toast";
@@ -52,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </aside>
       <div className="min-w-0 flex-1">{children}</div>
-      <AdminToast />
+      <Suspense fallback={null}><AdminToast /></Suspense>
     </div>
   );
 }

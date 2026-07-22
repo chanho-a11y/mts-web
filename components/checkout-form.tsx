@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
-import { subtotal } from "@/lib/cart";
 import { formatKRW, t, type Locale } from "@/lib/i18n";
 import { createOrderAction } from "@/app/checkout/actions";
+import { resolveCartPricesAction } from "@/app/checkout/price-actions";
 import type { Provider } from "@/lib/payments";
 
 declare global {
@@ -81,8 +81,22 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   const [zipcode, setZipcode] = useState(initial?.zipcode || "");
   const [addr1, setAddr1] = useState(initial?.addr1 || "");
   const [quote, setQuote] = useState<Quote | null>(null);
-  const sub = subtotal(items);
+  // 로그인 고객의 개별가/등급가 실적용가 맵 (없으면 담을 때 저장된 정가로 폴백)
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const sub = items.reduce((s, i) => s + (priceMap[i.variantId] ?? i.price) * i.qty, 0);
   const isKR = country === "KR";
+
+  // 로그인 고객 개별가/등급가 실적용가 조회 (장바구니 구성 변동 시)
+  const variantSig = items.map((i) => i.variantId).join(",");
+  useEffect(() => {
+    if (items.length === 0) { setPriceMap({}); return; }
+    let alive = true;
+    resolveCartPricesAction(items.map((i) => ({ variantId: i.variantId })))
+      .then((m) => { if (alive) setPriceMap(m); })
+      .catch(() => { /* 실패 시 정가 표시 — 주문 시 서버가 재계산 */ });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variantSig]);
 
   // 배송비 실시간 견적 (국가·장바구니 변동 시)
   const itemsSig = items.map((i) => `${i.variantId}:${i.qty}`).join(",");

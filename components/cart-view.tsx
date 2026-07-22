@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/cart-provider";
-import { subtotal, tipAmount, TIP_PERCENTS } from "@/lib/cart";
+import { TIP_PERCENTS } from "@/lib/cart";
+import { resolveCartPricesAction } from "@/app/checkout/price-actions";
 import { formatKRW, t, type Locale } from "@/lib/i18n";
 
 export default function CartView({ showTip, locale = "ko" }: { showTip: boolean; locale?: Locale }) {
@@ -10,30 +11,52 @@ export default function CartView({ showTip, locale = "ko" }: { showTip: boolean;
   const tt = t(locale);
   const [tipPct, setTipPct] = useState(0);
   const [customTip, setCustomTip] = useState("");
+  // 로그인 고객의 개별가/등급가 실적용가 맵 (없으면 담을 때 저장된 정가로 폴백)
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+
+  const itemsSig = items.map((i) => i.variantId).join(",");
+  useEffect(() => {
+    if (items.length === 0) { setPriceMap({}); return; }
+    let alive = true;
+    resolveCartPricesAction(items.map((i) => ({ variantId: i.variantId })))
+      .then((m) => { if (alive) setPriceMap(m); })
+      .catch(() => { /* 실패 시 저장된 정가로 표시 (주문 시 서버가 재계산) */ });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsSig]);
 
   if (items.length === 0)
     return <p className="py-16 text-center text-neutral-500">{tt.cartEmpty} <Link href="/collections/all" className="underline">{tt.goShopping}</Link></p>;
 
-  const sub = subtotal(items);
+  const eff = (variantId: string, fallback: number) => priceMap[variantId] ?? fallback;
+  const sub = items.reduce((s, i) => s + eff(i.variantId, i.price) * i.qty, 0);
   const pct = customTip ? Math.max(0, Math.min(100, +customTip)) : tipPct;
-  const tip = showTip ? tipAmount(items, pct) : 0;
+  const tip = showTip ? Math.round((sub * pct) / 100) : 0;
   const total = sub + tip;
 
   return (
     <div className="grid gap-8 md:grid-cols-3">
       <div className="md:col-span-2">
-        {items.map((i) => (
-          <div key={i.variantId} className="flex items-center gap-4 border-b py-4">
-            <div className="flex-1">
-              <p className="text-sm font-medium">{i.title}</p>
-              {i.option && <p className="text-xs text-neutral-500">{i.option}</p>}
-              <p className="text-sm">{formatKRW(i.price)}</p>
+        {items.map((i) => {
+          const price = eff(i.variantId, i.price);
+          const discounted = price < i.price;
+          return (
+            <div key={i.variantId} className="flex items-center gap-4 border-b py-4">
+              <div className="flex-1">
+                <p className="text-sm font-medium">{i.title}</p>
+                {i.option && <p className="text-xs text-neutral-500">{i.option}</p>}
+                <p className="text-sm">
+                  {discounted ? (
+                    <><span className="text-neutral-400 line-through">{formatKRW(i.price)}</span> <span className="font-medium">{formatKRW(price)}</span></>
+                  ) : formatKRW(price)}
+                </p>
+              </div>
+              <input type="number" min={1} value={i.qty} onChange={(e) => setQty(i.variantId, +e.target.value)}
+                className="w-16 rounded border px-2 py-1 text-sm" />
+              <button onClick={() => remove(i.variantId)} className="text-xs text-neutral-400">{tt.remove}</button>
             </div>
-            <input type="number" min={1} value={i.qty} onChange={(e) => setQty(i.variantId, +e.target.value)}
-              className="w-16 rounded border px-2 py-1 text-sm" />
-            <button onClick={() => remove(i.variantId)} className="text-xs text-neutral-400">{tt.remove}</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <aside className="h-fit rounded-xl border p-5 text-sm">

@@ -11,11 +11,17 @@ function adminDb() {
   return hasServiceRole ? createAdminClient() : createClient();
 }
 
-// 주문 상태: created(기본) → preparing(확인) → shipped(출고) → delivered
+// 주문 상태: created(미결제) → paid(결제완료) → preparing(확인) → shipped(출고) → delivered
+// 미결제(created)는 결제 전이므로 준비/출고로 진행 불가 — 개별·일괄 처리 모두 결제완료(paid) 이상만 전이.
 export async function setOrderStatusAction(formData: FormData) {
   const orderId = String(formData.get("order_id") || "");
   const status = String(formData.get("status") || "");
   const supabase = createClient();
+  // created(미결제) 주문을 준비/출고로 넘기려는 시도는 차단(결제 전 진행 방지).
+  if ((status === "preparing" || status === "shipped")) {
+    const { data: o } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
+    if (o?.status === "created") { revalidatePath("/admin/orders"); return; }
+  }
   await supabase.from("orders").update({ status }).eq("id", orderId);
   if (status === "shipped") await onShip(orderId);
   revalidatePath("/admin/orders");
@@ -24,8 +30,14 @@ export async function setOrderStatusAction(formData: FormData) {
 export async function bulkOrdersAction(ids: string[], action: "confirm" | "ship") {
   const supabase = createClient();
   const status = action === "confirm" ? "preparing" : "shipped";
-  await supabase.from("orders").update({ status }).in("id", ids);
-  if (action === "ship") for (const id of ids) await onShip(id);
+  // 미결제(created)는 제외하고 결제완료 이상만 전이 (confirm=paid→preparing, ship=paid/preparing→shipped).
+  const fromStatuses = action === "confirm" ? ["paid"] : ["paid", "preparing"];
+  const { data: eligible } = await supabase
+    .from("orders").select("id").in("id", ids).in("status", fromStatuses);
+  const okIds = (eligible ?? []).map((o) => (o as { id: string }).id);
+  if (okIds.length === 0) { revalidatePath("/admin/orders"); return; }
+  await supabase.from("orders").update({ status }).in("id", okIds);
+  if (action === "ship") for (const id of okIds) await onShip(id);
   revalidatePath("/admin/orders");
 }
 

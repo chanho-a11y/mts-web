@@ -29,19 +29,25 @@ function resolveRange(fromRaw?: string, toRaw?: string): { from: string; to: str
   return { from, to };
 }
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: { from?: string; to?: string } }) {
+export default async function AdminOrdersPage({ searchParams }: { searchParams: { from?: string; to?: string; view?: string } }) {
   const { from, to } = resolveRange(searchParams.from, searchParams.to);
   const fromIso = `${from}T00:00:00+09:00`;
   const toIso = `${to}T23:59:59.999+09:00`;
+  // 기본은 결제완료 이상만 표시. "미결제 포함" 체크 시 created(결제 대기·중도이탈)도 표시.
+  const view = searchParams.view === "all" ? "all" : "paid";
 
   const supabase = createClient();
-  const { data: orders } = await supabase
+  const { data: allOrders } = await supabase
     .from("orders")
     .select("id,order_no,email,phone,status,grand_total,currency,customer_type,placed_at")
     .gte("placed_at", fromIso)
     .lte("placed_at", toIso)
     .order("placed_at", { ascending: false })
     .limit(2000);
+
+  const all = allOrders ?? [];
+  const orders = view === "all" ? all : all.filter((o) => o.status !== "created");
+  const hiddenUnpaid = all.length - orders.length;
 
   const exportHref = `/admin/orders/export?from=${from}&to=${to}`;
 
@@ -62,11 +68,17 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         <label className="text-sm">종료일
           <input type="date" name="to" defaultValue={to} className="mt-1 block rounded border px-3 py-1.5 text-sm" />
         </label>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input type="checkbox" name="view" value="all" defaultChecked={view === "all"} /> 미결제 포함
+        </label>
         <button className="rounded-full bg-black px-4 py-2 text-sm text-white">조회</button>
-        <span className="text-xs text-neutral-400">최대 {MAX_DAYS}일까지 조회 가능. 선택 기간의 주문만 표시·Export됩니다.</span>
+        <span className="text-xs text-neutral-400">최대 {MAX_DAYS}일까지 조회 가능. 기본은 결제완료 이상만 표시(미결제는 체크 시 포함).</span>
       </form>
 
-      <p className="mb-3 text-sm text-neutral-500">{from} ~ {to} · {orders?.length ?? 0}건</p>
+      <p className="mb-3 text-sm text-neutral-500">
+        {from} ~ {to} · {orders.length}건
+        {view === "paid" && hiddenUnpaid > 0 && <span className="text-neutral-400"> · 미결제 {hiddenUnpaid}건 숨김</span>}
+      </p>
       <OrdersTable orders={orders ?? []} />
       <p className="mt-4 text-xs text-neutral-400">출고 처리 시 재고 차감·송장 생성·고객 출고 알림 이메일이 발송됩니다(이메일 프로바이더 env 설정 시).</p>
     </main>

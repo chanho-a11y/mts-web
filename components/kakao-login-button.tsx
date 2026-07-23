@@ -15,9 +15,9 @@ export default function KakaoLoginButton({ label, next = "/account" }: { label: 
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
-      // 우리 카카오 앱에서 승인된 동의항목만 요청(닉네임). 이메일(account_email)은 비즈 앱 전환 전까지 권한 없음이라
-      // 요청 scope에서 제외해야 KOE006(scope 오류)을 피할 수 있다.
-      options: { redirectTo, scopes: "profile_nickname" },
+      // scope는 Supabase 내장 Kakao provider가 account_email/profile_image/profile_nickname을
+      // 강제 지정하므로 여기서 별도 지정하지 않는다. (카카오 앱 동의항목에서 활성화로 대응 — D-079)
+      options: { redirectTo },
     });
     // 이 아래는 시작 자체가 실패했을 때만 실행됨(성공 시 이미 리다이렉트)
     if (error) {

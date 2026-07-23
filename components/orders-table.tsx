@@ -8,6 +8,7 @@ import { formatKRW } from "@/lib/i18n";
 export interface OrderRow {
   id: string; order_no: string; email: string | null; phone: string | null;
   status: string; grand_total: number; currency: string; customer_type: string | null; placed_at: string;
+  customer: string; items: { title: string; qty: number }[];
 }
 const STATUS: Record<string, string> = {
   created: "미결제", paid: "결제완료", preparing: "확인", shipped: "출고", in_transit: "배송중", delivered: "완료",
@@ -39,14 +40,27 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
       <table className="w-full text-sm">
         <thead><tr className="border-b text-left text-neutral-500">
           <th className="py-2"><input type="checkbox" checked={allChecked} onChange={() => setSel(allChecked ? new Set() : new Set(orders.map((o) => o.id)))} /></th>
-          <th>주문번호</th><th>고객</th><th>구분</th><th>금액</th><th>상태</th><th></th>
+          <th>주문번호</th><th>고객</th><th>제품 · 수량</th><th>구분</th><th>금액</th><th>상태</th><th></th>
         </tr></thead>
         <tbody>
           {orders.map((o) => (
-            <tr key={o.id} className="border-b">
+            <tr key={o.id} className="border-b align-top">
               <td className="py-2"><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} /></td>
               <td className="font-mono text-xs"><Link href={`/admin/orders/${o.id}`} className="text-ink underline-offset-2 hover:underline">{o.order_no}</Link></td>
-              <td>{o.email}</td>
+              <td>{o.customer}</td>
+              <td>
+                {o.items.length === 0 ? (
+                  <span className="text-neutral-400">-</span>
+                ) : (
+                  <div className="space-y-0.5">
+                    {o.items.map((it, i) => (
+                      <div key={i}>
+                        {it.title} <span className="text-neutral-500">×{it.qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </td>
               <td>{o.customer_type === "business" ? "기업" : o.customer_type === "guest" ? "비회원" : "일반"}</td>
               <td>{o.currency === "USD" ? `$${o.grand_total}` : formatKRW(o.grand_total)}</td>
               <td>{STATUS[o.status] ?? o.status}</td>
@@ -57,7 +71,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
               </td>
             </tr>
           ))}
-          {orders.length === 0 && <tr><td colSpan={7} className="py-6 text-center text-neutral-400">주문이 없습니다.</td></tr>}
+          {orders.length === 0 && <tr><td colSpan={8} className="py-6 text-center text-neutral-400">주문이 없습니다.</td></tr>}
         </tbody>
       </table>
     </div>

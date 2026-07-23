@@ -10,6 +10,10 @@ const DAY = 86400000;
 function kstToday(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
+// YYYY-MM-DD (KST 기준 n일 전)
+function kstDaysAgo(n: number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() - n * DAY));
+}
 function isValidDate(s?: string): s is string {
   return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + "T00:00:00+09:00").getTime());
 }
@@ -18,7 +22,8 @@ function isValidDate(s?: string): s is string {
 function resolveRange(fromRaw?: string, toRaw?: string): { from: string; to: string } {
   const today = kstToday();
   let to = isValidDate(toRaw) ? toRaw : today;
-  let from = isValidDate(fromRaw) ? fromRaw : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() - 29 * DAY));
+  // 기본값: 별도 지정이 없으면 '오늘'만 조회 (from=to=오늘).
+  let from = isValidDate(fromRaw) ? fromRaw : today;
   if (from > to) [from, to] = [to, from];
   // 최대 62일: from이 너무 과거면 to-61일로 당김(양끝 포함 62일)
   const span = Math.round((new Date(to + "T00:00:00+09:00").getTime() - new Date(from + "T00:00:00+09:00").getTime()) / DAY);
@@ -39,17 +44,33 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const supabase = createClient();
   const { data: allOrders } = await supabase
     .from("orders")
-    .select("id,order_no,email,phone,status,grand_total,currency,customer_type,placed_at")
+    .select("id,order_no,email,phone,status,grand_total,currency,customer_type,placed_at,shipping_address,order_item(title_snapshot,qty)")
     .gte("placed_at", fromIso)
     .lte("placed_at", toIso)
     .order("placed_at", { ascending: false })
     .limit(2000);
 
-  const all = allOrders ?? [];
+  // 화면 표시용으로 고객명(배송지 수령인)과 품목·수량을 함께 실어 보낸다.
+  const all = (allOrders ?? []).map((o) => {
+    const addr = (o.shipping_address ?? {}) as { recipient?: string };
+    const items = ((o.order_item ?? []) as { title_snapshot: string | null; qty: number }[])
+      .map((it) => ({ title: it.title_snapshot ?? "", qty: it.qty }));
+    return {
+      id: o.id, order_no: o.order_no, email: o.email, phone: o.phone,
+      status: o.status, grand_total: o.grand_total, currency: o.currency,
+      customer_type: o.customer_type, placed_at: o.placed_at,
+      customer: addr.recipient || o.email || "-",
+      items,
+    };
+  });
   const orders = view === "all" ? all : all.filter((o) => o.status !== "created");
   const hiddenUnpaid = all.length - orders.length;
 
   const exportHref = `/admin/orders/export?from=${from}&to=${to}`;
+  // 빠른 조회 버튼용 날짜/파라미터 (미결제 포함 상태 유지)
+  const viewParam = view === "all" ? "&view=all" : "";
+  const todayStr = kstToday();
+  const weekAgoStr = kstDaysAgo(6);
 
   return (
     <main>
@@ -72,6 +93,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           <input type="checkbox" name="view" value="all" defaultChecked={view === "all"} /> 미결제 포함
         </label>
         <button className="rounded-full bg-black px-4 py-2 text-sm text-white">조회</button>
+        <a href={`/admin/orders?from=${todayStr}&to=${todayStr}${viewParam}`} className="rounded-full border border-line px-4 py-2 text-sm hover:bg-neutral-50">오늘</a>
+        <a href={`/admin/orders?from=${weekAgoStr}&to=${todayStr}${viewParam}`} className="rounded-full border border-line px-4 py-2 text-sm hover:bg-neutral-50">7일간</a>
         <span className="text-xs text-neutral-400">최대 {MAX_DAYS}일까지 조회 가능. 기본은 결제완료 이상만 표시(미결제는 체크 시 포함).</span>
       </form>
 

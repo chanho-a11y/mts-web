@@ -3,12 +3,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { signUpAction } from "@/app/account/actions";
 import AddressField from "@/components/address-field";
+import KakaoLoginButton from "@/components/kakao-login-button";
 import { t, type Locale } from "@/lib/i18n";
 
 export default function SignupForm({ error, locale = "ko" }: { error?: string; locale?: Locale }) {
   const tt = t(locale);
   const [role, setRole] = useState<"individual" | "business">("individual");
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
+  // 카카오 간편가입은 Supabase Provider 설정 완료 후 플래그로 활성화 (NEXT_PUBLIC_KAKAO_LOGIN_ENABLED=1)
+  const kakaoEnabled = process.env.NEXT_PUBLIC_KAKAO_LOGIN_ENABLED === "1";
 
   return (
     <main className="mx-auto max-w-lg px-4 py-12">
@@ -17,7 +20,21 @@ export default function SignupForm({ error, locale = "ko" }: { error?: string; l
         <p className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="mt-5 flex gap-2">
+      {kakaoEnabled && (
+        <>
+          <div className="mt-5">
+            <KakaoLoginButton label={tt.continueWithKakao} next="/account" />
+            <p className="mt-2 text-center text-xs text-neutral-500">{tt.kakaoIndividualNote}</p>
+          </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
+            <span className="h-px flex-1 bg-neutral-200" />
+            {tt.orDivider}
+            <span className="h-px flex-1 bg-neutral-200" />
+          </div>
+        </>
+      )}
+
+      <div className={kakaoEnabled ? "flex gap-2" : "mt-5 flex gap-2"}>
         {(["individual", "business"] as const).map((r) => (
           <button key={r} type="button" onClick={() => setRole(r)}
             className={`flex-1 rounded border px-3 py-2 text-sm ${role === r ? "border-black bg-black text-white" : ""}`}>

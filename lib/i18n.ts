@@ -79,6 +79,8 @@ const DICT = {
     securityQuestions: "보안 질문 (아이디/비밀번호 찾기용)",
     questionN: "질문", answerN: "답변", marketingOptIn: "마케팅 정보 수신 동의",
     signupSubmit: "가입하기", alreadyMember: "이미 회원이신가요?",
+    continueWithKakao: "카카오로 시작하기", orDivider: "또는",
+    kakaoIndividualNote: "카카오 간편가입은 개인 회원 전용입니다. 사업자 회원은 아래 양식으로 신청해 주세요.",
     // 주소 폼
     addNewAddress: "+ 새 배송지 추가", addressDetail: "상세 주소",
     zipLabel: "우편번호", addressLabel: "기본 주소",
@@ -186,6 +188,8 @@ const DICT = {
     securityQuestions: "Security questions (for account recovery)",
     questionN: "Question", answerN: "Answer", marketingOptIn: "I agree to receive marketing information",
     signupSubmit: "Create account", alreadyMember: "Already a member?",
+    continueWithKakao: "Continue with Kakao", orDivider: "or",
+    kakaoIndividualNote: "Kakao sign-up is for individual members only. Business members, please use the form below.",
     // Address form
     addNewAddress: "+ Add new address", addressDetail: "Address detail",
     zipLabel: "Postal code", addressLabel: "Address",

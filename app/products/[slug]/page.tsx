@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getStorefrontContext } from "@/lib/storefront";
 import { getProductBySlug, getRelatedProducts } from "@/lib/queries";
@@ -118,7 +118,18 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const { locale, storefrontId } = await getStorefrontContext();
   const tt = t(locale);
   const p = await getProductBySlug(params.slug);
-  if (!p) notFound();
+  if (!p) {
+    // 슬러그가 변경된 제품이면 예전 URL → 현재 URL 로 리다이렉트(SEO·기존 링크 보존)
+    const supabaseRd = createClient();
+    const { data: moved } = await supabaseRd
+      .from("product")
+      .select("slug")
+      .contains("prev_slugs", [params.slug])
+      .eq("status", "active")
+      .maybeSingle();
+    if (moved?.slug && moved.slug !== params.slug) redirect(`/products/${moved.slug}`);
+    notFound();
+  }
 
   // 연관 제품 3개 — 블렌드: 블렌드2+싱글1 / 싱글: 싱글2+디카페인1(없으면 싱글로 폴백)
   const isBlend = p.categories.some((c) => c.slug === "blends");

@@ -16,8 +16,9 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
   const supabase = createClient();
   let q = supabase
     .from("product")
-    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,weight_g,product_variant(id,sku,base_price)")
-    .eq("status", showArchived ? "archived" : "active");
+    .select("slug,title_ko,product_type,is_b2b_only,status,key_color,weight_g,product_variant(id,sku,base_price)");
+  // 활성 뷰 = 발행(active) + 초안(draft) 모두 노출 · 보관 뷰 = archived
+  q = showArchived ? q.eq("status", "archived") : q.in("status", ["active", "draft"]);
   q = sort === "type" ? q.order("is_b2b_only", { ascending: true }).order("title_ko") : q.order("title_ko");
   const { data: products } = await q;
 
@@ -78,7 +79,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             <tr key={p.slug} className="border-b align-top">
               <td className="py-3"><input type="checkbox" className="bulk-prod mt-1" value={p.slug} /></td>
               <td className="py-3"><span className={`rounded-full px-2 py-0.5 text-xs ${p.is_b2b_only ? "bg-amber-100 text-amber-800" : "bg-neutral-100 text-neutral-600"}`}>{p.is_b2b_only ? "도매" : "소비자"}</span></td>
-              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{p.title_ko}</Link></td>
+              <td className="py-3"><Link href={`/admin/products/${p.slug}`} className="hover:underline">{p.title_ko}</Link>{p.status === "draft" && <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-medium text-yellow-800">초안</span>}</td>
               <td className="text-xs text-neutral-600">{p.weight_g ? `${p.weight_g}g` : "-"}</td>
               <td>{p.product_type}</td>
               <td className="text-xs">{(p.product_variant ?? []).map((v: any) => `${v.sku} · ₩${v.base_price.toLocaleString()}`).join("  /  ")}</td>

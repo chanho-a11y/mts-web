@@ -21,9 +21,19 @@ export interface ProductFormData {
 
 export interface CategoryOption { slug: string; name: string }
 
+// 영어 제품명 → 슬러그 변환 (소문자·영숫자·하이픈만)
+function slugify(s: string): string {
+  return s.toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // 한/영 두 칸을 한 줄에 (라벨 + KO + EN)
-function BilingualField({ label, nameKo, nameEn, ko, en, textarea, placeholder }: {
+function BilingualField({ label, nameKo, nameEn, ko, en, textarea, placeholder, onEnInput }: {
   label: string; nameKo: string; nameEn: string; ko?: string; en?: string; textarea?: boolean; placeholder?: string;
+  onEnInput?: (v: string) => void;
 }) {
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   return (
@@ -35,7 +45,7 @@ function BilingualField({ label, nameKo, nameEn, ko, en, textarea, placeholder }
           <textarea name={nameEn} defaultValue={en} rows={3} placeholder={`${placeholder ?? ""} (English)`} className={input} /></>
         ) : (
           <><input name={nameKo} defaultValue={ko} placeholder="한글" className={input} />
-          <input name={nameEn} defaultValue={en} placeholder="English" className={input} /></>
+          <input name={nameEn} defaultValue={en} onChange={onEnInput ? (e) => onEnInput(e.target.value) : undefined} placeholder="English" className={input} /></>
         )}
       </div>
     </div>
@@ -48,6 +58,7 @@ export default function ProductForm({
   const i = initial;
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   const isNew = !i.slug;
+  const [slug, setSlug] = useState<string>(i.slug ?? "");
 
   // 품목보고번호 → 원재료명 자동 세트 (DB 마스터 = report_no). 구 공백포맷 대비 정규화 매칭.
   const reportMaterial: Record<string, string> = Object.fromEntries(reportPresets.map((p) => [p.reportNo, p.material]));
@@ -72,15 +83,22 @@ export default function ProductForm({
   return (
     <form action={upsertProductAction} className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <label className="block text-sm">슬러그(URL) *<input name="slug" defaultValue={i.slug} required readOnly={!isNew} className={input} /></label>
+        <label className="block text-sm">슬러그(URL) *
+          <input name="slug" value={slug} onChange={(e) => setSlug(e.target.value)} required className={input} placeholder="ethiopia-yirgacheffe" />
+          {isNew
+            ? <span className="mt-1 block text-[11px] text-neutral-400">영어 제품명 입력 시 자동 생성됩니다. 직접 수정도 가능합니다.</span>
+            : <span className="mt-1 block text-[11px] text-amber-600">슬러그를 바꾸면 공개 URL·SKU가 변경되고, 예전 URL은 새 URL로 자동 리다이렉트됩니다.</span>}
+        </label>
         <label className="block text-sm">브랜드
           <select name="brand" defaultValue={i.brand ?? "mtspace"} className={input}><option value="mtspace">MTSPACE</option><option value="normcore">NORMCORE</option></select>
         </label>
       </div>
+      <input type="hidden" name="orig_slug" value={i.slug ?? ""} />
 
       <p className="text-xs text-neutral-400">※ 노출 텍스트는 한/영 모두 입력합니다(왼쪽 한글 · 오른쪽 English). 디자인 시 각 언어를 다르게 사용합니다.</p>
 
-      <BilingualField label="제품명 *" nameKo="title_ko" nameEn="title_en" ko={i.title_ko} en={i.title_en} placeholder="제품명" />
+      <BilingualField label="제품명 *" nameKo="title_ko" nameEn="title_en" ko={i.title_ko} en={i.title_en} placeholder="제품명"
+        onEnInput={isNew ? (v) => setSlug(slugify(v)) : undefined} />
       <BilingualField label="한 줄 키워드" nameKo="one_liner" nameEn="one_liner_en" ko={i.one_liner} en={i.one_liner_en} placeholder="한 줄 키워드" />
 
       <div className="grid grid-cols-2 gap-4">
@@ -215,7 +233,7 @@ export default function ProductForm({
 
       <div className="grid grid-cols-3 gap-4">
         <label className="block text-sm">SKU <span className="text-neutral-400">(= 슬러그 자동)</span>
-          <input value={i.slug ?? ""} readOnly placeholder="슬러그와 동일하게 자동 생성" className={`${input} bg-neutral-50 text-neutral-500`} /></label>
+          <input value={slug} readOnly placeholder="슬러그와 동일하게 자동 생성" className={`${input} bg-neutral-50 text-neutral-500`} /></label>
         <label className="block text-sm">소비자가(원)<input type="number" name="base_price" defaultValue={i.base_price ?? ""} className={input} /></label>
         <label className="block text-sm">제조원가(원) <span className="text-neutral-400">(gross profit)</span><input type="number" name="cost" defaultValue={i.cost ?? ""} className={input} /></label>
       </div>

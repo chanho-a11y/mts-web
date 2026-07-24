@@ -24,9 +24,14 @@ function mapStatus(s: string): string { return s === "draft" ? "draft" : "active
 export async function upsertProductAction(formData: FormData) {
   const supabase = createClient();
   const slug = String(formData.get("slug") || "").trim();
+  const origSlug = String(formData.get("orig_slug") || "").trim();
   const brandCode = String(formData.get("brand") || "mtspace");
   const { data: brand } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
   if (!slug || !brand) redirect("/admin/products?error=slug/brand");
+  // 슬러그 형식 검증 — 신규 또는 실제 변경 시에만(레거시 슬러그의 무변경 저장은 허용)
+  if (slug !== origSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    redirect(`/admin/products?error=${encodeURIComponent("슬러그는 영문 소문자·숫자·하이픈만 사용할 수 있습니다")}`);
+  }
 
   const catSlug = String(formData.get("category") || "");
   // 카테고리 wholesale(사업자 전용)이면 자동으로 B2B 전용 처리
@@ -61,28 +66,50 @@ export async function upsertProductAction(formData: FormData) {
     recipe: buildRecipeFromForm(g),
     evidence: buildEvidenceFromForm(g),
   };
-  const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
-  if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);
+  // 신규 = insert(슬러그 중복 가드) · 기존 = id 기준 update.
+  // 슬러그 변경 시 예전 슬러그를 prev_slugs 에 누적 → 공개 상세에서 예전 URL → 새 URL 리다이렉트.
+  let prodId: string;
+  if (origSlug) {
+    const { data: existing } = await supabase.from("product").select("id,prev_slugs").eq("slug", origSlug).maybeSingle();
+    if (!existing) redirect(`/admin/products?error=${encodeURIComponent("원본 제품을 찾을 수 없습니다")}`);
+    prodId = (existing as { id: string }).id;
+    let updateRow: Record<string, unknown> = row;
+    if (slug !== origSlug) {
+      const { data: clash } = await supabase.from("product").select("id").eq("slug", slug).maybeSingle();
+      if (clash) redirect(`/admin/products/${origSlug}?error=${encodeURIComponent("이미 사용 중인 슬러그입니다")}`);
+      const prevArr = Array.isArray((existing as { prev_slugs?: unknown }).prev_slugs) ? (existing as { prev_slugs: string[] }).prev_slugs : [];
+      const nextPrev = Array.from(new Set([...prevArr, origSlug])).filter((s) => s !== slug);
+      updateRow = { ...row, prev_slugs: nextPrev };
+    }
+    const { error } = await supabase.from("product").update(updateRow).eq("id", prodId);
+    if (error) redirect(`/admin/products/${origSlug}?error=${encodeURIComponent(error.message)}`);
+  } else {
+    const { data: clash } = await supabase.from("product").select("id").eq("slug", slug).maybeSingle();
+    if (clash) redirect(`/admin/products/new?error=${encodeURIComponent("이미 존재하는 슬러그입니다")}`);
+    const { data: prod, error } = await supabase.from("product").insert(row).select("id").single();
+    if (error || !prod) redirect(`/admin/products?error=${encodeURIComponent(error?.message ?? "save")}`);
+    prodId = (prod as { id: string }).id;
+  }
 
   // 대표 변형 — SKU = 슬러그(자동). 기존 변형이 있으면 갱신(중복 변형 방지).
   const sku = slug;
   const price = parseInt(String(formData.get("base_price") || "0"), 10) || 0;
-  const { data: existV } = await supabase.from("product_variant").select("id").eq("product_id", prod.id).order("position").limit(1).maybeSingle();
+  const { data: existV } = await supabase.from("product_variant").select("id").eq("product_id", prodId).order("position").limit(1).maybeSingle();
   if (existV) {
     const upd: Record<string, unknown> = { sku, weight_g: row.weight_g };
     if (price > 0) upd.base_price = price;
     await supabase.from("product_variant").update(upd).eq("id", (existV as { id: string }).id);
   } else if (price > 0) {
-    await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
+    await supabase.from("product_variant").insert({ product_id: prodId, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
   }
   // 카테고리·스토어프론트 연결
   if (catSlug) {
     const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
-    if (cat) await supabase.from("product_categories").upsert({ product_id: prod.id, category_id: cat.id });
+    if (cat) await supabase.from("product_categories").upsert({ product_id: prodId, category_id: cat.id });
   }
   // MTSPACE 단일 사이트 — 모든 제품을 mtspace.coffee 스토어프론트에 노출(B2B 여부는 RLS·역할로 제어)
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
-  if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
+  if (sf) await supabase.from("product_storefronts").upsert({ product_id: prodId, storefront_id: sf.id, is_visible: true });
 
   revalidatePath("/admin/products");
   redirect(`/admin/products/${slug}?saved=1`);

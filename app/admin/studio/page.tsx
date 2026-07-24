@@ -17,9 +17,9 @@ export default async function AdminStudioPage({ searchParams }: { searchParams: 
   const { data } = await supabase
     .from("product")
     .select(`slug,title_ko,title_en,one_liner,one_liner_en,roast_level,roast_level_en,flavor_notes,flavor_notes_en,
-      origin,producer,producer_en,variety,variety_en,altitude,altitude_en,process,process_en,weight_g,key_color,hashtags,
+      origin,producer,producer_en,variety,variety_en,altitude,altitude_en,process,process_en,weight_g,key_color,hashtags,status,
       story,story_en,brew_recipe,recipe,evidence,product_variant(base_price,is_active)`)
-    .eq("status", "active")
+    .in("status", ["active", "draft"])  // 통합 스튜디오: 발행+초안 모두 노출
     .order("title_ko");
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -31,6 +31,7 @@ export default async function AdminStudioPage({ searchParams }: { searchParams: 
     const joinArr = (a: any) => (Array.isArray(a) ? a.join(", ") : "");
     return {
       slug: p.slug,
+      status: p.status ?? "active",
       ko: p.title_ko ?? "", en: p.title_en ?? "",
       country: o.country ?? "", country_en: o.country_en ?? "",
       region: o.region ?? "", farm: o.farm ?? p.producer ?? "",

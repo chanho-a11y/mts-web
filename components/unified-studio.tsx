@@ -14,6 +14,7 @@ import { adminToast } from "@/components/admin-toast";
 
 export interface StudioItem extends DesignedFields {
   slug: string;
+  status?: string;
   en?: string;
   hash?: string;
   key_color?: string;
@@ -518,7 +519,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
           <label className="text-xs font-bold uppercase text-neutral-400">제품 불러오기</label>
           <select className="mt-1 w-full rounded border px-2.5 py-1.5 text-sm" value={f.slug} onChange={(e) => loadProduct(e.target.value)}>
             <option value="">— 제품 선택 —</option>
-            {items.map((i) => <option key={i.slug} value={i.slug}>{i.ko || i.slug}</option>)}
+            {items.map((i) => <option key={i.slug} value={i.slug}>{(i.ko || i.slug) + (i.status === "draft" ? " (초안)" : "")}</option>)}
           </select>
           <p className="mt-1 text-[11px] text-neutral-400">제품 정보는 <a href="/admin/products" className="underline">제품 수정</a>에서 입력합니다. 여기서는 <b>읽기전용</b>으로 불러와 레이아웃·이미지·텍스트 디테일을 작업합니다.</p>
         </div>

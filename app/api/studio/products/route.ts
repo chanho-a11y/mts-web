@@ -14,7 +14,7 @@ export async function GET() {
   const { data } = await supabase
     .from("product")
     .select("slug,title_ko,title_en,one_liner,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,hashtags,brew_recipe,body_html,status,product_image(storage_path,is_primary,position),product_variant(base_price,is_active)")
-    .eq("status", "active")
+    .in("status", ["active", "draft"])  // 통합 스튜디오: 발행+초안 모두 노출
     .order("title_ko");
 
   const items = (data ?? []).map((p: any) => {

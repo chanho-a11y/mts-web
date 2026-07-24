@@ -60,7 +60,7 @@ export async function GET() {
     .from("product")
     .select(`slug,title_ko,title_en,one_liner,story,roast_level,flavor_notes,origin,producer,variety,altitude,process,weight_g,key_color,brew_recipe,recipe,body_html,product_type,report_no,material,label_point,
       product_categories(category(slug))`)
-    .eq("status", "active")
+    .in("status", ["active", "draft"])  // 통합 스튜디오: 발행+초안 모두 노출
     .order("title_ko");
 
   // 품목보고번호 마스터 → 법적 제품명 맵(공백 제거 정규화 키). 라벨 표기 제품명은 반드시 이 값(법적).

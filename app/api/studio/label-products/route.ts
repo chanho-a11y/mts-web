@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pointKey } from "@/lib/point-color";
 import { type RecipeData } from "@/lib/recipe";
+import { getReportPresets } from "@/lib/report-no-server";
+import { normReportNo } from "@/lib/report-no";
 
 export const dynamic = "force-dynamic";
 
@@ -61,9 +63,20 @@ export async function GET() {
     .eq("status", "active")
     .order("title_ko");
 
+  // 품목보고번호 마스터 → 법적 제품명 맵(공백 제거 정규화 키). 라벨 표기 제품명은 반드시 이 값(법적).
+  const presets = await getReportPresets();
+  const legalNameByReport: Record<string, string> = {};
+  for (const pr of presets) {
+    const k = normReportNo(pr.reportNo);
+    if (k && pr.name) legalNameByReport[k] = pr.name;
+  }
+
   const strip = (s?: string | null) => (s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const items = (data ?? []).map((p: any) => {
     const ko = (p.title_ko ?? "").replace(/\[.*?\]\s*/g, "");
+    // 라벨 제품명(테이블·중앙 대형) = 품목보고번호 연동 법적 제품명. 매칭 없으면 등록명 폴백.
+    const reportNoNorm = normReportNo(String(p.report_no || ""));
+    const legalName = (reportNoNorm && legalNameByReport[reportNoNorm]) ? legalNameByReport[reportNoNorm] : ko;
     const o = p.origin ?? {};
     const r = p.brew_recipe ?? {};
     const cats: string[] = (p.product_categories ?? []).map((pc: any) => pc.category?.slug).filter(Boolean);
@@ -72,7 +85,8 @@ export async function GET() {
     const typeEn = isSingle ? "SINGLE ORIGIN" : isDecaf ? "DECAF" : "BLEND";
     const typeKr = isSingle ? "싱글 오리진" : isDecaf ? "디카페인" : "블렌드";
     const flavorStr = Array.isArray(p.flavor_notes) ? p.flavor_notes.join(" · ") : "";
-    const nameLen = [...ko].length;
+    // 폰트 초기 크기는 실제 표기명(법적명) 길이 기준으로 산정
+    const nameLen = [...legalName].length;
     const nameSize = nameLen <= 2 ? 7.2 : nameLen <= 4 ? 6.0 : nameLen <= 7 ? 5.2 : 4.4;
     const en = p.title_en ?? "";
     const enSize = en.length > 18 ? 1.8 : 2.4;
@@ -99,9 +113,10 @@ export async function GET() {
     return {
       key: p.slug,
       slug: p.slug,
-      reportNo: String(p.report_no || "").replace(/\s+/g, ""), // 불필요한 공백 제거(정본 포맷)
+      reportNo: reportNoNorm, // 공백 제거 정규화(정본 포맷)
       keyColor: p.key_color || "", // 제품관리 키컬러 = 레이블 포인트 최우선 소스
-      tableName: ko,
+      tableName: legalName,   // 라벨 표기 제품명(테이블·중앙) = 품목보고번호 연동 법적명 — 임의변경 금지
+      displayName: ko,        // 관리자 식별용(등록 제품명) — 선택 드롭다운·파일명 전용, 라벨 미표기
       name_en: en,
       name_en2: en,
       typeKr, typeEn,

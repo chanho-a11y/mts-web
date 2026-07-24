@@ -175,8 +175,8 @@
 
     <div class="grp">
       <h2>제품 기본정보</h2>
-      <label class="f">제품명 (국문) — 테이블·중앙 동일</label>
-      <input type="text" data-bind="tableName">
+      <label class="f">제품명 (국문) — 품목보고번호 연동 · 자동(법적 표기, 수정 불가)</label>
+      <input type="text" data-bind="tableName" readonly title="품목보고번호와 연동된 법적 제품명입니다. 제품관리의 품목보고번호로만 변경됩니다." style="background:#f1ece2;color:#6b6356;cursor:not-allowed">
       <label class="f">제품명 (영문, 현행법 표기)</label>
       <input type="text" data-bind="name_en">
       <div class="row2">
@@ -306,7 +306,7 @@
           <div class="midCenter">
             <div class="hairW" style="margin-bottom:4.4mm"></div>
             <div class="typeMid" data-field="typeMid" data-editable contenteditable>BLEND</div>
-            <div class="nameMid" data-field="nameMid" data-editable contenteditable style="margin-top:2mm">댐굳</div>
+            <div class="nameMid" data-field="nameMid" style="margin-top:2mm" title="품목보고번호 연동 법적 제품명 — 임의 수정 불가">댐굳</div>
             <div class="enMid" data-field="enMid" data-editable contenteditable style="margin-top:2mm">damn good</div>
             <div class="notesMid" data-field="notesMid" data-editable contenteditable style="margin-top:3mm">Dark chocolate · Plum · Vanilla</div>
             <div class="hairW" style="margin-top:4.4mm"></div>
@@ -388,7 +388,7 @@ function loadPreset(reportNo){
   const p = PRESETS[reportNo];
   state = {
     reportNo,
-    tableName:p.tableName, name_en:p.name_en, name_en2:p.name_en,
+    tableName:p.tableName, displayName:p.tableName, name_en:p.name_en, name_en2:p.name_en,
     typeKr:p.typeKr, typeEn:p.typeEn, notesEn:p.notesEn, point:p.point,
     nameSize:p.nameSize, enSize:p.enSize,
     material:p.material, desc:p.desc, infoLabel:p.infoLabel, flavor:p.flavor,
@@ -565,7 +565,8 @@ function buildRecipeForm(){
 }
 document.getElementById('addRecipe').onclick=()=>{ state.recipe.push(['METHOD','수치','(조건)']); buildRecipeForm(); renderLabel(); };
 
-const FIELD2STATE={ ig:'ig', nameMid:'tableName', enMid:'name_en', typeMid:'typeEn', notesMid:'notesEn', rname:'name_en2', descLabel:'desc', infoLabel:'infoLabel', vol:'vol' };
+// nameMid(중앙 대형 제품명)은 품목보고번호 연동 법적명이라 편집 불가 → 매핑에서 제외.
+const FIELD2STATE={ ig:'ig', enMid:'name_en', typeMid:'typeEn', notesMid:'notesEn', rname:'name_en2', descLabel:'desc', infoLabel:'infoLabel', vol:'vol' };
 document.querySelectorAll('[data-editable]').forEach(el=>{
   el.addEventListener('input',()=>{ const f=el.getAttribute('data-field'); const k=FIELD2STATE[f]; if(k){ state[k]=el.textContent; const inp=document.querySelector('[data-bind="'+k+'"]'); if(inp) inp.value=state[k]; safetyFit(); } });
 });
@@ -585,7 +586,7 @@ const sel=document.getElementById('presetSelect');
 Object.keys(PRESETS).forEach(rn=>{ const o=document.createElement('option'); o.value=rn; o.textContent=PRESETS[rn].tableName+'  ('+rn+')'; sel.appendChild(o); });
 sel.addEventListener('change',()=>loadPreset(sel.value));
 
-document.getElementById('exportJson').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(state.tableName||'label')+'.json'; a.click(); };
+document.getElementById('exportJson').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(state.displayName||state.tableName||'label')+'.json'; a.click(); };
 
 const NAT_W=180*MMPX, NAT_H=130*MMPX;
 let userZoom=1; // 사용자 확대/축소 배율(화면맞춤=1 기준의 배수)
@@ -681,7 +682,7 @@ fitScale();
   function load(d){
     if(typeof state==='undefined') return;
     window.__mtsLabelSlug=d.slug;
-    state={ reportNo:(d.reportNo||'').replace(/\s+/g,''), keyColor:d.keyColor||'', tableName:d.tableName, name_en:d.name_en, name_en2:d.name_en2||d.name_en,
+    state={ reportNo:(d.reportNo||'').replace(/\s+/g,''), keyColor:d.keyColor||'', tableName:d.tableName, displayName:d.displayName||d.tableName, name_en:d.name_en, name_en2:d.name_en2||d.name_en,
       typeKr:d.typeKr||'', typeEn:d.typeEn||'', notesEn:d.notesEn||'', point:d.point||'chocolate-dark',
       nameSize:d.nameSize||6, enSize:d.enSize||2.4, material:d.material||'커피원두 100%', desc:d.desc||'',
       infoLabel:d.infoLabel||'coffee Information', flavor:d.flavor||'',
@@ -690,9 +691,9 @@ fitScale();
     setSlider('fsNameMid',state.nameSize); setSlider('fsEnMid',state.enSize);
     setSlider('fsDesc',DEFAULTS.desc); setSlider('fsInfo',DEFAULTS.info); setSlider('fsBrand',DEFAULTS.brand); setSlider('barW',DEFAULTS.bar);
     applyVars(); syncFormFromState(); renderLabel();
-    status('불러옴: '+d.tableName);
+    status('불러옴: '+(d.displayName||d.tableName));
   }
-  function fillSelect(sel){ if(!sel) return; sel.innerHTML='<option value="">기존 제품 불러오기…</option>'; items.forEach(function(it){ var o=document.createElement('option'); o.value=it.key; o.textContent=it.tableName; sel.appendChild(o); }); }
+  function fillSelect(sel){ if(!sel) return; sel.innerHTML='<option value="">기존 제품 불러오기…</option>'; items.forEach(function(it){ var o=document.createElement('option'); o.value=it.key; o.textContent=(it.displayName||it.tableName); sel.appendChild(o); }); }
   fetch('/api/studio/label-products',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
     items=(d&&d.items)||[];
     fillSelect(document.getElementById('__mtsLabelProduct'));
@@ -745,7 +746,7 @@ fitScale();
     if(prev) docEl.style.setProperty('--scale',prev); if(typeof fitScale==='function') fitScale();
     return canvas;
   }
-  function labelFileName(ext){ var nm=(typeof state!=='undefined'&&state.tableName)?state.tableName:'label'; return nm.replace(/\s+/g,'_')+'_label.'+ext; }
+  function labelFileName(ext){ var nm=(typeof state!=='undefined'&&(state.displayName||state.tableName))?(state.displayName||state.tableName):'label'; return nm.replace(/\s+/g,'_')+'_label.'+ext; }
   async function downloadLabel(type){
     status('고해상도 이미지 생성 중…');
     try{

@@ -49,7 +49,8 @@ export default async function AdminStorePage() {
 
       {/* 국내 배송 */}
       <section className="rounded-xl border p-5">
-        <h2 className="mb-3 font-bold">국내 배송 요금 (무게 구간)</h2>
+        <h2 className="mb-1 font-bold">국내 배송 요금 (무게 구간)</h2>
+        <p className="mb-3 text-xs text-neutral-400">최대무게는 <b>이하(≤)</b> 기준입니다. 예) &quot;10kg 이상 무료&quot; 정책이면 기본 구간 최대무게를 <b>9,999g</b>로 두어야 정확히 10,000g(1kg×10개) 주문이 무료가 됩니다.</p>
         <div className="space-y-2">
           {(domestic ?? []).map((r) => (
             <form key={r.id} action={saveDomesticRateAction} className="flex items-center gap-2 text-sm">

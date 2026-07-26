@@ -13,6 +13,8 @@ export interface CheckoutPayload {
   provider: Provider;
   code?: string;
   email?: string;
+  mobile?: boolean;   // 클라이언트 기기 판별(이니시스 PC/모바일 모듈 분기)
+  payMethod?: string; // 모바일 이니시스 지불수단(CARD|BANK)
   shipping: {
     recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string;
     state?: string; city?: string; countryName?: string; // 해외 배송지(주/도·도시·기타국가명)
@@ -43,7 +45,7 @@ export interface CheckoutResult {
   message: string;
   pgReady?: boolean;
   redirectUrl?: string | null;
-  form?: { sdk: "inicis"; fields: Record<string, string> } | null;
+  form?: { sdk: "inicis" | "inicis-mobile"; action?: string; fields: Record<string, string> } | null;
 }
 
 export async function createOrderAction(payload: CheckoutPayload): Promise<CheckoutResult> {
@@ -160,6 +162,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     origin: reqOrigin,
     buyerName: payload.shipping.recipient, buyerTel: payload.shipping.phone,
     buyerEmail: user?.email ?? payload.email ?? "",
+    mobile: payload.mobile === true, payMethod: payload.payMethod,
   });
   await db.from("payment").insert({
     order_id: order.id, provider: payload.provider, amount: grand, currency,

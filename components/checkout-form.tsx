@@ -44,7 +44,31 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
-// 이니시스 표준결제(INIStdPay): 서명 필드로 hidden 폼 구성 후 SDK 결제창 호출
+// 모바일 기기 판별 — 이니시스 PC 모듈(INIStdPay.js)은 모바일에서 차단되므로 모바일 모듈로 분기.
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/Android|iPhone|iPod|iPad|IEMobile|Opera Mini|Mobile/i.test(ua)) return true;
+  // iPadOS 는 데스크톱 UA(Macintosh)로 보고됨 → 터치 지원으로 보정
+  return /Macintosh/.test(ua) && typeof document !== "undefined" && navigator.maxTouchPoints > 1;
+}
+
+// 이니시스 모바일 표준결제: 결제요청 URL 로 폼 직접 POST(전체 페이지 이동). 전문 인코딩은 EUC-KR.
+function startInicisMobile(action: string, fields: Record<string, string>) {
+  document.getElementById("inicis_m_form")?.remove();
+  const form = document.createElement("form");
+  form.id = "inicis_m_form"; form.method = "post"; form.action = action;
+  form.acceptCharset = "EUC-KR"; form.style.display = "none";
+  for (const [k, v] of Object.entries(fields)) {
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = k; i.value = String(v);
+    form.appendChild(i);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+// 이니시스 PC 표준결제(INIStdPay): 서명 필드로 hidden 폼 구성 후 SDK 결제창 호출
 async function startInicis(fields: Record<string, string>) {
   await loadScript("https://stdpay.inicis.com/stdjs/INIStdPay.js");
   document.getElementById("inicis_pay_form")?.remove();
@@ -70,6 +94,10 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   ];
   const router = useRouter();
   const [provider, setProvider] = useState<Provider>("inicis");
+  // 모바일 여부는 마운트 후 판정(SSR 하이드레이션 불일치 방지)
+  const [isMobile, setIsMobile] = useState(false);
+  const [payMethod, setPayMethod] = useState<"CARD" | "BANK">("CARD");
+  useEffect(() => { setIsMobile(isMobileDevice()); }, []);
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,6 +162,8 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
       items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       tip,
       provider,
+      mobile: isMobile,
+      payMethod: isMobile ? payMethod : undefined,
       code: code.trim() || undefined,
       email: String(formData.get("email") || "") || undefined,
       shipping: {
@@ -149,11 +179,13 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
       },
     });
     setMsg(res.message);
-    // 이니시스: SDK 결제창(폼 제출)
-    if (res.ok && res.form?.sdk === "inicis") {
+    // 이니시스: 모바일=결제요청 URL 로 폼 POST / PC=INIStdPay SDK 결제창
+    if (res.ok && res.form) {
       clear();
-      try { await startInicis(res.form.fields); }
-      catch { setMsg("결제창을 열지 못했습니다. 잠시 후 다시 시도해주세요."); setBusy(false); }
+      try {
+        if (res.form.sdk === "inicis-mobile") startInicisMobile(res.form.action || "", res.form.fields);
+        else await startInicis(res.form.fields);
+      } catch { setMsg("결제창을 열지 못했습니다. 잠시 후 다시 시도해주세요."); setBusy(false); }
       return;
     }
     setBusy(false);
@@ -232,6 +264,19 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
             <input type="radio" name="pm" checked={provider === m.p} onChange={() => setProvider(m.p)} /> {m.label}
           </label>
         ))}
+        {/* 모바일 이니시스는 결제수단을 사전 지정해야 함(모바일 표준결제 규격) */}
+        {isMobile && provider === "inicis" && (
+          <div className="ml-6 flex gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="inicis_m" checked={payMethod === "CARD"} onChange={() => setPayMethod("CARD")} />
+              {en ? "Credit card" : "신용카드"}
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="inicis_m" checked={payMethod === "BANK"} onChange={() => setPayMethod("BANK")} />
+              {en ? "Bank transfer" : "계좌이체"}
+            </label>
+          </div>
+        )}
       </div>
 
       <aside className="h-fit rounded-xl border p-5 text-sm">

@@ -18,7 +18,8 @@ const TEST = process.env.PAYMENTS_TEST_MODE === "true" && process.env.NODE_ENV !
 
 // 공통 승인 처리. provider별 검증 후 approveOrder.
 async function handle(provider: string, q: URLSearchParams, body: Record<string, unknown>) {
-  const orderId = String(q.get("oid") || body.oid || body.order_id || "");
+  // 모바일 이니시스는 P_NEXT_URL 에 쿼리를 붙이지 않고 P_NOTI(가맹점 임의데이터)로 orderId 를 왕복시킨다.
+  const orderId = String(q.get("oid") || body.oid || body.order_id || body.P_NOTI || "");
   const orderNo = String(q.get("order") || body.order || body.order_no || "");
   if (!orderId) return { ok: false, reason: "no_order", orderNo };
 
@@ -46,6 +47,37 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     // 이니시스 표준결제: 인증창 → returnUrl(POST)로 resultCode/authToken/authUrl 수신 → authUrl 승인요청(서명) → 검증.
     const mid = process.env.INICIS_MID, signKey = process.env.INICIS_SIGNKEY;
     if (!mid || !signKey) return { ok: false, reason: "inicis_unconfigured", orderNo };
+
+    // --- 모바일 표준결제 결과(P_*) --- : 인증결과 수신 → P_REQ_URL 로 승인요청(P_MID·P_TID) → 승인결과 검증
+    if (body.P_STATUS !== undefined || body.P_TID !== undefined) {
+      const st = String(body.P_STATUS ?? "");
+      if (st !== "00") return { ok: false, reason: `inicis_m_auth_${st || "empty"}`, orderNo };
+      const reqUrl = String(body.P_REQ_URL || "");
+      const authTid = String(body.P_TID || "");
+      if (!reqUrl || !authTid) return { ok: false, reason: "inicis_m_no_requrl", orderNo };
+      // 보안: 승인요청 URL 은 이니시스 도메인만 허용
+      let mHost = "";
+      try { mHost = new URL(reqUrl).host; } catch { return { ok: false, reason: "inicis_m_bad_requrl", orderNo }; }
+      if (!/(^|\.)inicis\.com$/.test(mHost)) return { ok: false, reason: "inicis_m_bad_requrl", orderNo };
+
+      const apRes = await fetch(reqUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ P_MID: mid, P_TID: authTid }).toString(),
+      });
+      // 승인응답은 querystring 형식(P_CHARSET=utf8 요청 → utf8 수신)
+      const apText = await apRes.text();
+      const ap = Object.fromEntries(new URLSearchParams(apText)) as Record<string, string>;
+      if (String(ap.P_STATUS ?? "") !== "00") {
+        console.error(`[inicis-mobile-approve-failed] order=${orderNo} status=${ap.P_STATUS} msg=${ap.P_RMESG1}`);
+        return { ok: false, reason: `inicis_m_approve_${ap.P_STATUS || "err"}`, orderNo };
+      }
+      // H-2: 승인금액(P_AMT) 대조는 approveOrder 가 수행(불일치 시 결제완료 전이 차단)
+      const mPaid = ap.P_AMT != null ? Math.round(Number(ap.P_AMT)) : null;
+      const mr = await approveOrder(db(), orderId, { provider, tid: String(ap.P_TID || authTid), raw: ap, paidAmount: mPaid });
+      return { ...mr, orderNo: mr.orderNo || orderNo };
+    }
+
     const resultCode = String(body.resultCode || "");
     const authToken = String(body.authToken || "");
     const authUrl = String(body.authUrl || "");

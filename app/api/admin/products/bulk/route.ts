@@ -11,7 +11,7 @@ const CAT_TYPE: Record<string, string> = {
   normcore: "블렌드", decaf: "디카페인", merch: "merch", limited: "블렌드",
 };
 
-// 제품 일괄 작업 — 보관/복원/삭제/유형변경. 관리자 전용.
+// 제품 일괄 작업 — 발행/초안(setstatus)·보관/복원·삭제·유형변경. 관리자 전용.
 export async function POST(req: Request) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (prof?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  let p: { action?: string; slugs?: string[]; category?: string } = {};
+  let p: { action?: string; slugs?: string[]; category?: string; status?: string } = {};
   try { p = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   const action = String(p.action || "");
   const slugs = Array.isArray(p.slugs) ? p.slugs.map(String).filter(Boolean) : [];
@@ -49,6 +49,36 @@ export async function POST(req: Request) {
     }
     revalidatePath("/admin/products");
     return NextResponse.json({ ok: true, [action === "archive" ? "archived" : "restored"]: slugs.length });
+  }
+
+  // 발행/초안 일괄 전환 — 발행(active)=스토어프론트 노출 ON, 초안(draft)=노출 OFF.
+  if (action === "setstatus") {
+    const status = String(p.status || "");
+    if (status !== "active" && status !== "draft") {
+      return NextResponse.json({ error: "status는 active 또는 draft 여야 합니다" }, { status: 400 });
+    }
+    const { error } = await supabase.from("product").update({ status }).in("slug", slugs);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // 노출 링크 동기화 — 발행은 upsert(is_visible=true), 초안은 is_visible=false.
+    const admin = hasServiceRole ? createAdminClient() : supabase;
+    const { data: sf } = await admin.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
+    const { data: prods } = await admin.from("product").select("id").in("slug", slugs);
+    const pids = (prods ?? []).map((row: { id: string }) => row.id);
+    if (sf && pids.length) {
+      if (status === "active") {
+        for (const pid of pids) {
+          await admin.from("product_storefronts").upsert(
+            { product_id: pid, storefront_id: (sf as { id: string }).id, is_visible: true },
+            { onConflict: "product_id,storefront_id" },
+          );
+        }
+      } else {
+        await admin.from("product_storefronts").update({ is_visible: false }).in("product_id", pids);
+      }
+    }
+    revalidatePath("/admin/products");
+    return NextResponse.json({ ok: true, changed: slugs.length, status });
   }
 
   if (action === "settype") {

@@ -88,7 +88,7 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   const { items, clear } = useCart();
   const tt = t(locale);
   const en = locale === "en";
-  const METHODS: { p: Provider; label: string }[] = [
+  const ALL_METHODS: { p: Provider; label: string }[] = [
     { p: "inicis", label: tt.pmInicis },
     { p: "paypal", label: tt.pmPaypal },
   ];
@@ -145,6 +145,13 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
 
   const shipFee = quote?.feeKRW ?? 0;
   const total = sub + tip + shipFee;
+
+  // 해외 배송지는 PayPal(외화)만 — 이니시스는 KRW 전용(D-085). 국가 변경 시 결제수단 자동 보정.
+  const METHODS = isKR ? ALL_METHODS : ALL_METHODS.filter((m) => m.p === "paypal");
+  useEffect(() => {
+    if (!isKR && provider !== "paypal") setProvider("paypal");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isKR]);
 
   function searchKR() {
     if (!window.daum?.Postcode) return;
@@ -259,6 +266,11 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
         )}
 
         <h2 className="pt-4 font-bold">{tt.paymentMethod}</h2>
+        {!isKR && (
+          <p className="text-xs text-neutral-500">
+            {en ? "International orders are paid in USD via PayPal only." : "해외 배송 주문은 PayPal(USD) 결제만 가능합니다."}
+          </p>
+        )}
         {METHODS.map((m) => (
           <label key={m.p} className="flex items-center gap-2 text-sm">
             <input type="radio" name="pm" checked={provider === m.p} onChange={() => setProvider(m.p)} /> {m.label}

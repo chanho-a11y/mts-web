@@ -54,6 +54,11 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
 
   if (!payload.items.length) return { ok: false, message: "장바구니가 비어 있습니다." };
 
+  // 해외 배송지는 PayPal(외화)만 허용 — 이니시스는 KRW 전용이라 USD 환산액이 원화로 청구되는 것을 차단(D-085).
+  if (payload.shipping.country !== "KR" && payload.provider !== "paypal") {
+    return { ok: false, message: "해외 배송 주문은 PayPal 결제만 가능합니다. (International orders can only be paid with PayPal.)" };
+  }
+
   // 회원: RLS 클라이언트(본인). 게스트: service-role(있을 때만).
   const guest = !user;
   if (guest && !hasServiceRole) {

@@ -125,3 +125,14 @@ export function shipNotificationHtml(orderNo: string, name?: string): string {
      <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
   );
 }
+
+// 템플릿: 비밀번호 재설정 인증코드 (6자리 코드 + 자동입력 링크 겸용)
+export function passwordResetCodeHtml(code: string, link: string, name?: string, minutes = 10): string {
+  return emailLayout(
+    "비밀번호 재설정 인증코드",
+    `<p>${name ? name + "님, " : ""}비밀번호 재설정을 요청하셨습니다. 아래 인증코드를 입력해 주세요.</p>
+     <p style="margin:20px 0;padding:18px 0;text-align:center;background:#F6F1E7;border:1px solid #E3DAC8;border-radius:8px;font-family:'IBM Plex Mono',Menlo,monospace;font-size:30px;font-weight:700;letter-spacing:10px;color:#3C352C">${code}</p>
+     <p style="text-align:center;margin:0 0 22px"><a href="${link}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">비밀번호 재설정하기</a></p>
+     <p style="font-size:13px;color:#888;line-height:1.7">· 인증코드는 <b>${minutes}분</b> 동안만 유효하며, 1회만 사용할 수 있습니다.<br>· 위 버튼을 누르면 인증코드가 자동 입력된 화면으로 이동합니다.<br>· 본인이 요청하지 않았다면 이 메일을 무시해 주세요. 비밀번호는 변경되지 않습니다.</p>`,
+  );
+}

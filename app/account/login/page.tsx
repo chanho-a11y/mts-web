@@ -38,6 +38,9 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
         <button type="submit" className="w-full rounded-full bg-black py-3 text-sm text-white">{tt.login}</button>
       </form>
       <p className="mt-4 text-center text-sm text-neutral-500">
+        <Link href="/account/forgot" className="underline">{tt.forgotPassword}</Link>
+      </p>
+      <p className="mt-2 text-center text-sm text-neutral-500">
         {tt.newHere} <Link href="/account/signup" className="underline">{tt.signup}</Link>
       </p>
     </main>

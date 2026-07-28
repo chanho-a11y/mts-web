@@ -6,6 +6,7 @@ import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { sendEmail, shipNotificationHtml } from "@/lib/email";
 import { inicisCancel, paypalRefund } from "@/lib/payments-refund";
 
+import { requireAdmin, getAdminUser } from "@/lib/auth-guard";
 // 취소/환불 등 관리자 쓰기는 RLS 우회(service-role) 우선, 없으면 세션 클라이언트
 function adminDb() {
   return hasServiceRole ? createAdminClient() : createClient();
@@ -15,6 +16,7 @@ function adminDb() {
 //            created 가 24시간 경과하면 cron 이 expired(미결제 만료)로 전환한다.
 // 미결제(created)는 결제 전이므로 준비/출고로 진행 불가 — 개별·일괄 처리 모두 결제완료(paid) 이상만 전이.
 export async function setOrderStatusAction(formData: FormData) {
+  await requireAdmin();
   const orderId = String(formData.get("order_id") || "");
   const status = String(formData.get("status") || "");
   const supabase = createClient();
@@ -29,6 +31,7 @@ export async function setOrderStatusAction(formData: FormData) {
 }
 
 export async function bulkOrdersAction(ids: string[], action: "confirm" | "ship") {
+  await requireAdmin();
   const supabase = createClient();
   const status = action === "confirm" ? "preparing" : "shipped";
   // 미결제(created)는 제외하고 결제완료 이상만 전이 (confirm=paid→preparing, ship=paid/preparing→shipped).
@@ -75,9 +78,9 @@ export async function cancelOrderAction(input: {
   items?: CancelItemInput[];
   reason?: string;
 }): Promise<{ ok: boolean; message: string }> {
-  const session = createClient();
-  const { data: { user } } = await session.auth.getUser();
-  if (!user) return { ok: false, message: "관리자 인증이 필요합니다." };
+  // C-2: 기존엔 로그인 여부만 확인해, 일반 회원도 타인 주문을 실제 환불(PG 취소)시킬 수 있었다.
+  const user = await getAdminUser();
+  if (!user) return { ok: false, message: "관리자 권한이 필요합니다." };
   const db = adminDb();
 
   const { data: order } = await db.from("orders")

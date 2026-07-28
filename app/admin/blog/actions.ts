@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -19,6 +20,7 @@ async function defaultStorefrontId(): Promise<string | null> {
 }
 
 export async function createPostAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const title = String(formData.get("title") || "").trim();
   if (!title) return;
@@ -42,6 +44,7 @@ export async function createPostAction(formData: FormData) {
 }
 
 export async function updatePostAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const id = String(formData.get("id") || "");
   if (!id) return;
@@ -65,6 +68,7 @@ export async function updatePostAction(formData: FormData) {
 }
 
 export async function deletePostAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const id = String(formData.get("id") || "");
   if (!id) return;

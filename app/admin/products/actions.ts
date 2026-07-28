@@ -6,6 +6,7 @@ import { generateDrafts, buildDesignedDetailHtml } from "@/lib/content-gen";
 import { buildRecipeFromForm } from "@/lib/recipe";
 import { buildEvidenceFromForm } from "@/lib/evidence";
 
+import { requireAdmin, isAdminUser } from "@/lib/auth-guard";
 function csv(v: string): string[] {
   return v.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
 }
@@ -22,6 +23,7 @@ function typeFromCategory(cat: string): string { return CAT_TYPE[cat] ?? "블렌
 function mapStatus(s: string): string { return s === "draft" ? "draft" : "active"; }
 
 export async function upsertProductAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const slug = String(formData.get("slug") || "").trim();
   const origSlug = String(formData.get("orig_slug") || "").trim();
@@ -189,6 +191,7 @@ async function saveProductRow(
 
 /** 일괄 등록 — 클라이언트에서 검증·미리보기 후 확정한 행(JSON)을 받아 순차 저장. */
 export async function bulkUpsertProductsAction(formData: FormData) {
+  await requireAdmin();
   const raw = String(formData.get("rows") || "[]");
   let rows: Record<string, string>[] = [];
   try { rows = JSON.parse(raw); } catch { redirect("/admin/products/bulk?error=" + encodeURIComponent("데이터 파싱 실패")); }
@@ -208,6 +211,7 @@ export async function bulkUpsertProductsAction(formData: FormData) {
 }
 
 export async function archiveProductAction(formData: FormData) {
+  await requireAdmin();
   const slug = String(formData.get("slug") || "").trim();
   if (!slug) redirect("/admin/products?error=slug");
   const supabase = createClient();
@@ -218,6 +222,7 @@ export async function archiveProductAction(formData: FormData) {
 }
 
 export async function restoreProductAction(formData: FormData) {
+  await requireAdmin();
   const slug = String(formData.get("slug") || "").trim();
   if (!slug) redirect("/admin/products?error=slug");
   const supabase = createClient();
@@ -231,6 +236,7 @@ export async function restoreProductAction(formData: FormData) {
 
 // 제품 복제 — 전체 내용 복사 후 새 초안으로 생성하고 수정 화면으로 이동(사용자가 정보 재입력).
 export async function duplicateProductAction(formData: FormData) {
+  await requireAdmin();
   const slug = String(formData.get("slug") || "").trim();
   if (!slug) redirect("/admin/products?error=slug");
   const supabase = createClient();
@@ -261,6 +267,7 @@ export async function duplicateProductAction(formData: FormData) {
 }
 
 export async function generateDraftsAction(formData: FormData) {
+  await requireAdmin();
   const productId = String(formData.get("product_id") || "");
   const slug = String(formData.get("slug") || "");
   await generateForProduct(productId);
@@ -269,6 +276,7 @@ export async function generateDraftsAction(formData: FormData) {
 
 // 사업자 전용 — 고객별 납품가 저장 (customer_variant_prices). 납품가=절대가(원).
 export async function saveCustomerPriceAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const profileId = String(formData.get("profile_id") || "");
@@ -291,6 +299,7 @@ export async function saveCustomerPriceAction(formData: FormData) {
 }
 
 export async function deleteCustomerPriceAction(formData: FormData) {
+  await requireAdmin();
   const supabase = createClient();
   const id = String(formData.get("id") || "");
   const slug = String(formData.get("slug") || "");
@@ -300,6 +309,7 @@ export async function deleteCustomerPriceAction(formData: FormData) {
 }
 
 export async function adjustInventoryAction(formData: FormData) {
+  await requireAdmin();
   const variantId = String(formData.get("variant_id") || "");
   const delta = parseInt(String(formData.get("delta") || "0"), 10) || 0;
   const slug = String(formData.get("slug") || "");
@@ -314,6 +324,7 @@ export async function adjustInventoryAction(formData: FormData) {
 /** 제품 목록 인라인 재고 저장 — 목표 재고(절대값)를 받아 현재고 대비 delta 를 ledger 에 기록.
  *  현재고는 서버에서 재계산(current_stock RPC)하므로 목록 화면이 낡아도 최종값은 입력값과 일치. */
 export async function setStockAction(variantId: string, target: number): Promise<{ ok: true; stock: number } | { ok: false; error: string }> {
+  if (!(await isAdminUser())) return { ok: false, error: "관리자 권한이 필요합니다." };
   if (!variantId || !Number.isFinite(target) || target < 0) return { ok: false, error: "재고 값을 확인하세요" };
   const t = Math.floor(target);
   const supabase = createClient();

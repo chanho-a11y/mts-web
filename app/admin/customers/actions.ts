@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 
+import { requireAdmin } from "@/lib/auth-guard";
 const CUST = "/admin/customers";
 
 // 고객 추가 — auth 계정 생성(초기 비번 0000, 첫 로그인 시 변경). service-role 필요.
 export async function addCustomerAction(formData: FormData) {
+  await requireAdmin();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const name = String(formData.get("name") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -26,6 +28,7 @@ export async function addCustomerAction(formData: FormData) {
 }
 
 export async function updateCustomerAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   if (!id) redirect(CUST);
   const supabase = createClient();
@@ -40,6 +43,7 @@ export async function updateCustomerAction(formData: FormData) {
 
 // 보관(archive) 토글 — 목록에서 숨김
 export async function archiveCustomerAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   const archived = String(formData.get("archived") || "true") === "true";
   if (id) {
@@ -52,6 +56,7 @@ export async function archiveCustomerAction(formData: FormData) {
 
 // 완전 삭제 — auth 계정까지 제거. service-role 필요.
 export async function deleteCustomerAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   if (!id) redirect(CUST);
   if (!hasServiceRole) redirect(`${CUST}?error=${encodeURIComponent("service-role 키가 필요합니다(배포 환경에서 동작)")}`);
@@ -85,6 +90,7 @@ export async function deleteCustomerAction(formData: FormData) {
 
 // 엑셀(CSV) 임포트 — 첨부 양식과 동일 컬럼. 각 행을 사업자 고객으로 생성(비번 0000).
 export async function importCustomersAction(formData: FormData) {
+  await requireAdmin();
   const file = formData.get("file") as File | null;
   if (!file) redirect(`${CUST}?error=${encodeURIComponent("CSV 파일을 선택하세요")}`);
   if (!hasServiceRole) redirect(`${CUST}?error=${encodeURIComponent("service-role 키가 필요합니다(배포 환경에서 동작)")}`);
@@ -130,6 +136,7 @@ function splitCsv(line: string): string[] {
 
 // 기업 고객별 할인 설정 (금액/% 할인 또는 직접 단가 → 절대 개별가로 환산, resolve_price 최우선)
 export async function setCustomerPriceAction(formData: FormData) {
+  await requireAdmin();
   const profileId = String(formData.get("profile_id") || "");
   const variantId = String(formData.get("variant_id") || "");
   const mode = String(formData.get("mode") || "fixed"); // amount | percent | fixed
@@ -155,6 +162,7 @@ export async function setCustomerPriceAction(formData: FormData) {
 }
 
 export async function deleteCustomerPriceAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   const profileId = String(formData.get("profile_id") || "");
   const supabase = createClient();

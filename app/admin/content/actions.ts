@@ -2,7 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 export async function saveSettingsAction(formData: FormData) {
+  await requireAdmin();
   const brandCode = String(formData.get("brand") || "mtspace");
   const supabase = createClient();
   const { data: brand } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();
@@ -23,6 +25,7 @@ export async function saveSettingsAction(formData: FormData) {
 }
 
 export async function saveCategoryBannerAction(formData: FormData) {
+  await requireAdmin();
   const slug = String(formData.get("slug") || "");
   const banner = String(formData.get("banner_path") || "");
   const supabase = createClient();

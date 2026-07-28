@@ -9,6 +9,16 @@ function hashAnswer(a: string): string {
   return createHash("sha256").update((a ?? "").trim().toLowerCase()).digest("hex");
 }
 
+// C-1: 공개 가입에서 선택 가능한 등급은 이 둘뿐이다.
+// customer_role enum 에는 admin·influencer 도 존재하므로, 폼 값을 그대로 신뢰하면
+// 가입 요청에 role=admin 을 실어 보내는 것만으로 관리자 권한이 발급된다(권한상승).
+// → 화이트리스트로 강제하고, DB 트리거(handle_new_user)에서도 동일하게 재차 막는다(2중 방어).
+const SIGNUP_ROLES = ["individual", "business"] as const;
+function safeSignupRole(v: FormDataEntryValue | null): "individual" | "business" {
+  const s = String(v || "individual");
+  return (SIGNUP_ROLES as readonly string[]).includes(s) ? (s as "individual" | "business") : "individual";
+}
+
 export async function signUpAction(formData: FormData) {
   // 봇 가입 차단 (D-091) — Turnstile 토큰 서버 검증.
   // 자동확인(admin.createUser) 가입이라 Supabase 대시보드 CAPTCHA 로는 막을 수 없어 여기서 직접 검증.
@@ -20,7 +30,7 @@ export async function signUpAction(formData: FormData) {
 
   const email = String(formData.get("email") || "");
   const password = String(formData.get("password") || "");
-  const role = String(formData.get("role") || "individual"); // individual | business
+  const role = safeSignupRole(formData.get("role")); // individual | business 로 강제(C-1)
   const language = String(formData.get("language") || "ko");
 
   const security = [1, 2, 3].map((i) => ({

@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 const KEYS = [
   "detail_section_order", "detail_accent", "detail_font",
   "asset_accent", "asset_font",
@@ -9,6 +10,7 @@ const KEYS = [
 ];
 
 export async function saveTemplatesAction(formData: FormData) {
+  await requireAdmin();
   const brandCode = String(formData.get("brand") || "mtspace");
   const supabase = createClient();
   const { data: brand } = await supabase.from("brand").select("id").eq("code", brandCode).maybeSingle();

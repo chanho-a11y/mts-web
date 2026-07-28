@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { pageById } from "@/lib/page-content";
 
+import { requireAdmin } from "@/lib/auth-guard";
 export async function savePageContentAction(formData: FormData) {
+  await requireAdmin();
   const pageId = String(formData.get("page") || "");
   const def = pageById(pageId);
   if (!def) redirect("/admin/content/pages");

@@ -2,7 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 export async function createPromotionAction(formData: FormData) {
+  await requireAdmin();
   const placements = ["banner", "popup", "main", "shop"].filter((p) => formData.get(`pl_${p}`) === "on");
   const supabase = createClient();
   await supabase.from("promotion").insert({
@@ -20,6 +22,7 @@ export async function createPromotionAction(formData: FormData) {
 }
 
 export async function togglePromotionAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   const active = formData.get("active") === "true";
   const supabase = createClient();

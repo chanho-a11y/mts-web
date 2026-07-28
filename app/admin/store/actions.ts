@@ -2,8 +2,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 // 국내 배송 요금 행 수정
 export async function saveDomesticRateAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   const fee = parseInt(String(formData.get("fee") || "0"), 10) || 0;
   const label = String(formData.get("label") || "");
@@ -14,6 +16,7 @@ export async function saveDomesticRateAction(formData: FormData) {
 
 // 국내 배송 요금 행 추가
 export async function addDomesticRateAction(formData: FormData) {
+  await requireAdmin();
   const label = String(formData.get("label") || "");
   const fee = parseInt(String(formData.get("fee") || "0"), 10) || 0;
   const maxRaw = String(formData.get("max_weight_g") || "");
@@ -26,6 +29,7 @@ export async function addDomesticRateAction(formData: FormData) {
 
 // EMS 요금 단건 수정(국가·무게구간 가격)
 export async function saveEmsRateAction(formData: FormData) {
+  await requireAdmin();
   const id = String(formData.get("id") || "");
   const price = parseInt(String(formData.get("price") || "0"), 10) || 0;
   const supabase = createClient();
@@ -35,6 +39,7 @@ export async function saveEmsRateAction(formData: FormData) {
 
 // 세금률 설정 (site_setting vat_rate, 모든 브랜드에 적용)
 export async function saveTaxAction(formData: FormData) {
+  await requireAdmin();
   const vat = String(formData.get("vat_rate") || "10");
   const supabase = createClient();
   const { data: brands } = await supabase.from("brand").select("id");
@@ -46,6 +51,7 @@ export async function saveTaxAction(formData: FormData) {
 
 // 국내 무료배송 기준금액 설정 (site_setting free_ship_threshold_krw, 0/빈칸=무료 없음)
 export async function saveFreeShipAction(formData: FormData) {
+  await requireAdmin();
   const raw = String(formData.get("free_ship_threshold_krw") || "").replace(/[^0-9]/g, "");
   const value = raw ? String(parseInt(raw, 10)) : "0";
   const supabase = createClient();
@@ -58,6 +64,7 @@ export async function saveFreeShipAction(formData: FormData) {
 
 // 관리자/역할 지정 (이메일로 사용자 찾아 role 변경) — 관리자만 가능(레이아웃에서 보호)
 export async function setUserRoleAction(formData: FormData) {
+  await requireAdmin();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const role = String(formData.get("role") || "individual");
   if (!email) return;

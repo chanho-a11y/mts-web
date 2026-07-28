@@ -2,7 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { requireAdmin } from "@/lib/auth-guard";
 export async function approveBusinessAction(formData: FormData) {
+  await requireAdmin();
   const profileId = String(formData.get("profile_id") || "");
   const decision = String(formData.get("decision") || "approved"); // approved | rejected
   const supabase = createClient();

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const ORDER_STATUS: Record<string, string> = {
   created: "결제대기", paid: "결제완료", preparing: "확인", shipped: "출고", in_transit: "배송중",
-  delivered: "완료", cancelled: "전체취소", refunded: "환불", partial_refunded: "부분취소",
+  delivered: "완료", cancelled: "전체취소", refunded: "환불", partial_refunded: "부분취소", expired: "기간만료",
 };
 const PAY_STATUS: Record<string, string> = {
   ready: "대기", paid: "완료", failed: "실패", cancelled: "취소", partial_cancelled: "부분취소", refunded: "환불",

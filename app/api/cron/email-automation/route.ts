@@ -13,9 +13,13 @@ interface AbandonedOrder {
 // 금액이 달라져 같은 사람에게 여러 통이 나간다(실측 사례 있음).
 const custKey = (email: string) => email.trim().toLowerCase();
 
-// 이메일 자동화 실행 (Vercel Cron 또는 외부 스케줄러가 주기 호출).
+// 미결제 주문 만료 기준(시간). 이니시스 결제창 세션보다 훨씬 길게 잡아
+// "결제는 됐는데 주문만 만료"되는 사고를 막는다. ORDER_EXPIRE_HOURS 로 조정 가능.
+const EXPIRE_HOURS = Number(process.env.ORDER_EXPIRE_HOURS) > 0 ? Number(process.env.ORDER_EXPIRE_HOURS) : 24;
+
+// 이메일 자동화 + 미결제 주문 정리 (Vercel Cron 매시 실행).
 // 인증: ?key=CRON_SECRET 또는 Authorization: Bearer CRON_SECRET
-// 규칙: 신규 제품 안내(판매개시 12h 후) · 중단 결제 리마인드(5h 후)
+// 규칙: 신규 제품 안내(판매개시 12h 후) · 중단 결제 리마인드(5h 후) · 미결제 주문 만료(24h 후)
 function authed(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -31,7 +35,7 @@ export async function GET(req: Request) {
 
   const db = createAdminClient();
   const now = Date.now();
-  const result = { new_product: 0, abandoned: 0, skipped_provider: 0 };
+  const result = { new_product: 0, abandoned: 0, skipped_provider: 0, expired: 0 };
 
   // 활성 자동화 규칙
   const { data: rules } = await db.from("email_automation").select("trigger,delay_hours,segment,is_active,template_id").eq("is_active", true);
@@ -142,6 +146,26 @@ export async function GET(req: Request) {
       if (r.reason === "no_provider") { result.skipped_provider++; continue; }
       await logSend("abandoned_cart", o.id, o.email, r.sent);
       if (r.sent) result.abandoned++;
+    }
+  }
+
+  // 3) 미결제 주문 만료 — created 상태로 EXPIRE_HOURS 경과 + 승인된 결제가 없는 건을 expired 로 전환.
+  //    결제창 진입 전 주문 선발급 구조상 재시도마다 폐기 주문이 쌓인다. 그대로 두면 관리자 목록·
+  //    분석 지표·리마인드 대상이 계속 오염되므로 하루 지난 건은 정리한다.
+  //    ※ 늦게 도착한 PG 승인 콜백은 approvePayment 가 expired → paid 로 되살린다(안전망).
+  {
+    const cutoff = new Date(now - EXPIRE_HOURS * 3600 * 1000).toISOString();
+    const { data: stale } = await db.from("orders")
+      .select("id,order_no,paid_at,payment(status)")
+      .eq("status", "created").lte("placed_at", cutoff).limit(500);
+    const targets = ((stale ?? []) as { id: string; paid_at: string | null; payment: { status: string }[] | null }[])
+      // 결제가 한 건이라도 승인/완료 상태면 건드리지 않는다(상태 전이 누락분 보호).
+      .filter((o) => !o.paid_at && !(o.payment ?? []).some((p) => p.status === "paid" || p.status === "captured"))
+      .map((o) => o.id);
+    if (targets.length) {
+      const { error } = await db.from("orders").update({ status: "expired" }).in("id", targets);
+      if (!error) result.expired = targets.length;
+      else console.warn("[order-expire] update failed:", error.message);
     }
   }
 

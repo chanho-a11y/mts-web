@@ -11,11 +11,11 @@ export interface HistoryOrder {
 
 const STATUS: Record<string, string> = {
   created: "결제대기", paid: "결제완료", preparing: "확인", shipped: "출고", in_transit: "배송중",
-  delivered: "완료", cancelled: "취소", refunded: "환불", partial_refunded: "부분취소",
+  delivered: "완료", cancelled: "취소", refunded: "환불", partial_refunded: "부분취소", expired: "기간만료",
 };
 const STATUS_EN: Record<string, string> = {
   created: "Pending", paid: "Paid", preparing: "Preparing", shipped: "Shipped", in_transit: "In transit",
-  delivered: "Delivered", cancelled: "Cancelled", refunded: "Refunded", partial_refunded: "Partial refund",
+  delivered: "Delivered", cancelled: "Cancelled", refunded: "Refunded", partial_refunded: "Partial refund", expired: "Expired",
 };
 
 export default function OrderHistory({ orders, locale = "ko" }: { orders: HistoryOrder[]; locale?: Locale }) {

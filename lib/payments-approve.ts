@@ -6,7 +6,7 @@ export interface ApproveExtra { provider?: string; tid?: string; captureId?: str
   paidAmount?: number | null }
 export interface ApproveResult { ok: boolean; already?: boolean; orderNo?: string; reason?: string }
 
-// 주문 결제 승인 확정 — 멱등. payment.paid + orders.paid 로 전이(created에서만).
+// 주문 결제 승인 확정 — 멱등. payment.paid + orders.paid 로 전이(created·expired에서만).
 // 신규 결제완료 전이 시 1회에 한해 주문확인 메일(고객)+주문접수 알림(관리자) 발송(메일 실패는 승인에 영향 없음).
 export async function approveOrder(db: SupabaseClient, orderId: string, extra: ApproveExtra = {}): Promise<ApproveResult> {
   const { data: order } = await db
@@ -37,7 +37,10 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
   if (extra.raw !== undefined) pUpd.raw_response = extra.raw as object;
   await db.from("payment").update(pUpd).eq("order_id", orderId);
 
-  if (!alreadyPaid && order.status === "created") {
+  // expired 도 포함 — 미결제 만료 처리(24h) 뒤 PG 승인이 늦게 도착하는 경우를 되살리는 안전망.
+  // (결제는 됐는데 주문만 만료 상태로 남는 사고 방지)
+  if (!alreadyPaid && (order.status === "created" || order.status === "expired")) {
+    if (order.status === "expired") console.warn(`[approve-after-expire] order=${order.order_no} 만료 처리된 주문에 승인이 도착해 결제완료로 되살림`);
     await db.from("orders").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", orderId);
 
     // 주문확인 메일 (신규 결제완료 전이 시에만)

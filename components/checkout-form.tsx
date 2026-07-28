@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
@@ -85,7 +85,8 @@ async function startInicis(fields: Record<string, string>) {
 
 interface CheckoutInitial { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string }
 export default function CheckoutForm({ tip, email = "", locale = "ko", initial }: { tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial }) {
-  const { items, clear } = useCart();
+  // 장바구니 비우기는 결제 완료 페이지(CheckoutCompleteClear)에서 처리한다.
+  const { items } = useCart();
   const tt = t(locale);
   const en = locale === "en";
   const ALL_METHODS: { p: Provider; label: string }[] = [
@@ -100,7 +101,16 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   useEffect(() => { setIsMobile(isMobileDevice()); }, []);
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  // 중복 주문 방지 — 제출 잠금은 ref 로 둔다.
+  // `<form action={...}>` 안의 setState 는 React Action(transition) 이라 반영이 지연되고,
+  // 그 사이 재클릭이 그대로 통과해 같은 장바구니가 주문 2~3건으로 쪼개졌다(실측 최소 간격 0.347초).
+  // ref 는 대입 즉시 반영되므로 렌더 타이밍과 무관하게 재진입을 막는다.
+  const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
+  // 결제창 호출 이후 상태 — 여기서는 새 주문을 만들지 않고, 같은 주문번호로 결제창만 다시 연다.
+  const [pgOpened, setPgOpened] = useState(false);
+  const [pgOrderNo, setPgOrderNo] = useState<string | null>(null);
+  const lastForm = useRef<{ sdk: "inicis" | "inicis-mobile"; action?: string; fields: Record<string, string> } | null>(null);
   // 로그인 회원의 저장 배송지/프로필로 프리필(비회원이면 빈 값)
   const [country, setCountry] = useState(initial?.country || "KR");
   const [countryName, setCountryName] = useState("");
@@ -163,49 +173,74 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
     }).open();
   }
 
+  // 결제창 열기 — 최초 호출과 '다시 열기'가 같은 경로를 쓴다(둘 다 새 주문을 만들지 않음).
+  async function openPg(form: NonNullable<typeof lastForm.current>): Promise<boolean> {
+    try {
+      if (form.sdk === "inicis-mobile") startInicisMobile(form.action || "", form.fields);
+      else await startInicis(form.fields);
+      return true;
+    } catch {
+      setMsg("결제창을 열지 못했습니다. 팝업 차단을 해제한 뒤 아래 [결제창 다시 열기]를 눌러주세요.");
+      return false;
+    }
+  }
+
   async function submit(formData: FormData) {
+    // 재진입 차단 — 여기가 중복 주문의 1차 방어선.
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true); setMsg(null);
-    const res = await createOrderAction({
-      items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
-      tip,
-      provider,
-      mobile: isMobile,
-      payMethod: isMobile ? payMethod : undefined,
-      code: code.trim() || undefined,
-      email: String(formData.get("email") || "") || undefined,
-      shipping: {
-        recipient: String(formData.get("recipient") || ""),
-        phone: String(formData.get("phone") || ""),
-        country: String(formData.get("country") || "KR"),
-        zipcode: String(formData.get("zipcode") || ""),
-        addr1: String(formData.get("addr1") || ""),
-        addr2: String(formData.get("addr2") || ""),
-        state: String(formData.get("state") || "") || undefined,
-        city: String(formData.get("city") || "") || undefined,
-        countryName: country === "OTHER" ? (String(formData.get("countryName") || "") || undefined) : undefined,
-      },
-    });
-    setMsg(res.message);
-    // 이니시스: 모바일=결제요청 URL 로 폼 POST / PC=INIStdPay SDK 결제창
-    if (res.ok && res.form) {
-      clear();
-      try {
-        if (res.form.sdk === "inicis-mobile") startInicisMobile(res.form.action || "", res.form.fields);
-        else await startInicis(res.form.fields);
-      } catch { setMsg("결제창을 열지 못했습니다. 잠시 후 다시 시도해주세요."); setBusy(false); }
+    let res;
+    try {
+      res = await createOrderAction({
+        items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
+        tip,
+        provider,
+        mobile: isMobile,
+        payMethod: isMobile ? payMethod : undefined,
+        code: code.trim() || undefined,
+        email: String(formData.get("email") || "") || undefined,
+        shipping: {
+          recipient: String(formData.get("recipient") || ""),
+          phone: String(formData.get("phone") || ""),
+          country: String(formData.get("country") || "KR"),
+          zipcode: String(formData.get("zipcode") || ""),
+          addr1: String(formData.get("addr1") || ""),
+          addr2: String(formData.get("addr2") || ""),
+          state: String(formData.get("state") || "") || undefined,
+          city: String(formData.get("city") || "") || undefined,
+          countryName: country === "OTHER" ? (String(formData.get("countryName") || "") || undefined) : undefined,
+        },
+      });
+    } catch {
+      // 네트워크·서버 오류: 주문이 만들어지지 않았으므로 잠금을 풀어 재시도를 허용한다.
+      inFlight.current = false; setBusy(false);
+      setMsg("주문 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
-    setBusy(false);
+    setMsg(res.message);
+    // 이니시스: 모바일=결제요청 URL 로 폼 POST / PC=INIStdPay SDK 결제창
+    // ※ 장바구니는 여기서 비우지 않는다. 결제 완료 페이지에서 비운다 —
+    //   결제창을 닫은 고객이 장바구니까지 잃고 처음부터 담아야 했던 문제를 없앤다.
+    if (res.ok && res.form) {
+      lastForm.current = res.form;
+      setPgOrderNo(res.orderNo ?? null);
+      setPgOpened(true);
+      await openPg(res.form);
+      // 잠금 유지 — 결제창이 닫혀도 [결제창 다시 열기]로 같은 주문을 재사용한다.
+      return;
+    }
     if (res.ok && res.pgReady && res.redirectUrl) {
-      // PG 결제창/승인 페이지로 이동 (PayPal·테스트모드)
-      clear();
+      // PG 결제창/승인 페이지로 이동 (PayPal·테스트모드) — 페이지를 떠나므로 잠금 유지
       window.location.href = res.redirectUrl;
       return;
     }
     if (res.ok && !res.pgReady) {
-      clear();
       router.push(`/checkout/complete?order=${res.orderNo ?? ""}`);
+      return;
     }
+    // 주문 생성 실패(품절·권한·유효성 등) — 잠금 해제하고 수정 후 재시도하게 한다.
+    inFlight.current = false; setBusy(false);
   }
 
   if (items.length === 0 && !msg) return <p className="py-16 text-center text-neutral-500">{tt.cartEmpty}</p>;
@@ -323,9 +358,29 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
         <div className="mt-2 flex justify-between border-t pt-2 font-bold"><span>{tt.totalLabel}</span><span>{formatKRW(total)}</span></div>
         {!isKR && <p className="mt-1 text-[11px] text-neutral-400">{en ? "Overseas orders are charged in USD (converted at order)." : "해외 주문은 USD로 결제됩니다(주문 시 환산)."}</p>}
 
-        <button disabled={busy} className="mt-4 w-full rounded-full bg-black py-3 text-white disabled:opacity-50">
-          {busy ? tt.processing : tt.placeOrder}
-        </button>
+        {!pgOpened && (
+          <button type="submit" disabled={busy} className="mt-4 w-full rounded-full bg-black py-3 text-white disabled:opacity-50">
+            {busy ? tt.processing : tt.placeOrder}
+          </button>
+        )}
+        {/* 결제창 호출 이후 — 새 주문을 만들지 않고 같은 주문번호로만 다시 연다.
+            (결제창을 닫았을 때 버튼이 영영 비활성으로 남던 데드락 해소) */}
+        {pgOpened && (
+          <div className="mt-4 space-y-2">
+            <button
+              type="button"
+              onClick={() => { if (lastForm.current) void openPg(lastForm.current); }}
+              className="w-full rounded-full bg-black py-3 text-white"
+            >
+              {en ? "Reopen payment window" : "결제창 다시 열기"}
+            </button>
+            <p className="text-[11px] leading-relaxed text-neutral-500">
+              {en
+                ? `Your order${pgOrderNo ? ` (${pgOrderNo})` : ""} is saved. Reopening does not create a new order. If it still fails, reload this page and order again.`
+                : `주문${pgOrderNo ? `(${pgOrderNo})` : ""}은 저장되어 있습니다. 다시 열어도 새 주문이 만들어지지 않습니다. 계속 열리지 않으면 페이지를 새로고침한 뒤 다시 주문해 주세요.`}
+            </p>
+          </div>
+        )}
         {msg && <p className="mt-3 rounded bg-neutral-100 p-3 text-xs">{msg}</p>}
       </aside>
     </form>

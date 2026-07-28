@@ -63,7 +63,9 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       items,
     };
   });
-  const orders = view === "all" ? all : all.filter((o) => o.status !== "created");
+  // 기본 보기에서 숨기는 상태: created(결제 대기·중도이탈) + expired(24h 경과 자동 만료)
+  const UNPAID_STATUSES = ["created", "expired"];
+  const orders = view === "all" ? all : all.filter((o) => !UNPAID_STATUSES.includes(o.status));
   const hiddenUnpaid = all.length - orders.length;
 
   // 빠른 조회 버튼용 날짜/파라미터 (미결제 포함 상태 유지)

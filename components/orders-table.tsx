@@ -12,7 +12,7 @@ export interface OrderRow {
 }
 const STATUS: Record<string, string> = {
   created: "미결제", paid: "결제완료", preparing: "확인", shipped: "출고", in_transit: "배송중", delivered: "완료",
-  cancelled: "취소", refunded: "환불", partial_refunded: "부분취소",
+  cancelled: "취소", refunded: "환불", partial_refunded: "부분취소", expired: "만료",
 };
 
 export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
@@ -68,6 +68,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
                 {o.status === "paid" && <StatusBtn id={o.id} to="preparing" label="확인" />}
                 {o.status === "preparing" && <StatusBtn id={o.id} to="shipped" label="출고" />}
                 {o.status === "created" && <span className="text-xs text-neutral-400">결제대기</span>}
+                {o.status === "expired" && <span className="text-xs text-neutral-400">미결제 만료</span>}
               </td>
             </tr>
           ))}

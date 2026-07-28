@@ -12,15 +12,16 @@ function adminDb() {
 }
 
 // 주문 상태: created(미결제) → paid(결제완료) → preparing(확인) → shipped(출고) → delivered
+//            created 가 24시간 경과하면 cron 이 expired(미결제 만료)로 전환한다.
 // 미결제(created)는 결제 전이므로 준비/출고로 진행 불가 — 개별·일괄 처리 모두 결제완료(paid) 이상만 전이.
 export async function setOrderStatusAction(formData: FormData) {
   const orderId = String(formData.get("order_id") || "");
   const status = String(formData.get("status") || "");
   const supabase = createClient();
-  // created(미결제) 주문을 준비/출고로 넘기려는 시도는 차단(결제 전 진행 방지).
+  // created(미결제)·expired(미결제 만료) 주문을 준비/출고로 넘기려는 시도는 차단(결제 전 진행 방지).
   if ((status === "preparing" || status === "shipped")) {
     const { data: o } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
-    if (o?.status === "created") { revalidatePath("/admin/orders"); return; }
+    if (o?.status === "created" || o?.status === "expired") { revalidatePath("/admin/orders"); return; }
   }
   await supabase.from("orders").update({ status }).eq("id", orderId);
   if (status === "shipped") await onShip(orderId);

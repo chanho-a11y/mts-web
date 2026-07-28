@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
+import CheckoutCompleteClear from "@/components/checkout-complete-clear";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "주문 완료" };
@@ -12,6 +13,8 @@ export default async function CheckoutComplete({ searchParams }: { searchParams:
   const pendingPay = searchParams.paid === "0";
   return (
     <main className="mx-auto max-w-lg px-4 py-24 text-center">
+      {/* 결제 취소(paid=0)로 돌아온 경우에는 장바구니를 유지해 바로 재시도할 수 있게 한다. */}
+      {!pendingPay && <CheckoutCompleteClear />}
       <h1 className="text-2xl font-bold">{paid ? tt.paidTitle : tt.orderReceivedTitle}</h1>
       {searchParams.order && <p className="mt-3 font-mono text-sm text-neutral-500">{tt.orderNoLabel} {searchParams.order}</p>}
       <p className="mt-4 text-neutral-600">

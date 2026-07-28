@@ -25,7 +25,23 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "object-src 'none'",
+      // O-1: 위반 리포트 수집처. 이전에는 report-uri 가 없어 위반이 각 방문자 콘솔에만 남고
+      // 아무 데도 모이지 않아 "관찰 후 enforce 전환"이 불가능했다. → /api/csp-report 로 수집.
+      "report-uri /api/csp-report",
+      "report-to csp-endpoint",
     ].join("; ");
+    // 이니시스 PC 표준결제(INIStdPay)는 payViewType=overlay 로 동작한다 —
+    // 결제창을 우리 페이지 안의 iframe 으로 띄우고, 취소 시 그 iframe 을 closeUrl 로,
+    // 인증 완료 시 returnUrl 로 이동시킨다. 두 URL 모두 우리 도메인이라 전역
+    // `X-Frame-Options: DENY` 에 걸려 iframe 렌더링이 차단됐고, 결제창을 닫으면
+    // 빈 iframe(깨진 문서 아이콘)만 화면을 덮은 채 남았다.
+    // → 결제 콜백 경로에 한해 SAMEORIGIN 으로 완화한다(외부 도메인 프레이밍은 계속 차단).
+    // ※ 이 블록은 D-090 에서 도입됐으나 D-091 커밋(5718b75)에서 실수로 삭제돼 결제창 버그가
+    //   재발한 상태였다. D-093 에서 복구. 삭제 금지.
+    const pgFrameHeaders = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Content-Security-Policy-Report-Only", value: csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'") },
+    ];
     return [
       {
         source: "/:path*",
@@ -36,9 +52,14 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "Reporting-Endpoints", value: 'csp-endpoint="/api/csp-report"' },
           { key: "Content-Security-Policy-Report-Only", value: csp },
         ],
       },
+      // ※ 아래 두 규칙은 전역 규칙보다 뒤에 와야 같은 키를 덮어쓴다.
+      //    결제 완료 페이지(/checkout/complete)는 항상 최상위 창으로만 열리므로 DENY 유지.
+      { source: "/api/payments/:path*", headers: pgFrameHeaders },
+      { source: "/checkout/pg-close", headers: pgFrameHeaders },
     ];
   },
   // 현행(Shopify) → 신규 자사몰 301 매핑 (SEO 보존, D-009).

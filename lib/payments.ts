@@ -130,7 +130,10 @@ export const inicis: PaymentAdapter = {
       verification,
       mKey,
       returnUrl: `${origin}/api/payments/inicis?oid=${p.orderId}&order=${encodeURIComponent(oid)}`,
-      closeUrl: `${origin}/checkout/complete?order=${encodeURIComponent(oid)}&paid=0`,
+      // closeUrl 은 결제 오버레이 iframe 안에서 열린다. 완료 페이지를 여기에 물리면
+      // 오버레이 안에 갇힌 채로 렌더되므로, 오버레이만 걷어내는 전용 라우트를 쓴다.
+      // 부모(체크아웃) 페이지는 그대로 살려둬야 [결제창 다시 열기]가 같은 주문을 재사용한다.
+      closeUrl: `${origin}/checkout/pg-close`,
     };
     return { ready: true, message: "inicis ready", form: { sdk: "inicis", fields } };
   },

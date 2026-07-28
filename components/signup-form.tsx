@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signUpAction } from "@/app/account/actions";
 import AddressField from "@/components/address-field";
 import KakaoLoginButton from "@/components/kakao-login-button";
+import TurnstileWidget from "@/components/turnstile-widget";
 import { t, type Locale } from "@/lib/i18n";
 
 export default function SignupForm({ error, locale = "ko" }: { error?: string; locale?: Locale }) {
@@ -88,6 +89,9 @@ export default function SignupForm({ error, locale = "ko" }: { error?: string; l
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="marketing" /> {tt.marketingOptIn}
         </label>
+
+        {/* 봇 가입 차단 (D-091) — 사이트 키 미설정 시 렌더되지 않음 */}
+        <TurnstileWidget locale={locale} />
 
         <button type="submit" className="w-full rounded-full bg-black py-3 text-sm text-white">{tt.signupSubmit}</button>
       </form>

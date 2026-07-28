@@ -3,12 +3,21 @@ import { createHash } from "crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 function hashAnswer(a: string): string {
   return createHash("sha256").update((a ?? "").trim().toLowerCase()).digest("hex");
 }
 
 export async function signUpAction(formData: FormData) {
+  // 봇 가입 차단 (D-091) — Turnstile 토큰 서버 검증.
+  // 자동확인(admin.createUser) 가입이라 Supabase 대시보드 CAPTCHA 로는 막을 수 없어 여기서 직접 검증.
+  // TURNSTILE_SECRET_KEY 미설정이면 통과(키 배포 전 가입 중단 방지).
+  const human = await verifyTurnstile(String(formData.get("cf-turnstile-response") || "") || null);
+  if (!human) {
+    redirect(`/account/signup?error=${encodeURIComponent("자동가입 방지 확인에 실패했습니다. 체크박스를 확인한 뒤 다시 시도해주세요.")}`);
+  }
+
   const email = String(formData.get("email") || "");
   const password = String(formData.get("password") || "");
   const role = String(formData.get("role") || "individual"); // individual | business

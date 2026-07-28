@@ -63,8 +63,12 @@ export async function GET(req: Request) {
   const { from, to } = resolveRange(url.searchParams.get("from"), url.searchParams.get("to"));
   const fromIso = `${from}T00:00:00+09:00`;
   const toIso = `${to}T23:59:59.999+09:00`;
+  // 기본은 결제 완료 건만 export. 결제창 진입 후 이탈한 'created' 주문이 섞여
+  // 동일 고객·동일 장바구니가 여러 건으로 보이던 문제를 차단한다.
+  // 미결제 포함이 필요하면 ?view=all (주문 관리 화면의 '미결제 포함' 보기와 동일 규칙).
+  const includeUnpaid = url.searchParams.get("view") === "all";
 
-  const { data: orders } = await supabase
+  let q = supabase
     .from("orders")
     .select(`id,order_no,email,phone,customer_type,status,shipping_address,items_subtotal,discount_total,
       tip_amount,shipping_fee,tax_amount,grand_total,currency,coupon_code,note,channel,placed_at,paid_at,
@@ -72,8 +76,11 @@ export async function GET(req: Request) {
       payment(method,provider,pg_tid,capture_id,status,amount),
       shipment(status,shipped_at,tracking_no)`)
     .gte("placed_at", fromIso)
-    .lte("placed_at", toIso)
-    .order("placed_at", { ascending: false });
+    .lte("placed_at", toIso);
+  // paid_at 기준 — 결제 후 환불/부분환불 건도 회계상 필요하므로 포함되고,
+  // 결제 전 취소·이탈 건은 paid_at 이 null 이라 제외된다.
+  if (!includeUnpaid) q = q.not("paid_at", "is", null);
+  const { data: orders } = await q.order("placed_at", { ascending: false });
 
   const lines: string[] = [HEADERS.join(",")];
 
@@ -151,7 +158,7 @@ export async function GET(req: Request) {
 
   // UTF-8 BOM 추가 — Excel 한글 깨짐 방지
   const csv = "﻿" + lines.join("\r\n");
-  const fname = `orders_export_${from}_to_${to}.csv`;
+  const fname = `orders_export_${includeUnpaid ? "all_" : "paid_"}${from}_to_${to}.csv`;
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

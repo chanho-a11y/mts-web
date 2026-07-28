@@ -66,9 +66,10 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const orders = view === "all" ? all : all.filter((o) => o.status !== "created");
   const hiddenUnpaid = all.length - orders.length;
 
-  const exportHref = `/admin/orders/export?from=${from}&to=${to}`;
   // 빠른 조회 버튼용 날짜/파라미터 (미결제 포함 상태 유지)
   const viewParam = view === "all" ? "&view=all" : "";
+  // Export 도 화면과 동일 규칙 — 기본은 결제 완료 건만, '미결제 포함' 보기일 때만 전체.
+  const exportHref = `/admin/orders/export?from=${from}&to=${to}${viewParam}`;
   const todayStr = kstToday();
   const weekAgoStr = kstDaysAgo(6);
 
@@ -77,7 +78,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">주문 관리</h1>
         <a href={exportHref} className="rounded-full bg-ink px-4 py-2 text-sm text-oat hover:opacity-90" download>
-          주문 Export (CSV)
+          주문 Export (CSV){view === "all" ? " · 미결제 포함" : " · 결제 완료분"}
         </a>
       </div>
 

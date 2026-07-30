@@ -7,7 +7,9 @@ import KakaoLoginButton from "@/components/kakao-login-button";
 import TurnstileWidget from "@/components/turnstile-widget";
 import { t, type Locale } from "@/lib/i18n";
 
-export default function SignupForm({ error, locale = "ko" }: { error?: string; locale?: Locale }) {
+export default function SignupForm(
+  { error, locale = "ko", formToken = "" }: { error?: string; locale?: Locale; formToken?: string },
+) {
   const tt = t(locale);
   const [role, setRole] = useState<"individual" | "business">("individual");
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
@@ -46,6 +48,18 @@ export default function SignupForm({ error, locale = "ko" }: { error?: string; l
 
       <form action={signUpAction} className="mt-5 space-y-4">
         <input type="hidden" name="role" value={role} />
+
+        {/* D-097 봇 차단 ① 허니팟 — 화면·스크린리더·탭 이동에서 모두 제외되므로 사람은 채울 수 없다.
+            자동 입력 봇은 name="website" 를 채우고, 서버가 그것만 보고 거절한다. */}
+        <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+          <label>
+            Website
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+          </label>
+        </div>
+
+        {/* D-097 봇 차단 ② 제출 속도 — 서버 발급 HMAC 서명 토큰(위조 불가). 렌더 후 최소 3초. */}
+        <input type="hidden" name="fts" value={formToken} />
 
         <label className="block text-sm">{tt.name} *<input name="name" required className={input} /></label>
         <label className="block text-sm">{tt.phone} *<input name="phone" required className={input} /></label>

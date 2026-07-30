@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { verifyTurnstile } from "@/lib/turnstile";
+import {
+  clientIp, ipRateExceeded, logSignupAttempt, normalizedEmailTaken, verifyFormToken,
+} from "@/lib/signup-guard";
 
 function hashAnswer(a: string): string {
   return createHash("sha256").update((a ?? "").trim().toLowerCase()).digest("hex");
@@ -19,14 +22,54 @@ function safeSignupRole(v: FormDataEntryValue | null): "individual" | "business"
   return (SIGNUP_ROLES as readonly string[]).includes(s) ? (s as "individual" | "business") : "individual";
 }
 
+// 봇에게만 보이는 필드가 채워졌거나 검증에 걸렸을 때의 공통 처리.
+// 봇에게는 실패 사유를 알려주지 않는다(우회 학습 방지) — 일반적인 문구로만 응답.
+const SIGNUP_REJECT = "가입 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+
 export async function signUpAction(formData: FormData) {
-  // 봇 가입 차단 (D-091) — Turnstile 토큰 서버 검증.
-  // 자동확인(admin.createUser) 가입이라 Supabase 대시보드 CAPTCHA 로는 막을 수 없어 여기서 직접 검증.
-  // TURNSTILE_SECRET_KEY 미설정이면 통과(키 배포 전 가입 중단 방지).
+  const emailRaw = String(formData.get("email") || "").trim();
+  const ip = clientIp();
+
+  // ── D-097 ① 허니팟 ──
+  // 사람에게는 보이지 않는 필드(website). 채워져 있으면 자동 입력 봇이다.
+  if (String(formData.get("website") || "").trim() !== "") {
+    await logSignupAttempt(ip, emailRaw || null, "blocked_honeypot");
+    redirect(`/account/signup?error=${encodeURIComponent(SIGNUP_REJECT)}`);
+  }
+
+  // ── D-097 ② 제출 속도 ──
+  // 폼 렌더 시 발급한 HMAC 서명 토큰으로 경과시간 확인. 봇은 즉시 제출한다(실측: 밀리초 단위).
+  // 토큰이 아예 없는 경우는 캐시된 구버전 폼일 수 있어 통과시킨다(가입 중단 방지).
+  const speed = verifyFormToken(String(formData.get("fts") || "") || null, Date.now());
+  if (speed === "too_fast") {
+    await logSignupAttempt(ip, emailRaw || null, "blocked_speed");
+    redirect(`/account/signup?error=${encodeURIComponent("입력이 너무 빠르게 제출되었습니다. 다시 시도해 주세요.")}`);
+  }
+  if (speed === "expired") {
+    redirect(`/account/signup?error=${encodeURIComponent("페이지를 너무 오래 열어두셨습니다. 새로고침 후 다시 시도해 주세요.")}`);
+  }
+
+  // ── D-097 ③ IP 레이트리밋 ──
+  if (await ipRateExceeded(ip)) {
+    await logSignupAttempt(ip, emailRaw || null, "blocked_rate");
+    redirect(`/account/signup?error=${encodeURIComponent("가입 시도가 많습니다. 잠시 후 다시 시도해 주세요.")}`);
+  }
+
+  // ── D-091 Turnstile (키가 주입되면 여기서 함께 작동) ──
   const human = await verifyTurnstile(String(formData.get("cf-turnstile-response") || "") || null);
   if (!human) {
+    await logSignupAttempt(ip, emailRaw || null, "blocked_captcha");
     redirect(`/account/signup?error=${encodeURIComponent("자동가입 방지 확인에 실패했습니다. 체크박스를 확인한 뒤 다시 시도해주세요.")}`);
   }
+
+  // ── D-097 ④ Gmail 점(dot)·+태그 트릭 중복 차단 ──
+  // a.b@gmail.com / ab@gmail.com / ab+x@gmail.com 은 같은 메일박스다. DB unique index 와 이중 방어.
+  if (emailRaw && (await normalizedEmailTaken(emailRaw))) {
+    await logSignupAttempt(ip, emailRaw, "blocked_dup");
+    redirect(`/account/signup?error=${encodeURIComponent("이미 가입된 이메일입니다. 로그인 또는 비밀번호 찾기를 이용해 주세요.")}`);
+  }
+
+  await logSignupAttempt(ip, emailRaw || null, "attempt");
 
   const email = String(formData.get("email") || "");
   const password = String(formData.get("password") || "");

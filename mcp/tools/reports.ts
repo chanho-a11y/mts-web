@@ -39,7 +39,14 @@ export const runReport = {
       granularity: z.enum(["day", "week", "month"]).default("month"),
       limit: z.number().int().min(1).max(50).default(10),
     },
-    outputSchema: { report: z.string(), rows: z.array(z.record(z.any())) },
+    outputSchema: {
+      report: z.string(),
+      rows: z.array(z.record(z.any())),
+      currency: z.string().optional(),
+      granularity: z.string().optional(),
+      group_by: z.string().optional(),
+      truncated: z.string().optional(),
+    },
     annotations: RO,
   },
   handler: withTool<{

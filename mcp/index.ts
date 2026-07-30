@@ -31,8 +31,20 @@ const TOOLS = [
 ];
 
 export { McpSetupError, McpAuthError };
+export type { ToolContext };
 
-/** 요청 1건에 대한 실행 컨텍스트를 만든다. 실패는 조용히 넘기지 않는다. */
+/** AsyncLocalStorage 에 담는 요청 단위 컨테이너 */
+export interface ToolContextRef {
+  ctx: ToolContext;
+}
+
+/**
+ * 요청 1건에 대한 실행 컨텍스트를 만든다.
+ *
+ * 라우트가 요청 진입 시점에 한 번 호출한다(툴 호출 시점이 아니다).
+ * 그래야 인증 실패가 툴 에러가 아니라 HTTP 401 로 나가고,
+ * 토큰 없는 tools/list 로 툴 표면이 열람되지 않는다.
+ */
 export async function createContext(req: Request): Promise<ToolContext> {
   const { db, mode } = await createDb();
   const identity = await resolveIdentity(req, db);
@@ -45,14 +57,12 @@ export async function createContext(req: Request): Promise<ToolContext> {
 
 /**
  * 툴을 서버에 등록한다.
- * getContext 는 요청마다 호출되며, 인증 실패 시 예외를 던진다.
+ * getContext 는 이미 인증을 통과한 컨텍스트를 반환해야 한다.
  */
-export function registerTools(server: McpServer, getContext: () => Promise<ToolContext>): void {
+export function registerTools(server: McpServer, getContext: () => ToolContext): void {
   for (const tool of TOOLS) {
-    server.registerTool(tool.name, tool.config as never, (async (args: never) => {
-      const ctx = await getContext();
-      return tool.handler(args as never, ctx);
-    }) as never);
+    server.registerTool(tool.name, tool.config as never, (async (args: never) =>
+      tool.handler(args as never, getContext())) as never);
   }
 }
 

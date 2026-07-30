@@ -15,6 +15,7 @@ export const getShopInfo = {
       schema_version: z.string(),
       enabled_modules: z.array(z.string()),
       counts: z.record(z.number()),
+      next_step: z.string(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -49,6 +50,7 @@ export const getSchema = {
     inputSchema: {},
     outputSchema: {
       product_attributes: z.array(z.record(z.any())),
+      attribute_note: z.string(),
       entities: z.array(z.record(z.any())),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

@@ -183,7 +183,7 @@ export const getInventory = {
       product_slug: z.string().optional().describe("해당 상품의 모든 옵션"),
       only_out_of_stock: z.boolean().default(false),
     },
-    outputSchema: { items: z.array(z.record(z.any())) },
+    outputSchema: { items: z.array(z.record(z.any())), note: z.string() },
     annotations: RO,
   },
   handler: withTool<{

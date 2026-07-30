@@ -24,10 +24,12 @@ export const resolvePrice = {
     },
     outputSchema: {
       variant_id: z.string(),
+      profile_id: z.string().nullable(),
       price: z.number().nullable(),
       currency: z.string(),
       price_source: z.string().nullable(),
       source_label: z.string().nullable(),
+      evaluated_at: z.string(),
     },
     annotations: RO,
   },

@@ -18,11 +18,15 @@ export function ok(data: Record<string, unknown>): ToolResult {
   };
 }
 
+/**
+ * 에러 응답.
+ * structuredContent 를 싣지 않는다 — outputSchema 는 성공 응답의 계약이므로
+ * 에러 본문을 거기에 태우면 클라이언트 검증에서 스키마 불일치로 죽는다.
+ */
 export function fail(message: string, nextStep?: string, code = "error"): ToolResult {
   const body = { error: message, next_step: nextStep ?? null, code };
   return {
     content: [{ type: "text", text: JSON.stringify(body, null, 2) }],
-    structuredContent: body as unknown as Record<string, unknown>,
     isError: true,
   };
 }

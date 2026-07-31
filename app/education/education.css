@@ -1,0 +1,184 @@
+/* ============================================================================
+   교육자료 본문 스코프 스타일 (.edu-prose)
+   원고(The Basic of Coffee)의 조판을 사이트 브랜드 토큰(clay/oat/ink)으로 옮긴 것.
+   ※ 사이트 단일 키 컬러 원칙에 따라 브랜드 액센트는 clay 계열만 사용한다.
+     다이어그램 내부의 초록/빨강/로스팅 그라디언트는 브랜드 색이 아니라
+     데이터 구분을 위한 기능색이므로 원고 값을 유지한다.
+   ========================================================================== */
+.edu-prose {
+  --edu-sans: "Helvetica Neue", Pretendard, "Apple SD Gothic Neo", Arial, sans-serif;
+  --edu-serif: Spectral, "Noto Serif KR", Georgia, serif;
+  --edu-key: #B0764A;      /* clay-deep — 텍스트 안전 */
+  --edu-key-soft: #C68D62; /* clay */
+  --edu-ink: #3C352C;
+  --edu-ink-soft: #6B6355;
+  --edu-muted: #8A8173;
+  --edu-line: #E3DAC8;
+  --edu-line-soft: #EFE7DA;
+  --edu-surface: #FFFFFF;
+  --edu-oat: #F6F1E7;
+  --edu-accent: #0F7A6B;   /* 다이어그램 기능색(대조) */
+  --edu-danger: #B4442F;   /* 다이어그램 기능색(경고) */
+  --edu-radius: 3px;
+
+  font-family: var(--edu-sans);
+  color: var(--edu-ink);
+  font-size: 16px;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.edu-prose :where(p) { margin: 0.85em 0; }
+.edu-prose :where(b, strong) { font-weight: 700; }
+.edu-prose :where(a) { color: var(--edu-key); text-underline-offset: 2px; }
+.edu-prose :where(ul, ol) { margin: 0.9em 0; padding-left: 1.25em; }
+.edu-prose :where(li) { margin: 0.35em 0; }
+.edu-prose :where(svg) { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.edu-prose :where(img) { max-width: 100%; height: auto; }
+
+/* ---- 섹션 헤더 ---- */
+.edu-prose .sec { border-top: 1px solid var(--edu-line); padding-top: 40px; margin-top: 40px; }
+.edu-prose .sec:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.edu-prose .sec-kicker {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--edu-key);
+}
+.edu-prose .sec-kicker .tier-badge {
+  background: var(--edu-oat); color: var(--edu-muted);
+  border: 1px solid var(--edu-line); border-radius: var(--edu-radius);
+  padding: 2px 8px; letter-spacing: .06em; font-size: 10.5px;
+}
+.edu-prose .sec-title {
+  font-family: var(--edu-serif); font-size: 27px; line-height: 1.25;
+  margin: .3em 0 .55em; font-weight: 700; letter-spacing: -.01em;
+}
+.edu-prose h3 { font-size: 19px; font-weight: 700; margin: 1.9em 0 .5em; }
+.edu-prose h4 { font-size: 16px; font-weight: 700; margin: 1.5em 0 .4em; color: var(--edu-key); }
+.edu-prose .lead-in {
+  font-size: 16.5px; color: var(--edu-ink-soft);
+  border-left: 3px solid var(--edu-key-soft); padding-left: 16px; margin: 1em 0 1.5em;
+}
+
+/* ---- 정의 박스 ---- */
+.edu-prose .def {
+  background: var(--edu-surface); border: 1px solid var(--edu-line);
+  border-radius: var(--edu-radius); padding: 22px 22px 18px;
+  margin: 1.5em 0; position: relative;
+}
+.edu-prose .def::before {
+  content: "DEFINITION"; position: absolute; top: -10px; left: 18px;
+  background: var(--edu-key); color: #fff; font-size: 10px; font-weight: 700;
+  letter-spacing: .14em; padding: 3px 10px; border-radius: 2px;
+}
+.edu-prose .def p { margin: .35em 0; }
+.edu-prose .def .term { font-family: var(--edu-serif); font-size: 18px; font-weight: 700; color: var(--edu-key); }
+
+/* ---- Why / How 카드 ---- */
+.edu-prose .wh { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 1.5em 0; }
+@media (min-width: 768px) { .edu-prose .wh.two, .edu-prose .wh { grid-template-columns: 1fr 1fr; } }
+.edu-prose .card {
+  border: 1px solid var(--edu-line-soft); border-radius: var(--edu-radius);
+  padding: 16px 18px; background: var(--edu-surface);
+}
+.edu-prose .card .lbl, .edu-prose .card .ch {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.edu-prose .card .ch { display: block; }
+.edu-prose .card.why { border-left: 3px solid var(--edu-accent); }
+.edu-prose .card.why .lbl, .edu-prose .card.why .ch { color: var(--edu-accent); }
+.edu-prose .card.how { border-left: 3px solid var(--edu-key-soft); }
+.edu-prose .card.how .lbl, .edu-prose .card.how .ch { color: var(--edu-key); }
+.edu-prose .card p { margin: .35em 0; }
+
+/* ---- 실제 적용 ---- */
+.edu-prose .example {
+  background: var(--edu-oat); border: 1px solid var(--edu-line);
+  border-radius: var(--edu-radius); padding: 18px 20px 16px; margin: 1.6em 0;
+}
+.edu-prose .example .lbl {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--edu-key); margin-bottom: 6px;
+}
+.edu-prose .example p:last-child { margin-bottom: 0; }
+
+/* ---- 노트 ---- */
+.edu-prose .note {
+  border-radius: var(--edu-radius); padding: 15px 17px; margin: 1.4em 0;
+  font-size: 15px; border: 1px solid;
+}
+.edu-prose .note .nh { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 7px; }
+.edu-prose .note.key { background: #EFF6F4; border-color: #C9E1DA; }
+.edu-prose .note.key .nh { color: var(--edu-accent); }
+.edu-prose .note.warn { background: #FBF6EE; border-color: var(--edu-line); }
+.edu-prose .note.warn .nh { color: var(--edu-key); }
+.edu-prose .note.myth { background: #FBF0EC; border-color: #EBCBC1; }
+.edu-prose .note.myth .nh { color: var(--edu-danger); }
+.edu-prose .note.myth .nh::before { content: "⚠"; }
+.edu-prose .note.myth b { color: var(--edu-danger); }
+
+/* ---- 표 ---- */
+.edu-prose .table-wrap {
+  overflow-x: auto; margin: 1.5em 0;
+  border: 1px solid var(--edu-line); border-radius: var(--edu-radius);
+}
+.edu-prose table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.edu-prose caption {
+  caption-side: top; text-align: left; padding: 12px 14px 10px;
+  font-size: 12.5px; color: var(--edu-muted); background: var(--edu-oat);
+  border-bottom: 1px solid var(--edu-line);
+}
+.edu-prose th, .edu-prose td {
+  padding: 10px 14px; border-bottom: 1px solid var(--edu-line-soft);
+  text-align: left; vertical-align: top;
+}
+.edu-prose thead th { background: var(--edu-oat); font-weight: 700; white-space: nowrap; }
+.edu-prose tbody tr:last-child td { border-bottom: 0; }
+.edu-prose .up { color: var(--edu-accent); font-weight: 700; }
+.edu-prose .dn { color: var(--edu-danger); font-weight: 700; }
+
+/* ---- 도형 · 사진 ---- */
+.edu-prose figure { margin: 1.6em 0; }
+.edu-prose .figbox {
+  background: var(--edu-surface); border: 1px solid var(--edu-line);
+  border-radius: var(--edu-radius); padding: 22px 18px 10px;
+}
+.edu-prose figcaption {
+  font-size: 12.5px; color: var(--edu-muted); line-height: 1.65;
+  margin-top: 10px; text-align: center;
+}
+.edu-prose .photo {
+  border-radius: var(--edu-radius); overflow: hidden;
+  border: 1px solid var(--edu-line); background: var(--edu-oat);
+}
+.edu-prose .photo img { display: block; width: 100%; height: auto; }
+.edu-prose .photogrid { display: grid; gap: 12px; margin: 1.6em 0; grid-template-columns: 1fr; }
+@media (min-width: 700px) {
+  .edu-prose .photogrid.g2 { grid-template-columns: 1fr 1fr; }
+  .edu-prose .photogrid.g3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+.edu-prose .photogrid figure { margin: 0; }
+.edu-prose .photogrid figcaption { margin-top: 7px; font-size: 12px; }
+
+/* ---- 출처 ---- */
+.edu-prose .src {
+  font-size: 12.5px; color: var(--edu-muted); line-height: 1.7;
+  border-top: 1px dashed var(--edu-line); margin-top: 26px; padding-top: 12px;
+}
+.edu-prose .src b { color: var(--edu-ink-soft); }
+.edu-prose .src i { font-style: italic; }
+.edu-prose .tier-tag {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  border-radius: 2px; padding: 1px 6px; margin-right: 4px;
+  background: var(--edu-oat); border: 1px solid var(--edu-line); color: var(--edu-ink-soft);
+}
+.edu-prose .tier-tag.t1 { background: #EFF6F4; border-color: #C9E1DA; color: #0C6B5D; }
+.edu-prose .tier-tag.t2 { background: var(--edu-oat); }
+.edu-prose .tier-tag.t3 { background: #FBF8F1; }
+
+/* 앵커 오프셋 (sticky header) */
+.edu-prose .sec[id] { scroll-margin-top: 90px; }

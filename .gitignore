@@ -22,3 +22,6 @@ npm-debug.log*
 
 # INICIS INIAPI 인증서(취소/조회용) — 절대 커밋 금지
 /secrets/
+
+# 세션 임시 산출물 — 커밋 금지
+_to_delete/

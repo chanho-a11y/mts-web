@@ -7,7 +7,12 @@ export async function middleware(req: NextRequest) {
   const brand = brandForHost(req.headers.get("host"));
   const country = (req.geo?.country ?? "KR").toUpperCase();
   const cookieLocale = req.cookies.get("locale")?.value;
-  const locale = cookieLocale ?? (country === "KR" ? "ko" : "en");
+  // 경로 기반 로케일: /en/* 은 쿠키와 무관하게 항상 영어로 렌더한다.
+  // (교육 자료를 언어별 URL + hreflang 으로 색인시키기 위한 것 — 쿠키 전환만으로는
+  //  검색엔진이 한 언어만 색인한다.)
+  const pathname = req.nextUrl.pathname;
+  const pathLocale = pathname === "/en" || pathname.startsWith("/en/") ? "en" : null;
+  const locale = pathLocale ?? cookieLocale ?? (country === "KR" ? "ko" : "en");
 
   // expose brand/locale to RSC via request headers
   const reqHeaders = new Headers(req.headers);
@@ -36,7 +41,8 @@ export async function middleware(req: NextRequest) {
   // refresh session (auto-login persistence)
   await supabase.auth.getUser();
 
-  if (!cookieLocale) res.cookies.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  // 경로로 강제된 로케일은 쿠키에 쓰지 않는다(사용자의 언어 선택을 덮어쓰지 않도록).
+  if (!cookieLocale && !pathLocale) res.cookies.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
   return res;
 }
 

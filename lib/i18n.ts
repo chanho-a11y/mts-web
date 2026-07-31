@@ -4,7 +4,7 @@ export type Locale = "ko" | "en";
 const DICT = {
   ko: {
     shop: "쇼핑", about: "브랜드 소개", coffeeInfo: "커피 정보", blog: "블로그",
-    consulting: "컨설팅", contact: "문의", login: "로그인", signup: "회원가입", cart: "장바구니",
+    education: "교육 자료", consulting: "컨설팅", contact: "문의", login: "로그인", signup: "회원가입", cart: "장바구니",
     bestsellers: "베스트", newArrivals: "신상품", categories: "카테고리",
     viewAll: "전체 보기", addToCart: "장바구니 담기", soldOut: "품절",
     origin: "원산지", variety: "품종", process: "가공 방식", flavor: "플레이버 노트",
@@ -126,7 +126,7 @@ const DICT = {
   },
   en: {
     shop: "Shop", about: "About", coffeeInfo: "Coffee Info", blog: "Blog",
-    consulting: "Consulting", contact: "Contact", login: "Login", signup: "Sign up", cart: "Cart",
+    education: "Education", consulting: "Consulting", contact: "Contact", login: "Login", signup: "Sign up", cart: "Cart",
     bestsellers: "Best", newArrivals: "New", categories: "Categories",
     viewAll: "View all", addToCart: "Add to cart", soldOut: "Sold out",
     origin: "Origin", variety: "Variety", process: "Process", flavor: "Flavour notes",

@@ -18,6 +18,7 @@ export default function SiteHeader({
     { href: "/collections/all", label: tt.shop },
     { href: "/about", label: tt.about },
     { href: "/blogs/coffeelog", label: tt.blog },
+    { href: locale === "en" ? "/en/education" : "/education", label: tt.education },
     { href: "/consulting", label: tt.consulting },
     { href: "/contact", label: tt.contact },
   ];

@@ -236,3 +236,20 @@ export async function setDefaultAddressAction(formData: FormData) {
   await supabase.from("addresses").update({ is_default: true }).eq("id", id).eq("profile_id", user.id);
   redirect("/account");
 }
+
+/* ---------- 마케팅 수신동의 (마이페이지) ---------- */
+
+export async function updateMarketingOptInAction(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/account/login");
+
+  // 본인 행만 갱신. role·price_tier_id·archived 는 건드리지 않으므로
+  // profiles_guard_privileged 트리거(관리자 전용 컬럼 보호)에 걸리지 않는다.
+  await supabase
+    .from("profiles")
+    .update({ marketing_opt_in: formData.get("marketing") === "on" })
+    .eq("id", user.id);
+
+  redirect("/account?saved=marketing");
+}

@@ -12,7 +12,7 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
 
   const { data: customers } = await supabase
     .from("profiles")
-    .select("id,name,email,phone,role,archived,must_change_password,business_accounts!business_accounts_profile_id_fkey(company_name,status)")
+    .select("id,name,email,phone,role,archived,must_change_password,marketing_opt_in,business_accounts!business_accounts_profile_id_fkey(company_name,status)")
     .eq("archived", showArchived)
     .order("created_at", { ascending: false })
     .limit(500);
@@ -83,6 +83,11 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
                   <span title={ROLE[c.role] ?? c.role}>{isBiz ? "🏢" : c.role === "individual" ? "👤" : "★"}</span>
                   <span className="ml-1 text-xs text-neutral-500">{ROLE[c.role] ?? c.role}</span>
                   {c.must_change_password && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-700">비번변경대기</span>}
+                  <div className="mt-1">
+                    {c.marketing_opt_in
+                      ? <span className="rounded bg-emerald-100 px-1 text-[10px] text-emerald-700" title="마케팅 정보 수신 동의">수신동의</span>
+                      : <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-400" title="마케팅 정보 수신 미동의">수신 미동의</span>}
+                  </div>
                 </td>
                 <td className="py-3">
                   <form action={updateCustomerAction} className="flex flex-wrap items-center gap-1">

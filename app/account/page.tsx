@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOutAction, deleteAddressAction, setDefaultAddressAction } from "@/app/account/actions";
+import { signOutAction, deleteAddressAction, setDefaultAddressAction, updateMarketingOptInAction } from "@/app/account/actions";
 import AddressBookForm from "@/components/address-book-form";
 import OrderHistory, { type HistoryItem } from "@/components/order-history";
 import { getStorefrontContext } from "@/lib/storefront";
@@ -8,7 +8,7 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: { saved?: string } }) {
   const { locale } = await getStorefrontContext();
   const tt = t(locale);
   const ROLE_LABEL: Record<string, string> = {
@@ -52,13 +52,28 @@ export default async function AccountPage() {
 
       <section className="mt-6 rounded-xl border p-5 text-sm">
         <h2 className="mb-3 font-bold">{tt.memberInfo}</h2>
+        {searchParams?.saved === "marketing" && (
+          <p className="mb-3 rounded bg-green-50 px-3 py-2 text-xs text-green-700">{tt.marketingSaved}</p>
+        )}
         <dl className="space-y-2">
           <Row k={tt.name} v={profile?.name} />
           <Row k={tt.email} v={profile?.email ?? user.email} />
           <Row k={tt.phone} v={profile?.phone} />
           <Row k={tt.memberRole} v={ROLE_LABEL[profile?.role ?? "individual"]} />
           <Row k={tt.languageUsed} v={profile?.language === "en" ? "English" : "한국어"} />
-          <Row k={tt.marketingReceive} v={profile?.marketing_opt_in ? tt.agreed : tt.notAgreed} />
+          <div className="flex gap-4">
+            <dt className="w-24 shrink-0 text-neutral-500">{tt.marketingReceive}</dt>
+            <dd>
+              <form action={updateMarketingOptInAction} className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" name="marketing" defaultChecked={!!profile?.marketing_opt_in} />
+                  <span>{profile?.marketing_opt_in ? tt.agreed : tt.notAgreed}</span>
+                </label>
+                <button className="rounded border px-2 py-0.5 text-xs">{tt.save}</button>
+              </form>
+              <p className="mt-1 text-xs text-neutral-400">{tt.marketingOptInNote}</p>
+            </dd>
+          </div>
         </dl>
       </section>
 

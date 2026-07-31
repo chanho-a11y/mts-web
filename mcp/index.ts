@@ -1,7 +1,7 @@
 /**
- * MTSPACE COMMERCE MCP — 툴 등록 진입점.
+ * COMMERCE MCP — 툴 등록 진입점.
  *
- * 이 디렉터리는 장차 사설 패키지 @mts/commerce-mcp 로 추출된다.
+ * 이 디렉터리는 장차 사설 패키지 @<scope>/commerce-mcp 로 추출된다.
  * app/ · lib/ · components/ 를 import 하지 않는다(mcp/README.md 의 경계 규칙).
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,6 +15,8 @@ import { getShopInfo, getSchema } from "./tools/context";
 import { searchProducts, getProduct, getInventory } from "./tools/catalog";
 import { resolvePrice, listPriceOverrides } from "./tools/pricing";
 import { searchOrders, getOrder } from "./tools/orders";
+import { searchCustomers, getCustomer } from "./tools/customers";
+import { getBrandTokens, searchContent } from "./tools/content";
 import { runReport } from "./tools/reports";
 
 const TOOLS = [
@@ -27,7 +29,11 @@ const TOOLS = [
   listPriceOverrides,
   searchOrders,
   getOrder,
+  searchCustomers,
+  getCustomer,
   runReport,
+  getBrandTokens,
+  searchContent,
 ];
 
 export { McpSetupError, McpAuthError };

@@ -69,24 +69,15 @@ export async function resolveIdentity(req: Request, db: DbClient): Promise<Ident
     );
   }
 
-  // 부트스트랩: mcp_token 행이 아직 없을 때 최초 연결용. 감사로그에 표시된다.
-  const bootstrap = process.env.MCP_BOOTSTRAP_TOKEN;
-  if (bootstrap && presented === bootstrap) {
-    return {
-      tokenId: null,
-      profileId: null,
-      role: "admin",
-      scopes: ALL,
-      tokenName: "bootstrap",
-      bootstrap: true,
-    };
-  }
+  // 환경변수 기반 부트스트랩 토큰은 제공하지 않는다.
+  // 폐기 불가·만료 없음·감사 귀속 불가 자격증명이 되기 때문이다(결함 03).
+  // 최초 연결도 mcp_token 행을 발급해서 쓴다 — db/README.md 의 토큰 발급 절차 참조.
 
   const { data, error } = await db.rpc("mcp_verify_token", { p_hash: sha256(presented) });
   if (error) {
     throw new McpAuthError(
       `토큰 검증에 실패했습니다: ${error.message}`,
-      "mcp-foundation SQL 적용 여부와 mcp_verify_token EXECUTE 권한을 확인하세요.",
+      "MCP 설치 SQL(db/install.sql) 적용 여부와 mcp_verify_token EXECUTE 권한을 확인하세요.",
     );
   }
 
@@ -115,6 +106,5 @@ export async function resolveIdentity(req: Request, db: DbClient): Promise<Ident
     role: String(row.role),
     scopes: effective,
     tokenName: String(row.name ?? ""),
-    bootstrap: false,
   };
 }

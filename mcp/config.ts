@@ -18,7 +18,7 @@ async function cfgText(db: DbClient, key: string): Promise<string | null> {
   if (error) {
     throw new McpSetupError(
       `설정을 읽지 못했습니다 (${key}): ${error.message}`,
-      "mcp-foundation SQL 이 적용됐는지, mcp_reader 에게 함수 EXECUTE 권한이 있는지 확인하세요.",
+      "MCP 설치 SQL(db/install.sql) 적용 여부와 mcp_reader 의 함수 EXECUTE 권한을 확인하세요.",
     );
   }
   return (data as string | null) ?? null;
@@ -29,7 +29,7 @@ async function cfgJson(db: DbClient, key: string): Promise<unknown> {
   if (error) {
     throw new McpSetupError(
       `설정을 읽지 못했습니다 (${key}): ${error.message}`,
-      "mcp-foundation SQL 이 적용됐는지 확인하세요.",
+      "MCP 설치 SQL(db/install.sql) 적용 여부를 확인하세요.",
     );
   }
   return data ?? null;
@@ -66,7 +66,10 @@ export async function loadConfig(db: DbClient, force = false): Promise<McpConfig
     ? (attrRaw as AttributeDescriptor[])
     : [];
 
-  const value: McpConfig = { storefrontId, schemaVersion, enabledModules, attributes };
+  const currency = (await cfgText(db, "currency")) ?? "KRW";
+  const timezone = (await cfgText(db, "timezone")) ?? "UTC";
+
+  const value: McpConfig = { storefrontId, currency, timezone, schemaVersion, enabledModules, attributes };
   cached = { at: Date.now(), value };
   return value;
 }

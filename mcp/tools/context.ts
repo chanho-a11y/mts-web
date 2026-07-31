@@ -32,7 +32,7 @@ export const getShopInfo = {
 
     return {
       shop: shop ?? {},
-      currency: "KRW",
+      currency: ctx.config.currency,
       schema_version: ctx.config.schemaVersion,
       enabled_modules: ctx.config.enabledModules,
       counts: { products: products ?? 0, orders: orders ?? 0 },

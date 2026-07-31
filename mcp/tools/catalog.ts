@@ -142,7 +142,7 @@ export const getProduct = {
       if (include.includes("variants")) {
         const { data: vs } = await ctx.db
           .from("mcp_v_variant")
-          .select("id,sku,option_values,weight_g,grind,base_price,currency,is_active,is_b2b_only,inventory_policy,position")
+          .select("id,sku,option_values,weight_g,base_price,currency,is_active,is_b2b_only,inventory_policy,position")
           .eq("product_id", p.id)
           .order("position");
         const variants = (vs ?? []) as VariantRow[];

@@ -1,6 +1,6 @@
-# mcp/ — MTSPACE COMMERCE MCP
+# mcp/ — COMMERCE MCP
 
-이 디렉터리는 **장차 사설 npm 패키지 `@mts/commerce-mcp` 로 추출된다.** 지금은 추출 비용(모노레포 도구·배포 파이프라인)을 미루기 위해 자사몰 안에 두지만, 코드 경계는 처음부터 패키지처럼 지킨다.
+이 디렉터리는 **장차 사설 npm 패키지 `@<scope>/commerce-mcp` 로 추출된다.** 지금은 추출 비용(모노레포 도구·배포 파이프라인)을 미루기 위해 자사몰 안에 두지만, 코드 경계는 처음부터 패키지처럼 지킨다.
 
 ## 경계 규칙 (깨면 추출이 불가능해진다)
 
@@ -32,12 +32,11 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | 기존 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 기존 |
 | `SUPABASE_JWT_SECRET` | **신규** — `role=mcp_reader` 단명 JWT 서명용 |
-| `MCP_BOOTSTRAP_TOKEN` | **신규(임시)** — `mcp_token` 행이 생기기 전 최초 연결용. 발급 후 제거 |
 | `MCP_ALLOW_SERVICE_FALLBACK` | **개발 전용** — `1` 이면 service_role 로 폴백. 프로덕션에서 켜지 말 것 |
 
 ## 선행 조건
 
-`new-website/docs/mcp-foundation-20260729.sql` → `…b.sql` 순으로 실행돼 있어야 한다. 적용 전에는 모든 툴이 `setup_required` 로 실패한다 — 조용히 빈 값을 반환하지 않는다.
+`db/03_mcp_install.sql` 이 적용돼 있어야 한다. 적용 전에는 모든 툴이 `setup_required` 로 실패한다 — 조용히 빈 값을 반환하지 않는다.
 
 ## 설치
 
@@ -53,8 +52,8 @@ npm i mcp-handler @modelcontextprotocol/sdk zod jose
 -- 관리자 화면이 생기기 전 임시 절차
 insert into public.mcp_token (profile_id, name, token_hash, scopes)
 values (
-  (select id from public.profiles where email = 'chanho@mtspace.coffee'),
-  '대표 데스크톱',
+  (select id from public.profiles where email = '<관리자 이메일>'),
+  '<토큰 용도>',
   public.mcp_hash_token('여기에-생성한-난수-토큰'),
   '{}'                       -- 빈 배열 = 역할 스코프 그대로
 );
@@ -75,4 +74,5 @@ DB의 `customer_role` enum 은 `guest | individual | business | influencer | adm
 ```bash
 npx tsc --noEmit                       # 0
 npx @modelcontextprotocol/inspector     # Streamable HTTP → http://localhost:3000/api/mcp
+npx tsx mcp/schema-smoke.mts            # 전 툴 PASS
 ```

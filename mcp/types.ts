@@ -1,7 +1,7 @@
 /**
- * MTSPACE COMMERCE MCP — 계약 타입
+ * COMMERCE MCP — 계약 타입
  *
- * ⚠️ 경계 규칙: 이 디렉터리(mcp/)는 장차 사설 패키지 @mts/commerce-mcp 로 추출된다.
+ * ⚠️ 경계 규칙: 이 디렉터리(mcp/)는 장차 사설 패키지 @<scope>/commerce-mcp 로 추출된다.
  *    app/ · components/ · lib/ 를 import 하지 않는다. DB 뷰 계약(mcp_v_*)에만 의존한다.
  *    업종별 차이는 뷰가 흡수하므로 여기에는 커피 전용 컬럼명이 등장하지 않는다.
  */
@@ -18,6 +18,10 @@ export interface AttributeDescriptor {
 
 export interface McpConfig {
   storefrontId: string;
+  /** ISO 4217. mcp_config.currency 에서 온다. 코드에 하드코딩하지 않는다 */
+  currency: string;
+  /** 리포트 기간 버킷 기준 시간대. mcp_config.timezone */
+  timezone: string;
   schemaVersion: string;
   enabledModules: string[];
   attributes: AttributeDescriptor[];
@@ -43,8 +47,6 @@ export interface Identity {
   role: string;
   scopes: Scope[];
   tokenName: string;
-  /** 부트스트랩 토큰으로 접속했는가 (감사로그에 표시) */
-  bootstrap: boolean;
 }
 
 /** 뷰 계약: mcp_v_product 는 업종과 무관하게 이 모양을 반환한다 */
@@ -79,7 +81,6 @@ export interface VariantRow {
   sku: string | null;
   option_values: unknown;
   weight_g: number | null;
-  grind: string | null;
   base_price: number | null;
   currency: string | null;
   is_active: boolean | null;

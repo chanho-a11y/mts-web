@@ -66,7 +66,7 @@ export const resolvePrice = {
         variant_id: vid,
         profile_id: args.profile_id ?? null,
         price: row?.price ?? null,
-        currency: "KRW",
+        currency: ctx.config.currency,
         price_source: row?.source ?? null,
         source_label: row?.source ? SOURCE_LABEL[row.source] ?? null : null,
         evaluated_at: at,

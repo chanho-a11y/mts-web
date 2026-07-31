@@ -40,14 +40,22 @@ const handler = createMcpHandler(
   { basePath: "/api" },
 );
 
+/**
+ * 401 응답.
+ *
+ * WWW-Authenticate 에 resource_metadata 를 넣어야 MCP 클라이언트가
+ * 보호 리소스 메타데이터(RFC 9728)를 찾아 인가서버로 갈 수 있다.
+ * 이 지시자가 없으면 Claude 는 OAuth 흐름을 시작하지 못하고 연결이 실패한다.
+ */
 function unauthorized(message: string, hint?: string): Response {
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
+  const prm = `${site}/.well-known/oauth-protected-resource`;
   return Response.json(
     { error: "unauthorized", message, hint },
     {
       status: 401,
       headers: {
-        // MCP 인가 스펙: 클라이언트가 보호리소스 메타데이터를 찾을 수 있게 한다(P1 OAuth 대비).
-        "WWW-Authenticate": 'Bearer realm="mcp", error="invalid_token"',
+        "WWW-Authenticate": `Bearer realm="mcp", error="invalid_token", resource_metadata="${prm}"`,
       },
     },
   );

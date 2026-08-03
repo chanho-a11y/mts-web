@@ -11,7 +11,7 @@ export interface ApproveResult { ok: boolean; already?: boolean; orderNo?: strin
 export async function approveOrder(db: SupabaseClient, orderId: string, extra: ApproveExtra = {}): Promise<ApproveResult> {
   const { data: order } = await db
     .from("orders")
-    .select("id,order_no,status,grand_total,currency,email,shipping_address,order_item(title_snapshot,sku,qty,line_total)")
+    .select("id,order_no,status,grand_total,currency,email,shipping_address,order_item(title_snapshot,sku,qty,line_total,variant_id,cancelled_qty)")
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return { ok: false, reason: "order_not_found" };
@@ -42,6 +42,35 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
   if (!alreadyPaid && (order.status === "created" || order.status === "expired")) {
     if (order.status === "expired") console.warn(`[approve-after-expire] order=${order.order_no} 만료 처리된 주문에 승인이 도착해 결제완료로 되살림`);
     await db.from("orders").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", orderId);
+
+    // D-101: 재고 차감은 '결제완료' 시점. (구: 출고 시점 차감 → 관리자가 출고를 누르지 않으면 영원히 미차감)
+    // 멱등 보장은 두 겹 — ① 이 블록은 created/expired → paid 신규 전이 1회만 진입
+    //                    ② DB 부분 유니크 인덱스 inventory_ledger_order_uniq(variant_id, ref_id) where reason='order'
+    // 동일 variant 가 여러 order_item 행으로 들어온 경우를 대비해 variant 단위로 합산 후 1행만 기록한다.
+    // 차감 실패는 결제 승인을 되돌리지 않는다(고객 결제는 이미 완료) — 로그로 남겨 수동 보정한다.
+    try {
+      const oItems = ((order as { order_item?: { variant_id?: string | null; qty?: number | null; cancelled_qty?: number | null }[] }).order_item) ?? [];
+      const byVariant = new Map<string, number>();
+      for (const it of oItems) {
+        const net = (it.qty ?? 0) - (it.cancelled_qty ?? 0);
+        if (!it.variant_id || net <= 0) continue;
+        byVariant.set(it.variant_id, (byVariant.get(it.variant_id) ?? 0) + net);
+      }
+      if (byVariant.size > 0) {
+        const rows = Array.from(byVariant, ([variant_id, qty]) => ({
+          variant_id, delta: -qty, reason: "order", ref_id: order.order_no,
+        }));
+        const { error: ledErr } = await db.from("inventory_ledger").insert(rows);
+        // 23505 = unique_violation → 이미 차감된 주문(재승인·중복 콜백). 정상 상황이므로 경고만.
+        if (ledErr && ledErr.code !== "23505") {
+          console.error(`[inventory-deduct-failed] order=${order.order_no}`, ledErr.message);
+        } else if (!ledErr) {
+          console.log(`[inventory-deduct] order=${order.order_no} variants=${rows.length}`);
+        }
+      }
+    } catch (e) {
+      console.error(`[inventory-deduct-threw] order=${order.order_no}:`, (e as Error)?.message);
+    }
 
     // 주문확인 메일 (신규 결제완료 전이 시에만)
     if (order.email) {

@@ -45,21 +45,18 @@ export async function bulkOrdersAction(ids: string[], action: "confirm" | "ship"
   revalidatePath("/admin/orders");
 }
 
-// 출고 처리: 재고 차감 + 송장 생성 (이메일 발송은 Gmail 연동 시)
+// 출고 처리: 송장 생성 + 출고 알림 (D-101 이후 재고 차감은 여기서 하지 않는다)
+// 재고 차감은 결제완료(approveOrder) 시점으로 이동했다. 여기서 다시 차감하면 이중 차감이 된다.
+// 멱등: shipment 행이 이미 있으면 아무것도 하지 않는다(구버전은 상태를 '출고'로 다시 지정할 때마다
+//       재고를 중복 차감하고 출고 메일을 재발송했다).
 async function onShip(orderId: string) {
   const supabase = createClient();
-  const { data: order } = await supabase.from("orders").select("order_no,email,shipping_address").eq("id", orderId).maybeSingle();
-  const { data: items } = await supabase.from("order_item").select("variant_id,qty,cancelled_qty").eq("order_id", orderId);
-  for (const it of items ?? []) {
-    const ship = it.qty - (it.cancelled_qty ?? 0); // 취소분 제외한 실제 출고 수량만 차감
-    if (it.variant_id && ship > 0) {
-      await supabase.from("inventory_ledger").insert({ variant_id: it.variant_id, delta: -ship, reason: "order", ref_id: order?.order_no ?? orderId });
-    }
-  }
   const { data: existing } = await supabase.from("shipment").select("id").eq("order_id", orderId).maybeSingle();
-  if (!existing) {
-    await supabase.from("shipment").insert({ order_id: orderId, carrier: "lotte", status: "shipped", shipped_at: new Date().toISOString() });
-  }
+  if (existing) return;
+
+  const { data: order } = await supabase.from("orders").select("order_no,email,shipping_address").eq("id", orderId).maybeSingle();
+  await supabase.from("shipment").insert({ order_id: orderId, carrier: "lotte", status: "shipped", shipped_at: new Date().toISOString() });
+
   // 고객 출고 알림 이메일 (이메일 프로바이더 미설정 시 자동 생략)
   if (order?.email) {
     const name = (order.shipping_address as { name?: string } | null)?.name;
@@ -187,9 +184,15 @@ export async function cancelOrderAction(input: {
       .eq("id", c.item.id);
   }
 
-  // 재고 복원: 출고(shipment 존재)된 주문만 — 미출고 건은 애초에 차감된 적 없음
-  const { data: shp } = await db.from("shipment").select("id").eq("order_id", input.order_id).maybeSingle();
-  if (shp) {
+  // 재고 복원: '실제로 차감된' 주문만 — 판정 기준은 shipment 유무가 아니라 inventory_ledger 기록 유무다.
+  // (D-101: 차감 시점이 출고 → 결제완료로 바뀌었으므로 미출고 상태에서도 이미 차감돼 있다.
+  //  구 기준을 그대로 두면 출고 전 취소분이 영원히 복원되지 않아 재고가 계속 줄어든다.)
+  const { count: deducted } = await db
+    .from("inventory_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("ref_id", order.order_no)
+    .eq("reason", "order");
+  if ((deducted ?? 0) > 0) {
     for (const c of cancelItems) {
       if (c.item.variant_id) {
         await db.from("inventory_ledger").insert({

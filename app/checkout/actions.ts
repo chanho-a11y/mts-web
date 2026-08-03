@@ -81,6 +81,10 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     }
   }
 
+  // 오버셀 방지(D-101) — 같은 variant 가 여러 줄로 담겼을 수 있으므로 수량을 먼저 합산한다.
+  const wanted = new Map<string, number>();
+  for (const it of payload.items) wanted.set(it.variantId, (wanted.get(it.variantId) ?? 0) + Math.max(0, it.qty || 0));
+
   // 가격 서버 재계산 (resolve_price: 개별가→등급가→정가) + 무게 합산
   let subtotal = 0;
   let totalWeight = 0;
@@ -88,13 +92,36 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   for (const it of payload.items) {
     const { data: v } = await db
       .from("product_variant")
-      .select("id,sku,weight_g,option_values,is_b2b_only,product(title_ko)")
+      .select("id,sku,weight_g,option_values,is_b2b_only,inventory_policy,product(title_ko)")
       .eq("id", it.variantId)
       .maybeSingle();
     if (!v) return { ok: false, message: "상품을 찾을 수 없습니다." };
     if ((v as any).is_b2b_only && !isBusinessBuyer) {
       return { ok: false, message: "사업자 전용 상품이 포함되어 있습니다. 사업자 계정으로 로그인 후 구매해 주세요." };
     }
+
+    // 재고 검증: inventory_policy='deny' 인 variant 는 현재고 범위 안에서만 주문 생성.
+    // inventory_ledger 는 관리자 전용 RLS 라 회원 세션으로 직접 못 읽는다 → SECURITY DEFINER 함수로 조회.
+    // 조회 자체가 실패하면(함수 미배포·일시 오류) 로그만 남기고 통과 — 재고 조회 장애로 정상 결제를 막지 않기 위함.
+    if (((v as any).inventory_policy ?? "deny") === "deny") {
+      const need = wanted.get(it.variantId) ?? it.qty;
+      const { data: oh, error: ohErr } = await db.rpc("variant_on_hand", { p_variant_id: it.variantId });
+      if (ohErr) {
+        console.error(`[stock-check-failed] variant=${it.variantId}`, ohErr.message);
+      } else {
+        const onHand = Number(oh ?? 0);
+        if (onHand < need) {
+          const label = (v as any).product?.title_ko ?? (v as any).sku;
+          return {
+            ok: false,
+            message: onHand <= 0
+              ? `'${label}' 상품이 품절되었습니다. 장바구니에서 제외한 뒤 다시 시도해 주세요.`
+              : `'${label}' 상품의 재고가 부족합니다. (요청 ${need}개 · 남은 수량 ${onHand}개)`,
+          };
+        }
+      }
+    }
+
     const { data: rp } = await db.rpc("resolve_price", { p_variant_id: it.variantId, p_profile_id: profileId });
     const row = Array.isArray(rp) ? rp[0] : rp;
     const unit = row?.price ?? 0;

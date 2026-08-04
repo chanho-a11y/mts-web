@@ -255,6 +255,34 @@
 
   .slide-wrap { display: block; }
 
+  /* 캡션 패널 — 카드(.slide) 밖. 내보내기와 무관 */
+  .caption-panel { max-width: 1400px; margin: 26px auto 0; padding: 0 20px; }
+  .cap-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .cap-head b { font: 700 13px var(--kr); }
+  .cap-head span { font: 400 11px var(--kr); color: #9a9a9a; }
+  .cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .cap-card {
+    border: 1px solid var(--ui-line); border-radius: 10px; background: #fff;
+    padding: 14px; font: 400 12px/1.65 var(--kr); color: var(--body-fg);
+  }
+  .cap-card h4 { margin: 0 0 8px; font: 700 11px var(--kr); letter-spacing: .04em; color: #666; }
+  .cap-card .hook { font-weight: 700; margin: 0 0 8px; }
+  .cap-card .body { white-space: pre-wrap; margin: 0 0 8px; }
+  .cap-card .tags { color: #8a8a8a; font-size: 11px; word-break: keep-all; }
+  .cap-card .copy { margin-top: 10px; font: 500 11px var(--kr); padding: 5px 10px;
+    border: 1px solid var(--ui-line); border-radius: 999px; background: #fff; cursor: pointer; }
+  @media (max-width: 900px) { .cap-grid { grid-template-columns: 1fr; } }
+
+  /* 안 토글 — .slide 바깥. exportSlide() 는 .slide 만 html2canvas 에 넘기므로 출력 미포함 */
+  .angle-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 0; padding: 0 2px;
+  }
+  .angle-bar .seg { flex: 1; }
+  .angle-bar .seg button { flex: 1; padding: 6px 4px; font-size: 11px; }
+  .angle-bar .seg button:disabled { opacity: .35; cursor: not-allowed; }
+  .angle-bar .hint { font: 400 10px var(--kr); color: #9a9a9a; white-space: nowrap; }
+
   .slide-head {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 10px;
@@ -1060,6 +1088,30 @@
   </div>
 
   <div class="group">
+    <span class="lbl">전체 안</span>
+    <div class="seg" id="angleAllSeg">
+      <button data-angle="0" class="active">1안</button>
+      <button data-angle="1">2안</button>
+      <button data-angle="2">3안</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <span class="lbl">배경 아트</span>
+    <select class="pill" id="artSelect" title="커버·CTA 배경 아트">
+      <option value="auto">자동 (풍미 매칭)</option>
+      <option value="bloom">bloom · 플로럴</option>
+      <option value="stone">stone · 스톤프루트</option>
+      <option value="berry">berry · 베리</option>
+      <option value="citrus">citrus · 시트러스</option>
+      <option value="cacao">cacao · 카카오·너트</option>
+      <option value="caramel">caramel · 카라멜</option>
+      <option value="grid">grid · 뉴트럴</option>
+      <option value="off">끄기</option>
+    </select>
+  </div>
+
+  <div class="group">
     <span class="lbl">비율</span>
     <div class="seg" id="ratioSeg">
       <button data-ratio="4-5" class="active">4 : 5</button>
@@ -1095,8 +1147,22 @@
 
 <main class="stage" id="stage"></main>
 
+<section class="caption-panel" id="captionPanel">
+  <div class="cap-head">
+    <b>캡션 3안</b>
+    <span>커버가 약속한 것을 본문이 회수하도록 카드와 같은 앵글로 씁니다. 카드 렌더와 무관한 발행용 텍스트입니다.</span>
+  </div>
+  <div class="cap-grid" id="capGrid"></div>
+</section>
+
 <section class="hint">
   <p><b>컨텐츠 모드 ·</b> <b>제품</b> 모드에서는 mtspace.coffee 활성 상품 리스트가 즉시 표시되고(파일과 함께 내장), 제품을 고르면 시그널 컬러와 풍미 노트가 카드에 자동 반영됩니다. 새로고침 버튼은 mtspace.coffee의 최신 카탈로그를 직접 가져옵니다(인터넷 연결 필요). <b>일반</b> 모드는 커피 교육·이벤트·매장 공지처럼 제품과 무관한 컨텐츠를 만들 때 사용 — 제품 자동 채움이 꺼지고 컬러는 자유롭게 지정합니다.</p>
+  <hr/>
+  <p><b>3안 · 앵글 ·</b> 제품을 고르면 5장 전체 카피가 <b>3안</b>으로 생성됩니다. 3안은 문구를 바꿔 쓴 게 아니라 <b>1안 산지(품종·가공) / 2안 풍미(테이스팅) / 3안 용도(메뉴·운영)</b> 세 각도입니다. 각 슬라이드 아래 토글로 장마다 고르고, 헤더의 <b>전체 안</b>으로 5장을 한 번에 맞출 수 있습니다. 카피는 제품 등록의 <b>구조화 필드</b>에서만 만들며 상세 본문(body_html)은 쓰지 않습니다. 채울 수 없는 슬롯은 비우고 상태바에 미입력 항목을 표시합니다.</p>
+  <hr/>
+  <p><b>배경 아트 ·</b> 커버(01)와 CTA(05)에 <b>같은 아트</b>가 들어갑니다. 기본은 <b>자동</b> — 풍미 노트로 모티프(bloom·stone·berry·citrus·cacao·caramel, 매칭 없으면 grid)를 고르고 <b>제품 키컬러가 아트에 주입</b>됩니다. 안을 바꾸면 아트 변형도 함께 바뀝니다. 헤더 드롭다운에서 수동 지정·끄기가 가능하고, 슬라이드에 사진을 직접 올리면 그 장은 사진이 우선합니다.</p>
+  <hr/>
+  <p><b>캡션 3안 ·</b> 카드 아래 패널에 발행용 캡션이 카드와 같은 앵글로 3안 생성됩니다(hook·본문·CTA·해시태그). 카드 렌더에는 포함되지 않습니다.</p>
   <hr/>
   <p><b>컬러 ·</b> 홀수 페이지(1·3·5)와 짝수 페이지(2·4)의 두 컬러로 카드 시퀀스 전체가 통일됩니다. 제품 선택 시 컬러 1=Ink Black, 컬러 2=제품 시그널 컬러로 자동 세팅되며, 헤더에서 언제든 수동으로 바꿀 수 있습니다. 밝은 시그널(Mint/Yellow/Cyan/Amber/Meadow/Lavender) 위에는 검정 텍스트가 자동 적용됩니다 (브랜드 안티패턴 #2 준수).</p>
   <hr/>
@@ -1112,8 +1178,8 @@
   <div class="frame lay-hook-a">
     <div class="top-row"><span class="role-tag" contenteditable="true">HOOK</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">오늘, 이 한 잔이</div>
-      <h1 contenteditable="true">여기까지<br/>온 이야기.</h1>
+      <div class="eyebrow" contenteditable="true" data-fill="hook-eyebrow">오늘, 이 한 잔이</div>
+      <h1 contenteditable="true" data-fill="hook-h">여기까지<br/>온 이야기.</h1>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i><span class="tagline">everyday excellence</span></div>
@@ -1126,8 +1192,8 @@
   <div class="frame lay-hook-b">
     <div class="top-row"><span class="role-tag" contenteditable="true">HOOK</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">single origin · africa</div>
-      <h1 contenteditable="true">everyday<br/>excellence.</h1>
+      <div class="eyebrow" contenteditable="true" data-fill="hook-eyebrow">single origin</div>
+      <h1 contenteditable="true" data-fill="hook-h">everyday<br/>excellence.</h1>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i><span class="tagline">everyday excellence</span></div>
@@ -1140,8 +1206,8 @@
   <div class="frame lay-hook-c">
     <div class="top-row"><span class="role-tag" contenteditable="true">HOOK</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">ethiopia · aricha · washed</div>
-      <h1 contenteditable="true">매일의 커피는<br/><em>우리의 삶</em>을 만듭니다.</h1>
+      <div class="eyebrow" contenteditable="true" data-fill="hook-eyebrow">origin</div>
+      <h1 contenteditable="true" data-fill="hook-h">매일의 커피는<br/>우리의 삶을 만듭니다.</h1>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i><span class="tagline">everyday excellence</span></div>
@@ -1156,7 +1222,7 @@
   <div class="frame lay-ctx-a">
     <div class="top-row"><span class="role-tag" contenteditable="true">CONTEXT</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">산지 · 농부 · 가공법</div>
+      <div class="eyebrow" contenteditable="true" data-fill="ctx-eyebrow">산지 · 농부 · 가공법</div>
       <h2 contenteditable="true" data-fill="title">예가체프 아리차, 100년의 워싱 스테이션.</h2>
       <p class="desc" contenteditable="true" data-fill="description">에티오피아 예가체프의 아리차 워싱 스테이션은 100년이 넘는 시간 동안 꾸준히 품질을 지켜온 곳입니다. 약 800명의 소작농이 재배한 잘 익은 체리만을 선별합니다.</p>
     </div>
@@ -1171,13 +1237,13 @@
   <div class="frame lay-ctx-b">
     <div class="top-row"><span class="role-tag" contenteditable="true">CONTEXT</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">origin</div>
-      <h2 contenteditable="true" data-fill="title">에티오피아 · 예가체프 · 아리차.</h2>
+      <div class="eyebrow" contenteditable="true" data-fill="ctx-eyebrow">origin</div>
+      <h2 contenteditable="true" data-fill="origin-chain">에티오피아 · 예가체프 · 아리차.</h2>
       <div class="grid">
         <div><div class="k">PRODUCER</div><div class="v" contenteditable="true" data-fill="farm">Aricha Washing Station</div></div>
         <div><div class="k">PROCESS</div><div class="v" contenteditable="true" data-fill="process">Fully Washed · 100h</div></div>
-        <div><div class="k">VARIETAL</div><div class="v" contenteditable="true">Ethiopian Heirloom</div></div>
-        <div><div class="k">ALTITUDE</div><div class="v" contenteditable="true">1,950–2,150m</div></div>
+        <div><div class="k">VARIETAL</div><div class="v" contenteditable="true" data-fill="variety">Ethiopian Heirloom</div></div>
+        <div><div class="k">ALTITUDE</div><div class="v" contenteditable="true" data-fill="altitude">1,950–2,150m</div></div>
       </div>
     </div>
     <div class="foot">
@@ -1192,8 +1258,8 @@
     <div class="top-row"><span class="role-tag" contenteditable="true">CONTEXT</span></div>
     <div class="body">
       <div class="quote-mark">“</div>
-      <blockquote contenteditable="true">로스팅·추출의 모든 변수를 기록하고 반복합니다. 과장 없이 사실로 말합니다.</blockquote>
-      <div class="attrib" contenteditable="true">MTSPACE · technical rigor</div>
+      <blockquote contenteditable="true" data-fill="ctx-quote">로스팅·추출의 모든 변수를 기록하고 반복합니다.</blockquote>
+      <div class="attrib" contenteditable="true" data-fill="ctx-attrib">MTSPACE · technical rigor</div>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i></div>
@@ -1208,7 +1274,7 @@
   <div class="frame lay-det-a">
     <div class="top-row"><span class="role-tag" contenteditable="true">DETAIL · CUP</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">tasting notes</div>
+      <div class="eyebrow" contenteditable="true" data-fill="detA-eyebrow">tasting notes</div>
       <div class="notes">
         <div class="n" contenteditable="true" data-tn="0">재스민</div>
         <div class="n" contenteditable="true" data-tn="1">베르가못</div>
@@ -1226,13 +1292,13 @@
   <div class="frame lay-det-b">
     <div class="top-row"><span class="role-tag" contenteditable="true">DETAIL · CUP</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">tasting profile</div>
-      <h2 contenteditable="true">한 잔의 향미.</h2>
+      <div class="eyebrow" contenteditable="true" data-fill="det-eyebrow">tasting profile</div>
+      <h2 contenteditable="true" data-fill="det-h">한 잔의 향미.</h2>
       <div class="rows">
-        <div class="row"><div class="k">AROMA</div><div class="v" contenteditable="true" data-tn="0">재스민</div></div>
-        <div class="row"><div class="k">ACIDITY</div><div class="v" contenteditable="true" data-tn="1">베르가못</div></div>
-        <div class="row"><div class="k">BODY</div><div class="v" contenteditable="true" data-tn="2">실키, 가볍게 코팅되는 질감</div></div>
-        <div class="row"><div class="k">FINISH</div><div class="v" contenteditable="true" data-tn="3">홍차 같은 여운</div></div>
+        <div class="row" data-row="0"><div class="k">AROMA</div><div class="v" contenteditable="true">재스민</div></div>
+        <div class="row" data-row="1"><div class="k">ACIDITY</div><div class="v" contenteditable="true">베르가못</div></div>
+        <div class="row" data-row="2"><div class="k">BODY</div><div class="v" contenteditable="true">실키한 질감</div></div>
+        <div class="row" data-row="3"><div class="k">FINISH</div><div class="v" contenteditable="true">긴 여운</div></div>
       </div>
     </div>
     <div class="foot">
@@ -1246,15 +1312,15 @@
   <div class="frame lay-det-c">
     <div class="top-row"><span class="role-tag" contenteditable="true">DETAIL · ORIGIN</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">origin sheet</div>
-      <h2 contenteditable="true">산지 데이터.</h2>
+      <div class="eyebrow" contenteditable="true" data-fill="det-eyebrow">origin sheet</div>
+      <h2 contenteditable="true" data-fill="det-h">산지 데이터.</h2>
       <table>
-        <tr><th>FARM</th><td contenteditable="true">Aricha Washing Station</td></tr>
-        <tr><th>REGION</th><td contenteditable="true">Yirgacheffe, Ethiopia</td></tr>
-        <tr><th>PROCESS</th><td contenteditable="true">Fully Washed · 100h ferment · 15d dry</td></tr>
-        <tr><th>VARIETAL</th><td contenteditable="true">Heirloom (Kurume, Wolisho)</td></tr>
-        <tr><th>ALTITUDE</th><td contenteditable="true">1,950 – 2,150 m</td></tr>
-        <tr><th>HARVEST</th><td contenteditable="true">2026 · Spring Crop</td></tr>
+        <tr><th>FARM</th><td contenteditable="true" data-fill="farm"></td></tr>
+        <tr><th>REGION</th><td contenteditable="true" data-fill="region"></td></tr>
+        <tr><th>PROCESS</th><td contenteditable="true" data-fill="process"></td></tr>
+        <tr><th>VARIETAL</th><td contenteditable="true" data-fill="variety"></td></tr>
+        <tr><th>ALTITUDE</th><td contenteditable="true" data-fill="altitude"></td></tr>
+        <tr><th>ROAST</th><td contenteditable="true" data-fill="roast"></td></tr>
       </table>
     </div>
     <div class="foot">
@@ -1270,10 +1336,10 @@
   <div class="frame lay-exp-a">
     <div class="top-row"><span class="role-tag" contenteditable="true">EXPERIENCE</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">매일의 한 잔</div>
-      <h2 contenteditable="true">로스팅 72시간 안에 추출을 권합니다.</h2>
-      <p class="desc" contenteditable="true">갓 볶은 향미가 가장 또렷한 시점. 분쇄 직전까지 원두 상태로 보관하고, 추출 직전에만 갈아주세요. 작은 차이가 매일의 한 잔을 바꿉니다.</p>
-      <div class="cap" contenteditable="true">RECOMMENDED · v60 · 1:15 · 92°c</div>
+      <div class="eyebrow" contenteditable="true" data-fill="exp-eyebrow">매일의 한 잔</div>
+      <h2 contenteditable="true" data-fill="exp-h">로스팅 72시간 안에 추출을 권합니다.</h2>
+      <p class="desc" contenteditable="true" data-fill="exp-desc">갓 볶은 향미가 가장 또렷한 시점입니다.</p>
+      <div class="cap" contenteditable="true" data-fill="exp-cap">ROASTED EVERY MON·TUE</div>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i></div>
@@ -1286,13 +1352,13 @@
   <div class="frame lay-exp-b">
     <div class="top-row"><span class="role-tag" contenteditable="true">EXPERIENCE · BREW</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">v60 · 1:15 · 92°c</div>
-      <h2 contenteditable="true">매일을 위한 추출.</h2>
+      <div class="eyebrow" contenteditable="true" data-fill="exp-eyebrow">recipe</div>
+      <h2 contenteditable="true" data-fill="exp-h">매일을 위한 추출.</h2>
       <ol>
-        <li><span class="txt" contenteditable="true">원두 15g · 분쇄 중간(800µm)</span></li>
-        <li><span class="txt" contenteditable="true">물 92°c · 45g 블룸 30초</span></li>
-        <li><span class="txt" contenteditable="true">90g씩 두 번 부어 총 225g</span></li>
-        <li><span class="txt" contenteditable="true">총 추출 2:30 ~ 2:45 · 1:15 비율</span></li>
+        <li><span class="txt" contenteditable="true" data-fill="rcp-0"></span></li>
+        <li><span class="txt" contenteditable="true" data-fill="rcp-1"></span></li>
+        <li><span class="txt" contenteditable="true" data-fill="rcp-2"></span></li>
+        <li><span class="txt" contenteditable="true" data-fill="rcp-3"></span></li>
       </ol>
     </div>
     <div class="foot">
@@ -1306,8 +1372,8 @@
   <div class="frame lay-exp-c">
     <div class="top-row"><span class="role-tag" contenteditable="true">EXPERIENCE</span></div>
     <div class="body">
-      <p class="lead" contenteditable="true">매일의 한 잔은,<br/>특별한 날을 만들지 않습니다.<br/>그 날을 매일로 만듭니다.</p>
-      <div class="cap" contenteditable="true">a quiet pursuit of everyday excellence</div>
+      <p class="lead" contenteditable="true" data-fill="exp-lead">매일의 한 잔은,<br/>특별한 날을 만들지 않습니다.<br/>그 날을 매일로 만듭니다.</p>
+      <div class="cap" contenteditable="true" data-fill="exp-cap">a quiet pursuit of everyday excellence</div>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i></div>
@@ -1322,10 +1388,10 @@
   <div class="frame lay-cta-a">
     <div class="top-row"><span class="role-tag" contenteditable="true">NOW</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">매일, 탁월하게.</div>
-      <h1 contenteditable="true" data-fill="now-farm">지금,<br/>에티오피아.</h1>
-      <div class="info" contenteditable="true">@mtspacecoffee</div>
-      <div class="info-small" contenteditable="true">자세한 내용은 프로필 내 링크를 참조하세요</div>
+      <div class="eyebrow" contenteditable="true" data-fill="cta-eyebrow">매일, 탁월하게.</div>
+      <h1 contenteditable="true" data-fill="cta-h">지금,<br/>여기.</h1>
+      <div class="info" contenteditable="true" data-fill="cta-info">@mtspacecoffee</div>
+      <div class="info-small" contenteditable="true" data-fill="cta-info-small">자세한 내용은 프로필 내 링크를 참조하세요</div>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i><span class="tagline">everyday excellence</span></div>
@@ -1338,11 +1404,11 @@
   <div class="frame lay-cta-b">
     <div class="top-row"><span class="role-tag" contenteditable="true">VISIT</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">매일, 탁월하게.</div>
-      <div class="verb" contenteditable="true">drink<br/>today.</div>
+      <div class="eyebrow" contenteditable="true" data-fill="cta-eyebrow">매일, 탁월하게.</div>
+      <div class="verb" contenteditable="true" data-fill="cta-verb">drink<br/>today.</div>
       <div class="links">
-        <span contenteditable="true">@mtspacecoffee</span>
-        <span class="info-small" contenteditable="true">자세한 내용은 프로필 내 링크를 참조하세요</span>
+        <span contenteditable="true" data-fill="cta-info">@mtspacecoffee</span>
+        <span class="info-small" contenteditable="true" data-fill="cta-info-small">자세한 내용은 프로필 내 링크를 참조하세요</span>
       </div>
     </div>
     <div class="foot">
@@ -1356,10 +1422,10 @@
   <div class="frame lay-cta-c">
     <div class="top-row"><span class="role-tag" contenteditable="true">CTA</span></div>
     <div class="body">
-      <div class="eyebrow" contenteditable="true">매일, 탁월하게.</div>
-      <p class="tag" contenteditable="true">매일의 커피는<br/>우리의 삶을<br/>만듭니다.</p>
-      <div class="info" contenteditable="true">@mtspacecoffee</div>
-      <div class="info-small" contenteditable="true">자세한 내용은 프로필 내 링크를 참조하세요</div>
+      <div class="eyebrow" contenteditable="true" data-fill="cta-eyebrow">매일, 탁월하게.</div>
+      <p class="tag" contenteditable="true" data-fill="cta-tag">매일의 커피는<br/>우리의 삶을<br/>만듭니다.</p>
+      <div class="info" contenteditable="true" data-fill="cta-info">@mtspacecoffee</div>
+      <div class="info-small" contenteditable="true" data-fill="cta-info-small">자세한 내용은 프로필 내 링크를 참조하세요</div>
     </div>
     <div class="foot">
       <div class="wm"><b>MTSPACE</b> <i>COFFEE</i><span class="tagline">everyday excellence</span></div>
@@ -1558,10 +1624,350 @@ function farmName(product) {
   return s.trim() || product.shortTitle || product.title;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   3안 카피 엔진
+   3안 = 무작위 변형이 아니라 3개의 앵글. 앵글이 5장 전체에 일관 적용된다.
+     origin  산지·가공  — 무엇으로 만들었는가   (variety∥process∥country 필요)
+     sensory 풍미·감각  — 잔에서 무엇이 느껴지는가 (flavor_notes 2개 이상 필요)
+     usage   용도·운영  — 어떤 메뉴·어떤 매장에서 (roast + 카테고리 필요)
+     craft   로스팅·기준 — origin 불가 시 승격되는 폴백 (roast 만 필요)
+   보장 규칙: [origin 또는 craft] + sensory + usage  → 3안이 비지 않는다.
+   문형은 구조화 필드에서만 만든다. body_html 파싱 문장은 훅에 쓰지 않는다.
+   ══════════════════════════════════════════════════════════════════ */
+
+const ANGLE_LABEL = { origin: "산지", sensory: "풍미", usage: "용도", craft: "로스팅" };
+
+function hasOrigin(p) {
+  return !!(p.variety || p.process || (p.country && p.category === "싱글 오리진"));
+}
+function anglesFor(p) {
+  if (!p) return ["origin", "sensory", "usage"];
+  return [hasOrigin(p) ? "origin" : "craft", "sensory", "usage"];
+}
+
+/* ─ 조사 자동 선택 ─ 받침 유무로 은/는·이/가·을/를·와/과 를 고른다.
+   끝이 한글이 아니면(영문·숫자) 받침 없는 쪽을 쓴다. */
+function hasJong(w) {
+  const c = String(w || "").trim().slice(-1);
+  const code = c.charCodeAt(0);
+  if (!(code >= 0xAC00 && code <= 0xD7A3)) return false;
+  return (code - 0xAC00) % 28 !== 0;
+}
+function J(w, pair) {         // pair 예: "은는" "이가" "을를" "과와"
+  return String(w || "") + (hasJong(w) ? pair[0] : pair[1]);
+}
+
+/* ─ 필드 헬퍼 ─ */
+const ROAST_EN = { "라이트": "light roast", "미디움": "medium roast", "미디엄": "medium roast", "다크": "dark roast" };
+function roastEn(p) { return ROAST_EN[String(p.roast || "").trim()] || "roasted"; }
+function notes(p, n) { return (p.tastingNotes || []).slice(0, n); }
+function note(p, i) { return (p.tastingNotes || [])[i] || ""; }
+/* 품종·가공 표기는 길다. 카드용으로 줄인다(사실을 바꾸지 않는 범위에서 괄호·중복만 제거) */
+function shortVariety(p) {
+  return String(p.variety || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+function procShort(p) { return String(p.process || "").replace(/\s+/g, " ").trim(); }
+/* 로스트 + 풍미로 추천 메뉴. 근거는 자사 로스트 레벨 하나뿐이므로 단정하지 않는 표현을 쓴다. */
+function menuFor(p) {
+  const r = String(p.roast || "");
+  const f = (p.tastingNotes || []).join(" ");
+  if (/다크/.test(r)) return "아이스 아메리카노";
+  if (/미디움|미디엄/.test(r)) return /초콜릿|견과|카라멜|카카오|아몬드/.test(f) ? "라떼" : "아메리카노";
+  return "필터";
+}
+/* 카탈로그 안에서 이 제품만 가진 축 — 2차 목표(장점)의 실체 */
+function uniqTrait(p) {
+  const all = (state.products || []).filter(x => x && x.handle !== p.handle);
+  const pr = procShort(p);
+  if (pr && !all.some(x => procShort(x) === pr)) return { k: "가공", v: pr };
+  if (p.category === "디카페인" && !all.some(x => x.category === "디카페인")) return { k: "카페인", v: "디카페인" };
+  const sameRoast = all.filter(x => x.roast === p.roast);
+  if (p.roast && sameRoast.length === 0) return { k: "로스트", v: `유일한 ${p.roast} 로스트` };
+  const vr = shortVariety(p);
+  if (vr && !all.some(x => shortVariety(x) === vr)) return { k: "품종", v: vr };
+  return null;
+}
+
+/* 등록된 추출 레시피를 줄 단위로. 값이 없으면 그 줄은 비운다(추측으로 채우지 않는다). */
+function rcpLines(p) {
+  const r = p.recipe || {};
+  return [
+    r.filter && `필터 · ${r.filter}`,
+    r.espresso && `에스프레소 · ${r.espresso}`,
+    r.milk && `밀크 · ${r.milk}`,
+    p.roast && `로스트 · ${p.roast}`,
+  ].filter(Boolean);
+}
+function rcpLine(i) { return p => rcpLines(p)[i] || ""; }
+
+/* 줄 폭 — 한글 1, 그 외 0.5 로 센다. 커버 h 는 실측상 한 줄 7 이 한계(넘으면 단어 중간에서 접힌다). */
+function lineWidth(t) {
+  let w = 0;
+  for (const c of String(t || "")) w += /[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(c) ? 1 : 0.5;
+  return w;
+}
+/* 후보를 순서대로 시도해 두 줄이 모두 폭 안에 드는 첫 조합을 고른다.
+   값이 없거나(빈 문자열) 폭을 넘으면 다음 후보로 내려간다. */
+function fitLines(cands, max) {
+  for (const [a, b] of cands) {
+    if (!a || !b) continue;
+    if (/undefined|null/.test(a + b)) continue;
+    if (lineWidth(a) <= max && lineWidth(b) <= max) return `${a}<br>${b}`;
+  }
+  return "";
+}
+const COVER_W = 7, CTA_W = 8;
+
+/* 분량 상한 (cardnews-studio 규격) — 넘치면 카피를 버린다. 상한을 올리지 않는다. */
+const LIMIT = { hookH: 26, hookEyebrow: 20, desc: 130, expDesc: 120, ctaH: 22, quote: 60 };
+function within(s, max) {
+  const plain = String(s || "").replace(/<br\s*\/?>/g, "").trim();
+  return plain && plain.length <= max ? s : "";
+}
+
+/* ─ 장별 문형 ─ 값이 없으면 "" 를 돌려준다(빈 슬롯은 지워진다) ─ */
+const COPY = {
+  /* ── HOOK ── 국가·플레이버가 주. 가공·중량은 부차.
+     country 는 카탈로그 16/17이 동일해 변별력이 없으므로 싱글오리진·디카페인에서만 전면에 세운다. */
+  "hook-eyebrow": {
+    origin: p => (p.category === "싱글 오리진" || p.category === "디카페인")
+      ? (p.countryEn || p.country || roastEn(p)).toLowerCase() : roastEn(p),
+    sensory: () => "tasting",
+    usage: p => p.isWholesale ? "for cafés" : roastEn(p),
+    craft: () => "roastery",
+  },
+  "hook-h": {
+    origin: p => {
+      const c = p.country, pr = procShort(p), n0 = note(p, 0), single = (p.category === "싱글 오리진" || p.category === "디카페인");
+      return fitLines([
+        [single && c ? `${J(c, "이가")} 만드는` : "", n0 ? `${n0}.` : ""],
+        [pr ? `${J(pr, "이가")}` : "", n0 ? `남긴 ${n0}.` : ""],
+        ["한 잔에 남는", n0 ? `${n0}.` : ""],
+        [p.roast ? `${p.roast} 로스트,` : "", "오늘의 잔."],
+      ], COVER_W);
+    },
+    sensory: p => {
+      const [a, b] = notes(p, 2);
+      return fitLines([
+        [a ? `${J(a, "과와")}` : "", b ? `${b}, 한 잔에.` : ""],
+        [a ? `${a},` : "", "한 잔 안에."],
+        ["오늘의 한 잔,", a ? `${a}.` : ""],
+      ], COVER_W);
+    },
+    usage: p => {
+      const m = menuFor(p);
+      return fitLines([
+        [p.isWholesale ? "매일 같은 잔이" : "", "나와야 한다면."],
+        [`${m}로 마실`, "한 봉지."],
+        [p.roast ? `${p.roast} 로스트,` : "", "매일의 자리에."],
+        [`${m},`, "오늘의 한 잔."],
+      ], COVER_W);
+    },
+    craft: p => fitLines([
+      [p.roast ? `${p.roast} 로스트로` : "", "잡은 균형."],
+      [p.roast ? `${p.roast} 로스트,` : "", "오늘."],
+    ], COVER_W),
+  },  /* DETAIL-A 는 레이아웃상 항상 풍미 노트를 보여준다.
+     앵글이 origin 이어도 아이브로우가 "origin sheet" 가 되면 내용과 어긋난다. */
+  "detA-eyebrow": {
+    origin: () => "tasting notes",
+    sensory: () => "tasting notes",
+    usage: p => `in the ${menuFor(p) === "필터" ? "filter" : "cup"}`,
+    craft: () => "tasting notes",
+  },
+
+  /* ── CONTEXT ── */
+  "ctx-eyebrow": {
+    origin: p => [p.country, procShort(p)].filter(Boolean).join(" · ") || "origin",
+    sensory: () => "풍미가 만들어지는 곳",
+    usage: () => "어디에 쓰는 커피인가",
+    craft: () => "로스팅 기준",
+  },
+  "title": { origin: p => p.shortTitle ? p.shortTitle + "." : "", sensory: p => p.shortTitle ? p.shortTitle + "." : "", usage: p => p.shortTitle ? p.shortTitle + "." : "", craft: p => p.shortTitle ? p.shortTitle + "." : "" },
+  "origin-chain": {
+    origin: p => { const c = [p.country, p.region, p.farm].filter(Boolean); return c.length ? c.join(" · ") + "." : (p.shortTitle ? p.shortTitle + "." : ""); },
+    sensory: p => { const n = notes(p, 3); return n.length ? n.join(" · ") + "." : (p.shortTitle ? p.shortTitle + "." : ""); },
+    usage: p => [p.roast ? p.roast + " 로스트" : "", p.weight ? p.weight + "g" : ""].filter(Boolean).join(" · ") + ".",
+    craft: p => (p.roast ? p.roast + " 로스트." : ""),
+  },
+  "description": {
+    origin: p => {
+      const bits = [
+        p.country && `산지는 ${p.country}`,
+        procShort(p) && `가공은 ${procShort(p)}`,
+        shortVariety(p) && `품종은 ${shortVariety(p)}`,
+      ].filter(Boolean);
+      if (bits.length >= 2) return within(bits.join(", ") + ". 이 조합이 잔의 출발선을 정한다.", LIMIT.desc);
+      return within(p.oneLiner, LIMIT.desc);
+    },
+    sensory: p => {
+      const n = notes(p, 3);
+      if (!n.length) return within(p.description, LIMIT.desc);
+      const tail = p.roast ? ` ${p.roast} 로스트가 그 폭을 정한다.` : "";
+      return within(`${n.join(", ")}. 이 세 축이 잔의 성격을 만든다.${tail}`, LIMIT.desc);
+    },
+    usage: p => {
+      const m = menuFor(p), t = uniqTrait(p);
+      const base = `${m}에서 가장 또렷하게 떨어진다.`;
+      return within(t ? `${base} ${J(t.k, "은는")} ${t.v}.` : base, LIMIT.desc);
+    },
+    craft: p => within(p.oneLiner || p.description, LIMIT.desc),
+  },
+  "variety": { origin: p => shortVariety(p), sensory: p => shortVariety(p), usage: p => shortVariety(p), craft: p => shortVariety(p) },
+  "altitude": { origin: p => p.altitude, sensory: p => p.altitude, usage: p => p.altitude, craft: p => p.altitude },
+  "farm": { origin: p => p.farm || p.farmer, sensory: p => p.farm || p.farmer, usage: p => p.farm || p.farmer, craft: p => p.farm || p.farmer },
+  "process": { origin: p => procShort(p), sensory: p => procShort(p), usage: p => procShort(p), craft: p => procShort(p) },
+  "region": { origin: p => [p.region, p.country].filter(Boolean).join(", "), sensory: p => [p.region, p.country].filter(Boolean).join(", "), usage: p => [p.region, p.country].filter(Boolean).join(", "), craft: p => [p.region, p.country].filter(Boolean).join(", ") },
+  "roast": { origin: p => p.roast, sensory: p => p.roast, usage: p => p.roast, craft: p => p.roast },
+  /* 추출 레시피 — brew_recipe 가 비면 전부 "" 가 되어 슬롯이 지워지고 상태바가 경고한다.
+     구 동작은 v60·1:15·92°c·800µm 를 모든 제품에 고정 노출했다(제품 근거 없음). */
+  "rcp-0": { origin: rcpLine(0), sensory: rcpLine(0), usage: rcpLine(0), craft: rcpLine(0) },
+  "rcp-1": { origin: rcpLine(1), sensory: rcpLine(1), usage: rcpLine(1), craft: rcpLine(1) },
+  "rcp-2": { origin: rcpLine(2), sensory: rcpLine(2), usage: rcpLine(2), craft: rcpLine(2) },
+  "rcp-3": { origin: rcpLine(3), sensory: rcpLine(3), usage: rcpLine(3), craft: rcpLine(3) },
+  "ctx-quote": {
+    origin: p => { const t = uniqTrait(p); return t ? `${J(t.k, "은는")} ${t.v}. 카탈로그 안에서 이 축을 가진 건 이 커피뿐이다.` : within(p.oneLiner, LIMIT.quote); },
+    sensory: p => { const n = notes(p, 2); return n.length === 2 ? `${n[0]}와 ${n[1]}. 두 축이 어긋나지 않게 로스팅 포인트를 잡는다.` : within(p.oneLiner, LIMIT.quote); },
+    usage: p => `${menuFor(p)} 기준으로 컵 퀄리티를 맞춘다. 메뉴가 정해지면 로스팅도 정해진다.`,
+    craft: () => "로스팅·추출의 변수를 기록하고 반복한다. 과장 없이 사실로 말한다.",
+  },
+  "ctx-attrib": { origin: () => "MTSPACE · origin", sensory: () => "MTSPACE · cupping", usage: () => "MTSPACE · operation", craft: () => "MTSPACE · technical rigor" },
+
+  /* ── DETAIL ── */
+  "det-eyebrow": { origin: () => "origin sheet", sensory: () => "tasting notes", usage: () => "in the cup", craft: () => "roast profile" },
+  "det-h": {
+    origin: () => "무엇으로 만들었는가.",
+    sensory: () => "한 잔의 향미.",
+    usage: p => `${menuFor(p)}에서의 얼굴.`,
+    craft: p => (p.roast ? `${p.roast} 로스트.` : "로스팅."),
+  },
+
+  /* ── EXPERIENCE ── 레시피 필드가 비어 있으면 제품 사실로 대체한다(추측 금지) ── */
+  "exp-eyebrow": {
+    origin: p => [roastEn(p), procShort(p)].filter(Boolean).join(" · "),
+    sensory: p => notes(p, 2).join(" · ") || "tasting",
+    usage: p => `for ${menuFor(p)}`,
+    craft: () => "매주 월·화 로스팅",
+  },
+  "exp-h": {
+    origin: p => {
+      // 품종 문자열은 "SL28, SL34, 루이루11, 바티안" 처럼 길어질 수 있다 → 가공 우선
+      const v = procShort(p) || shortVariety(p).split(/[,·]/)[0].trim();
+      return v ? `${J(v, "이가")} 정한 출발선.` : "산지가 정한 출발선.";
+    },
+    sensory: p => (note(p, 0) ? `${J(note(p, 0), "이가")} 또렷한 구간.` : "가장 또렷한 구간."),
+    usage: p => `${menuFor(p)}에 넣었을 때.`,
+    craft: () => "로스팅 72시간 안에 추출을 권합니다.",
+  },
+  "exp-desc": {
+    origin: p => within([p.country && `산지는 ${p.country}`, procShort(p) && `가공은 ${procShort(p)}`, p.roast && `로스트는 ${p.roast}`].filter(Boolean).join(", ") + ". 이 세 가지가 잔의 출발선을 정한다.", LIMIT.expDesc),
+    sensory: p => within(`${notes(p, 3).join(", ")}. 온도가 내려가면서 순서대로 드러난다. 뜨거울 때 한 번, 식은 뒤 한 번 맛본다.`, LIMIT.expDesc),
+    usage: p => within(`${menuFor(p)} 기준으로 잡으면 흔들림이 적다. 분쇄는 추출 직전에만, 원두 상태로 보관한다.`, LIMIT.expDesc),
+    craft: () => "갓 볶은 향미가 가장 또렷한 시점. 분쇄 직전까지 원두 상태로 보관하고, 추출 직전에만 갈아주세요.",
+  },
+  "exp-lead": {
+    origin: p => { const c = [p.country, procShort(p)].filter(Boolean).join(", "); return c ? `${c}.<br>거기서 시작한 한 잔.` : "산지에서<br>시작한 한 잔."; },
+    sensory: p => { const n = notes(p, 3); return n.length ? n.join(",<br>") + "." : "한 잔의<br>향미."; },
+    usage: p => `${menuFor(p)}.<br>매일의 자리에서.`,
+    craft: () => "매일의 한 잔은,<br>특별한 날을 만들지 않습니다.<br>그 날을 매일로 만듭니다.",
+  },
+  "exp-cap": {
+    origin: p => {
+      // cap 은 한 줄. 폭이 넘치면 뒤쪽 항목부터 버린다(값을 줄이지 문구를 늘리지 않는다).
+      const parts = [roastEn(p), procShort(p), shortVariety(p).split(/[,·]/)[0].trim()].filter(Boolean);
+      while (parts.length > 1 && lineWidth(parts.join(" · ")) > 20) parts.pop();
+      return parts.join(" · ").toUpperCase();
+    },
+    sensory: p => ("TASTING · " + notes(p, 2).join(" · ")).toUpperCase(),
+    usage: p => ("FOR · " + menuFor(p)).toUpperCase(),
+    craft: () => "ROASTED EVERY MON·TUE · SHIPPED TUE·WED",
+  },
+
+  /* ── CTA ── 브랜드 고정 카피를 걷어내고 제품으로 다시 들어오게 한다 ── */
+  "cta-eyebrow": {
+    origin: p => p.country || "매일, 탁월하게.",
+    sensory: () => "tasting",
+    usage: p => p.isWholesale ? "발주·샘플 문의" : "오늘의 한 봉지",
+    craft: () => "매일, 탁월하게.",
+  },
+  "cta-h": {
+    // CTA 는 제품으로 다시 들어오는 자리다. 제품명 → 가공어 뗀 이름 → 산지 순으로 내려간다.
+    origin: p => fitLines([
+      ["지금,", p.shortTitle ? `${p.shortTitle}.` : ""],
+      ["지금,", farmName(p) ? `${farmName(p)}.` : ""],
+      ["지금,", p.country ? `${p.country}.` : ""],
+    ], 15),
+    sensory: p => fitLines([
+      [note(p, 0) ? `${note(p, 0)},` : "", "한 잔으로."],
+      ["오늘의 한 잔,", "지금."],
+    ], CTA_W),
+    usage: p => fitLines([
+      [`${menuFor(p)}에`, "이 원두를."],
+      [p.roast ? `${p.roast} 로스트,` : "", "지금 이 잔에."],
+    ], CTA_W),
+    craft: p => fitLines([
+      [p.roast ? `${p.roast} 로스트,` : "", "지금."],
+      ["오늘 볶은 커피,", "지금."],
+    ], CTA_W),
+  },
+  "cta-verb": {
+    origin: () => "from<br>the origin.",
+    sensory: () => "taste<br>it now.",
+    usage: () => "order<br>today.",
+    craft: () => "brew<br>today.",
+  },
+  "cta-tag": {
+    origin: p => (p.shortTitle ? `${p.shortTitle},<br>지금 만나보세요.` : ""),
+    sensory: p => { const n = notes(p, 2); return n.length === 2 ? `${n[0]}와 ${n[1]},<br>직접 확인해보세요.` : ""; },
+    usage: p => `${menuFor(p)} 한 잔을<br>바꾸는 선택.`,
+    craft: () => "매일의 커피는<br>우리의 삶을<br>만듭니다.",
+  },
+  "cta-info": { origin: () => "@mtspacecoffee", sensory: () => "@mtspacecoffee", usage: () => "@mtspacecoffee", craft: () => "@mtspacecoffee" },
+  "cta-info-small": {
+    origin: p => p.shortTitle ? `프로필 링크에서 ${p.shortTitle} 보기` : "자세한 내용은 프로필 내 링크를 참조하세요",
+    sensory: () => "프로필 링크에서 전체 풍미 노트를 확인하세요",
+    usage: p => p.isWholesale ? "사업자 회원 승인 후 도매가로 주문하실 수 있습니다" : "프로필 링크에서 바로 주문하실 수 있습니다",
+    craft: () => "자세한 내용은 프로필 내 링크를 참조하세요",
+  },
+};
+
+/* ── DETAIL-b 4행(라벨+값) — 앵글에 따라 라벨 자체가 바뀐다 ── */
+function detRows(angle, p) {
+  if (angle === "sensory") {
+    const lbl = ["AROMA", "ACIDITY", "BODY", "FINISH"];
+    return lbl.map((k, i) => ({ k, v: note(p, i) })).filter(r => r.v);
+  }
+  if (angle === "origin") {
+    return [
+      { k: "ORIGIN", v: [p.country, p.region].filter(Boolean).join(" ") },
+      { k: "PROCESS", v: procShort(p) },
+      { k: "VARIETY", v: shortVariety(p) },
+      { k: "ROAST", v: p.roast },
+    ].filter(r => r.v);
+  }
+  if (angle === "usage") {
+    const t = uniqTrait(p);
+    return [
+      { k: "MENU", v: menuFor(p) },
+      { k: "ROAST", v: p.roast },
+      { k: "PACK", v: p.weight ? p.weight + "g" : "" },
+      { k: t ? t.k.toUpperCase() : "", v: t ? t.v : "" },
+    ].filter(r => r.k && r.v);
+  }
+  return [
+    { k: "ROAST", v: p.roast },
+    { k: "ROASTED", v: "매주 월·화" },
+    { k: "SHIPPED", v: "화·수 순차" },
+    { k: "ROASTERY", v: "경기도 가평 청평" },
+  ].filter(r => r.v);
+}
+
 function normalizeProduct(p) {
   const { hex, light } = colorForProduct(p.title || "", p.handle || "");
   const desc = cleanBodyText(p.body_html || p.descriptionHtml || "");
   const st = shortTitle(p.title || "");
+  const weightG = (String(p.title || "").match(/(\d+(?:\.\d+)?)\s*(k?)g/i) || [])
+    .slice(1).reduce((n, s, i) => i === 0 ? parseFloat(s) : n * (s.toLowerCase() === "k" ? 1000 : 1), 0) || 0;
   return {
     handle: p.handle,
     title: p.title,
@@ -1571,8 +1977,16 @@ function normalizeProduct(p) {
     signalLight: light,
     tastingNotes: parseTastingNotes(desc),
     description: descSnippet(desc),
+    oneLiner: "",
     country: countryFor(st),
+    countryEn: "",
+    region: "", farm: "", farmer: "", variety: "", altitude: "", roast: "",
     process: processFor(st),
+    weight: weightG ? String(weightG) : "",
+    weightG,
+    isWholesale: weightG >= 1000 || /사업자|도매|wholesale/i.test(p.title || ""),
+    recipe: { espresso: "", filter: "", milk: "" },
+    hashtags: "", price: "",
   };
 }
 
@@ -1591,14 +2005,21 @@ const state = {
   color2: BRAND,
   product: null,            // currently selected product object
   products: INITIAL_PRODUCTS,
+  art: "auto",              // auto | <motif id> | off — 커버·CTA 공통
+  artUrl: null,             // 치환·인코딩된 data URI 캐시
   slides: [
-    { role: "hook", layout: "a", photoOn: false, photoUrl: null },
-    { role: "ctx",  layout: "a", photoOn: false, photoUrl: null },
-    { role: "det",  layout: "a", photoOn: false, photoUrl: null },
-    { role: "exp",  layout: "a", photoOn: false, photoUrl: null },
-    { role: "cta",  layout: "a", photoOn: false, photoUrl: null },
+    { role: "hook", layout: "a", angleIdx: 0, photoOn: false, photoUrl: null },
+    { role: "ctx",  layout: "a", angleIdx: 0, photoOn: false, photoUrl: null },
+    { role: "det",  layout: "a", angleIdx: 0, photoOn: false, photoUrl: null },
+    { role: "exp",  layout: "a", angleIdx: 0, photoOn: false, photoUrl: null },
+    { role: "cta",  layout: "a", angleIdx: 0, photoOn: false, photoUrl: null },
   ],
 };
+
+/* 배경 아트를 적용하는 자리 — 커버(첫 장)와 CTA(마지막 장). 동일 아트를 공유한다. */
+function isArtSlot(idx) {
+  return idx === 0 || idx === state.slides.length - 1;
+}
 
 const stageEl = document.getElementById("stage");
 const statusbarEl = document.getElementById("statusbar");
@@ -1719,6 +2140,7 @@ function renderSlide(slot, idx) {
     const f = e.target.files?.[0]; if (!f) return;
     slot.photoUrl = URL.createObjectURL(f);
     slot.photoOn = true;
+    slot.artOn = false;
     applyThemeForSlide(slide, idx);
     syncHead(head, slot);
   });
@@ -1729,11 +2151,36 @@ function renderSlide(slot, idx) {
     const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith("image/")) return;
     slot.photoUrl = URL.createObjectURL(f);
     slot.photoOn = true;
+    slot.artOn = false;
     applyThemeForSlide(slide, idx);
     syncHead(head, slot);
   });
 
   wrap.appendChild(slide);
+
+  // ── 안 토글 (카드 밖) ──────────────────────────────────────
+  const bar = document.createElement("div");
+  bar.className = "angle-bar";
+  const pool = anglesFor(state.product);
+  bar.innerHTML =
+    `<div class="seg" data-angle-seg>` +
+    pool.map((a, n) =>
+      `<button data-angle="${n}" class="${(slot.angleIdx || 0) === n ? "active" : ""}">` +
+      `${n + 1}안 ${ANGLE_LABEL[a] || ""}</button>`).join("") +
+    `</div><span class="hint">${role.label}</span>`;
+  wrap.appendChild(bar);
+  bar.addEventListener("click", e => {
+    const b = e.target.closest("button[data-angle]");
+    if (!b) return;
+    pushUndo();
+    slot.angleIdx = parseInt(b.dataset.angle, 10) || 0;
+    [...bar.querySelectorAll("button[data-angle]")].forEach(x => x.classList.toggle("active", x === b));
+    // 안 전환은 명시적 행동이므로 직접 고친 텍스트도 새 안으로 덮는다(⌘Z 로 되돌릴 수 있음)
+    slide.querySelectorAll('[data-dirty="1"]').forEach(el => delete el.dataset.dirty);
+    if (state.mode === "product" && state.product) injectProductContent(state.product);
+    if (isArtSlot(idx)) refreshArt();
+  });
+
   stageEl.appendChild(wrap);
 
   setPagination(slide, idx + 1, state.slides.length);
@@ -1757,10 +2204,11 @@ function renderSlide(slot, idx) {
     const act = e.target.dataset.act;
     if (act === "photo") {
       if (!slot.photoOn) input.click();
-      else { slot.photoOn = false; slot.photoUrl = null; applyThemeForSlide(slide, idx); syncHead(head, slot); }
+      else { slot.photoOn = false; slot.photoUrl = null; slot.artOn = false; applyThemeForSlide(slide, idx); syncHead(head, slot); }
     } else if (act === "dup") {
       const copy = { ...slot, photoUrl: null, photoOn: false };
       state.slides.splice(idx + 1, 0, copy); reRender();
+      if (state.mode === "product" && state.product) injectProductContent(state.product);
     } else if (act === "del") {
       if (state.slides.length <= 1) { alert("최소 1장은 필요합니다."); return; }
       state.slides.splice(idx, 1); reRender();
@@ -1803,61 +2251,193 @@ function refreshThemes() {
   });
 }
 
-/* ─── Tasting notes injection (DETAIL slides) ───────────────── */
-function injectTastingNotes(product) {
-  if (!product || !product.tastingNotes || product.tastingNotes.length === 0) return;
-  const notes = product.tastingNotes;
-  [...stageEl.children].forEach((wrap, i) => {
-    const slot = state.slides[i];
-    if (slot.role !== "det") return;
-    const slide = wrap.querySelector(".slide");
-    slide.querySelectorAll('[data-tn]').forEach(el => {
-      if (el.dataset.dirty === "1") return;
-      const tnIdx = parseInt(el.dataset.tn, 10);
-      if (Number.isFinite(tnIdx) && notes[tnIdx]) {
-        el.textContent = notes[tnIdx];
-      }
-    });
+/* ─── 슬롯 값 결정 ──────────────────────────────────────────────
+   빈 값이면 "" 를 돌려주고 호출부가 슬롯을 비운다.
+   구 동작(값 없으면 return)은 템플릿의 예시 문구(아리차·예가체프)를 그대로 남겨
+   다른 제품의 사실이 발행되게 만들었다. 그 경로를 막는다. */
+function fillValueFor(key, product, angle) {
+  const table = COPY[key];
+  if (!table) return "";
+  const fn = table[angle] || table.origin;
+  try { return fn ? (fn(product) || "") : ""; } catch (e) { return ""; }
+}
+
+function setSlot(el, v) {
+  if (el.dataset.dirty === "1") return;          // 사용자가 직접 고친 값은 보존
+  if (!v) { el.innerHTML = ""; el.dataset.empty = "1"; return; }
+  delete el.dataset.empty;
+  if (String(v).includes("<br>")) el.innerHTML = v;
+  else el.textContent = v;
+}
+
+/* ─── DETAIL 주입 — 앵글에 따라 노트/라벨행이 바뀐다 ───────────── */
+function injectDetail(slide, slot, product, angle) {
+  // det-a: 풍미 3칸. 노트가 모자라면 그 칸을 비운다(구 동작은 예시 문구가 남았다)
+  slide.querySelectorAll('[data-tn]').forEach(el => {
+    const i = parseInt(el.dataset.tn, 10);
+    setSlot(el, Number.isFinite(i) ? ((product.tastingNotes || [])[i] || "") : "");
+  });
+  // det-b: 4행 라벨+값
+  const rows = detRows(angle, product);
+  slide.querySelectorAll('[data-row]').forEach(el => {
+    const i = parseInt(el.dataset.row, 10);
+    const r = rows[i];
+    const kEl = el.querySelector(".k"), vEl = el.querySelector(".v");
+    if (!r) { el.style.display = "none"; return; }
+    el.style.display = "";
+    if (kEl) kEl.textContent = r.k;
+    if (vEl) setSlot(vEl, r.v);
   });
 }
 
-/* ─── Product content injection (HOOK/CONTEXT/CTA via data-fill) ── */
-function fillValueFor(key, product) {
-  switch (key) {
-    case "title":       // CTX h2 — product short title with period
-      return product.shortTitle ? product.shortTitle + "." : "";
-    case "description": // CTX desc paragraph
-      return product.description || "";
-    case "farm":        // CTX grid PRODUCER cell
-      return farmName(product);
-    case "process":     // CTX grid PROCESS cell
-      return product.process || "";
-    case "country":     // optional
-      return product.country || "";
-    case "now-farm": {  // CTA h1 — "지금, {농장명}."
-      const f = farmName(product);
-      return f ? `지금,<br>${f}.` : "";
-    }
-    default:
-      return "";
-  }
-}
-
+/* ─── 제품 내용 주입 ─────────────────────────────────────────── */
 function injectProductContent(product) {
   if (!product) return;
-  [...stageEl.children].forEach((wrap) => {
+  const pool = anglesFor(product);
+  [...stageEl.children].forEach((wrap, i) => {
+    const slot = state.slides[i];
+    if (!slot) return;
+    const angle = pool[slot.angleIdx || 0] || pool[0];
     const slide = wrap.querySelector(".slide");
     slide.querySelectorAll('[data-fill]').forEach(el => {
-      if (el.dataset.dirty === "1") return;     // user-edited, preserve
-      const key = el.dataset.fill;
-      const v = fillValueFor(key, product);
-      if (!v) return;
-      // Use innerHTML for keys that contain <br>, textContent otherwise
-      if (v.includes("<br>")) el.innerHTML = v;
-      else el.textContent = v;
+      setSlot(el, fillValueFor(el.dataset.fill, product, angle));
+    });
+    if (slot.role === "det") injectDetail(slide, slot, product, angle);
+  });
+  renderCaptions(product);
+  reportGaps(product);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   캡션 3안 — 카드와 같은 앵글로 쓴다(커버가 약속한 것을 캡션이 회수).
+   규격: hook 45자 1문장 / body 210~430자 / 카드 문장과 다른 문장으로.
+   해시태그는 hashtags 필드가 비어 있어(0/17) 구조화 필드에서 파생한다.
+   ══════════════════════════════════════════════════════════════════ */
+function captionTags(p) {
+  const t = ["#MTSPACECOFFEE", "#엠티스페이스커피", "#스페셜티커피", "#원두"];
+  if (p.country) t.push("#" + p.country);
+  if (p.roast) t.push("#" + p.roast + "로스트");
+  if (p.category === "블렌드") t.push("#블렌드");
+  if (p.category === "싱글 오리진") t.push("#싱글오리진");
+  if (p.category === "디카페인") t.push("#디카페인");
+  if (p.isWholesale) t.push("#카페납품", "#원두도매");
+  notes(p, 3).forEach(n => t.push("#" + n.replace(/[\s·]/g, "")));
+  t.push("#가평로스터리", "#everydayexcellence");
+  return [...new Set(t)].join(" ");
+}
+
+/* 마무리 문단 — 신선도·보관은 핸드오프 §0 정본 표기(매주 월·화 로스팅 / 화·수 출고). */
+const CLOSING = {
+  origin: "저희는 경기도 가평 청평 로스터리에서 매주 월·화에 볶고 화·수에 순차 출고합니다. 산지에서 시작한 성격이 잔까지 남으려면 볶은 뒤의 시간도 짧아야 합니다. 받으신 뒤에는 분쇄 직전까지 원두 상태로 보관해 주세요.",
+  sensory: "위 노트가 가장 또렷한 건 볶은 지 얼마 지나지 않았을 때입니다. 저희는 매주 월·화에 볶아 화·수에 순차 출고합니다. 갈아 두면 향이 먼저 빠지니, 분쇄는 추출 직전에만 해주세요.",
+  usage: "매주 월·화에 볶아 화·수에 순차 출고합니다. 정기적으로 쓰시는 자리라면 발주 주기를 로스팅 요일에 맞춰 두시는 편이 컵 퀄리티에 유리합니다. 보관은 분쇄 직전까지 원두 상태로 부탁드립니다.",
+  craft: "저희는 경기도 가평 청평 로스터리에서 매주 월·화에 볶고 화·수에 순차 출고합니다. 볶는 날을 고정해 두면 받으시는 시점의 신선도도 예측 가능해집니다. 받으신 뒤에는 분쇄 직전까지 원두 상태로 보관해 주세요.",
+};
+
+function captionFor(p, angle) {
+  const n = notes(p, 3), m = menuFor(p), t = uniqTrait(p), pr = procShort(p), vr = shortVariety(p);
+  const close = CLOSING[angle] || CLOSING.craft;
+
+  if (angle === "origin") {
+    return {
+      hook: `${p.shortTitle}, 무엇으로 만들었는지부터 보겠습니다.`,
+      body: [
+        `산지는 ${p.country || "에티오피아"}${pr ? `, 가공은 ${pr}` : ""}${vr ? `, 품종은 ${vr}` : ""}입니다. ` +
+        `이 조합이 잔의 출발선을 정하고, ${p.roast || "저희"} 로스트가 그 폭을 어디까지 열지를 결정합니다.`,
+        `${n.length ? `${n.join(", ")}의 향미는 그 결과입니다. ` : ""}` +
+        `${t ? `카탈로그 안에서 ${J(t.k, "은는")} ${t.v} — 이 축을 가진 건 이 커피뿐입니다. ` : ""}` +
+        `산지 정보를 읽는 순서를 품종 → 가공 → 로스트로 잡으면, 라벨만 보고도 잔의 방향을 가늠하실 수 있습니다.`,
+        close,
+      ].join("\n\n"),
+      cta: "프로필 링크에서 제품 페이지를 확인하실 수 있습니다.",
+    };
+  }
+  if (angle === "sensory") {
+    return {
+      hook: `${n[0] || p.shortTitle}, 어느 온도에서 가장 또렷한지 아세요?`,
+      body: [
+        `${n.join(", ")}. 이 축들이 ${p.shortTitle}의 성격을 만듭니다. ` +
+        `${p.roast ? `${p.roast} 로스트로 잡았기 때문에 ` : ""}뜨거울 때와 식은 뒤의 인상이 다르게 남습니다.`,
+        `한 번에 판단하지 마시고 뜨거울 때 한 번, 식은 뒤에 한 번 맛보세요. 온도가 내려가면서 순서대로 드러나는 편입니다. ` +
+        `${m} 기준으로 잡으면 이 노트들이 가장 안정적으로 재현됩니다.`,
+        close,
+      ].join("\n\n"),
+      cta: "전체 풍미 노트는 프로필 링크의 제품 페이지에 있습니다.",
+    };
+  }
+  if (angle === "usage") {
+    return {
+      hook: p.isWholesale ? "매일 같은 잔이 나와야 하는 자리라면." : `${m} 한 잔을 바꾸는 선택.`,
+      body: [
+        `${p.shortTitle}${p.weight ? ` ${p.weight}g` : ""}는 ${m} 기준으로 잡았을 때 가장 또렷하게 떨어집니다. ` +
+        `${p.roast ? `${p.roast} 로스트라 ` : ""}${p.isWholesale ? "매장 운영에서 흔들림이 적습니다." : "집에서도 재현하기 쉽습니다."}`,
+        `${n.length ? `${n.join(", ")}의 축을 기준으로 잡으시면 됩니다. ` : ""}` +
+        `${t ? `${J(t.k, "은는")} ${t.v}입니다. ` : ""}` +
+        `${p.isWholesale ? "메뉴가 정해지면 로스팅 방향도 정해집니다. 어떤 메뉴에 쓰실지 알려주시면 그에 맞춰 제안드립니다." : "메뉴를 먼저 정하고 그에 맞춰 추출을 잡으시면 실패가 줄어듭니다."}`,
+        close,
+      ].join("\n\n"),
+      cta: p.isWholesale ? "사업자 회원 승인 후 도매가로 주문하실 수 있습니다. 샘플 문의는 프로필 링크로." : "프로필 링크에서 바로 주문하실 수 있습니다.",
+    };
+  }
+  return {
+    hook: `${p.shortTitle}, 볶는 날부터 계산합니다.`,
+    body: [
+      `${p.roast ? `${p.roast} 로스트로 잡았습니다. ` : ""}` +
+      `${n.length ? `${n.join(", ")}의 인상이 가장 선명한 구간을 목표로 프로파일을 맞춥니다.` : "잔의 균형을 목표로 프로파일을 맞춥니다."}`,
+      `로스팅은 결과만 보고 판단하기 어렵습니다. 같은 생두라도 볶는 날의 조건이 다르면 잔이 달라지기 때문에, 저희는 변수를 기록하고 반복하는 쪽을 택합니다. ` +
+      `${m} 기준으로 잡으시면 저희가 의도한 구간에 가장 가깝습니다.`,
+      close,
+    ].join("\n\n"),
+    cta: "자세한 내용은 프로필 링크를 참조하세요.",
+  };
+}
+
+function renderCaptions(p) {
+  const grid = document.getElementById("capGrid");
+  if (!grid) return;
+  if (!p) { grid.innerHTML = `<div class="cap-card">제품을 선택하면 캡션 3안이 생성됩니다.</div>`; return; }
+  const pool = anglesFor(p);
+  grid.innerHTML = pool.map((a, i) => {
+    const c = captionFor(p, a);
+    const full = `${c.hook}\n\n${c.body}\n\n${c.cta}\n\n${captionTags(p)}`;
+    return `<div class="cap-card" data-full="${escapeHtml(full)}">
+      <h4>${i + 1}안 · ${ANGLE_LABEL[a]} <span style="color:#bbb">(hook ${c.hook.length}자 · body ${c.body.replace(/\n/g, "").length}자)</span></h4>
+      <p class="hook">${escapeHtml(c.hook)}</p>
+      <p class="body">${escapeHtml(c.body)}</p>
+      <p class="body">${escapeHtml(c.cta)}</p>
+      <p class="tags">${escapeHtml(captionTags(p))}</p>
+      <button class="copy">캡션 복사</button>
+    </div>`;
+  }).join("");
+  grid.querySelectorAll(".copy").forEach(b => {
+    b.addEventListener("click", e => {
+      const txt = e.target.closest(".cap-card").dataset.full;
+      navigator.clipboard?.writeText(txt);
+      e.target.textContent = "복사됨 ✓";
+      setTimeout(() => { e.target.textContent = "캡션 복사"; }, 1400);
     });
   });
-  injectTastingNotes(product);
+}
+
+/* ─── 미충족 진단 — 채울 수 없는 슬롯·레이아웃을 상태바로 알린다 ── */
+function reportGaps(product) {
+  const gaps = [];
+  const used = state.slides.map(s => `${s.role}-${s.layout}`);
+  if (used.includes("det-c") && !(product.farm || product.region || product.altitude))
+    gaps.push("DETAIL-C 산지표(농장·지역·고도 미입력)");
+  if (used.includes("exp-b") && !(product.recipe && (product.recipe.filter || product.recipe.espresso)))
+    gaps.push("EXPERIENCE-B 레시피(추출 레시피 미입력)");
+  if (used.includes("ctx-b") && !(shortVariety(product) && product.altitude))
+    gaps.push("CONTEXT-B 그리드(품종·고도 미입력)");
+  if (used.includes("det-b") && detRows("sensory", product).length < 4 && state.slides.some(s => s.role === "det" && s.layout === "b" && (anglesFor(product)[s.angleIdx || 0]) === "sensory"))
+    gaps.push("DETAIL-B 4행(풍미 노트 3개 이하 → 레이아웃 A 권장)");
+  const empty = stageEl.querySelectorAll('[data-empty="1"]').length;
+  if (gaps.length || empty) {
+    setStatus(`${product.shortTitle} · 채우지 못한 슬롯 ${empty}개` +
+      (gaps.length ? ` · ${gaps.join(" / ")}` : ""), "error");
+  } else {
+    setStatus(`${product.shortTitle} · 3안 자동 생성 완료 (빈 슬롯 없음)`, "ok");
+  }
 }
 
 /* ─── Product → state ──────────────────────────────────────────── */
@@ -1877,6 +2457,7 @@ function applyProduct(product) {
   document.getElementById("color2Hex").textContent = state.color2.toUpperCase();
   refreshThemes();
   injectProductContent(product);
+  refreshArt();          // 키컬러·풍미가 바뀌면 배경 아트도 따라간다
 }
 
 /* ─── Product list (dropdown) ─────────────────────────────────── */
@@ -1917,7 +2498,83 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 }
 
-/* ─── 등록 제품(/api/studio/products) → 카드뉴스 제품 형태 매핑 ── */
+/* ══════════════════════════════════════════════════════════════════
+   배경 아트 엔진 — 커버(1장)와 CTA(마지막 장)에 동일 아트를 적용
+   · 새 레이어를 만들지 않는다. 기존 .photo 레이어에 값을 넣을 뿐이다
+     (.photo::after 의 가독성 그라데이션과 signal-light 반전이 그대로 동작)
+   · 자산은 same-origin 정적 SVG. 교차 출처면 toDataURL() 이 SecurityError 로
+     내보내기를 통째로 죽인다 → Storage/CDN 금지
+   · fetch → {{BG}}/{{KEY}} 치환 → data URI. data URI 는 캔버스를 오염시키지 않는다
+   ══════════════════════════════════════════════════════════════════ */
+const ART_DIR = "cardnews-art";
+const ART_MOTIFS = [
+  { id: "bloom",   kw: /플로럴|자스민|재스민|장미|꽃/ },
+  { id: "stone",   kw: /복숭아|백도|망고|파인애플|살구|멜론|열대|트로피컬/ },
+  { id: "berry",   kw: /베리|산딸기|딸기|적포도|포도|블랙커런트|자두|체리/ },
+  { id: "citrus",  kw: /레몬|자몽|그레이프|오렌지|시트러스|귤|라임/ },
+  { id: "cacao",   kw: /초콜릿|카카오|견과|헤이즐넛|아몬드|너트|고소/ },
+  { id: "caramel", kw: /카라멜|캐러멜|황설탕|단맛|바닐라|시럽|건포도/ },
+  { id: "grid",    kw: null },   // 폴백 — 매칭 실패 시 항상 여기로 떨어진다
+];
+const ART_BY_ROAST = { "라이트": "bloom", "미디움": "caramel", "미디엄": "caramel", "다크": "cacao" };
+
+function pickArt(p) {
+  if (!p) return "grid";
+  const f = (p.tastingNotes || []).join(" ");
+  for (const m of ART_MOTIFS) if (m.kw && m.kw.test(f)) return m.id;
+  return ART_BY_ROAST[String(p.roast || "").trim()] || "grid";
+}
+
+const artCache = new Map();
+async function artDataUri(id, variant, bg, key) {
+  const ck = `${id}-${variant}-${bg}-${key}`;
+  if (artCache.has(ck)) return artCache.get(ck);
+  const res = await fetch(`${ART_DIR}/${id}-${variant}.svg`, { cache: "force-cache" });
+  if (!res.ok) throw new Error(`art ${id}-${variant} HTTP ${res.status}`);
+  const svg = (await res.text()).split("{{BG}}").join(bg).split("{{KEY}}").join(key);
+  const uri = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
+    .replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/'/g, "%27");
+  artCache.set(ck, uri);
+  return uri;
+}
+
+/* 커버·CTA 두 장에 같은 아트를 건다. 안(angle)이 바뀌면 아트 변형도 함께 바뀐다. */
+async function refreshArt() {
+  const targets = [0, state.slides.length - 1].filter((v, i, a) => a.indexOf(v) === i);
+  if (state.art === "off") {
+    targets.forEach(i => {
+      const slot = state.slides[i];
+      if (!slot || !slot.artOn) return;
+      slot.artOn = false; slot.photoOn = false; slot.photoUrl = null;
+    });
+    reRender();
+    if (state.mode === "product" && state.product) injectProductContent(state.product);
+    return;
+  }
+  const p = state.product;
+  const id = state.art === "auto" ? pickArt(p) : state.art;
+  const variant = String((state.slides[0] && state.slides[0].angleIdx || 0) + 1);
+  const bg = colorForSlide(0);
+  const key = (p && p.color) || state.color2 || BRAND;
+  try {
+    const uri = await artDataUri(id, variant, bg, key);
+    targets.forEach(i => {
+      const slot = state.slides[i];
+      if (!slot) return;
+      if (slot.photoOn && !slot.artOn) return;    // 사용자가 올린 사진은 건드리지 않는다
+      slot.artOn = true; slot.photoOn = true; slot.photoUrl = uri;
+    });
+    reRender();
+    if (state.mode === "product" && state.product) injectProductContent(state.product);
+  } catch (e) {
+    setStatus(`배경 아트 로드 실패 (${e.message}) — ${ART_DIR}/ 경로를 확인하세요`, "error");
+  }
+}
+
+/* ─── 등록 제품(/api/studio/products) → 카드뉴스 제품 형태 매핑 ──
+   구 매퍼는 17개 필드 중 6개만 남기고 11개를 버렸다(farm·variety·altitude·roast·
+   recipe·hashtags·weight·region·farmer·price·image). 3안 카피 엔진과 배경 아트가
+   전부 이 필드들을 쓰므로 전량 보존한다. signalLight 하드코딩(false)도 여기서 해소. */
 function normalizeStudioProduct(p) {
   const ko = String(p.ko || p.title_ko || "");
   const shortTitle = ko.replace(/\[.*?\]\s*/g, "").replace(/\s*\d+\s*k?g.*$/i, "").trim() || ko;
@@ -1927,17 +2584,40 @@ function normalizeStudioProduct(p) {
   else if (/\[?\s*블렌드|blend/i.test(ko)) category = "블렌드";
   else if (/normcore|놈코어/i.test(ko)) category = "Normcore";
   const notes = String(p.flavor || "").split(/[,·]/).map(s => s.trim()).filter(Boolean);
+  const color = p.key_color || BRAND;
+  const weightG = parseInt(String(p.weight || "").replace(/[^\d]/g, ""), 10) || 0;
+  // 설명 소스는 one_liner(구조화 입력)만 쓴다. body_html 은 제품 간 복사 오염이
+  // 확인돼(케냐·코체레 → 구지 내용) 카피 소스에서 배제한다. 본문은 필드 조합으로 만든다.
+  const story = descSnippet(String(p.story || "").trim(), 130);
   return {
     handle: p.slug,
     title: ko,
     shortTitle,
     category,
-    color: p.key_color || BRAND,
-    signalLight: false,
-    tastingNotes: notes,
-    description: String(p.story || p.body_html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    color,
+    signalLight: isLightHex(color),
+    tastingNotes: notes.slice(0, 5),
+    description: story,
+    oneLiner: story,
     country: p.country || "",
+    countryEn: p.country_en || "",
+    region: p.region || "",
+    farm: p.farm || "",
+    farmer: p.farmer || "",
+    variety: p.variety || "",
     process: p.process || "",
+    altitude: p.altitude || "",
+    roast: p.roast || "",
+    weight: p.weight || "",
+    weightG,
+    isWholesale: weightG >= 1000 || /사업자|도매|wholesale/i.test(ko),
+    recipe: {
+      espresso: p.rcp_es || "",
+      filter: p.rcp_fil || "",
+      milk: p.rcp_milk || "",
+    },
+    hashtags: String(p.hash || "").trim(),
+    price: p.price || "",
   };
 }
 
@@ -2002,6 +2682,21 @@ document.getElementById("modeSeg").addEventListener("click", e => {
     state.product = null;
     document.getElementById("productSelect").value = "";
   }
+});
+
+document.getElementById("angleAllSeg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const n = parseInt(b.dataset.angle, 10) || 0;
+  [...e.currentTarget.querySelectorAll("button")].forEach(x => x.classList.toggle("active", x === b));
+  state.slides.forEach(sl => { sl.angleIdx = n; });
+  reRender();
+  if (state.mode === "product" && state.product) injectProductContent(state.product);
+  refreshArt();
+});
+
+document.getElementById("artSelect").addEventListener("change", e => {
+  state.art = e.target.value;
+  refreshArt();
 });
 
 document.getElementById("productSelect").addEventListener("change", e => {
@@ -2111,9 +2806,10 @@ document.getElementById("textColorAuto").addEventListener("click", () => {
 
 document.getElementById("resetSlides").addEventListener("click", () => {
   if (!confirm("5장 기본 구성으로 되돌립니다. 편집 내용은 사라집니다.")) return;
-  state.slides = ROLES.map(r => ({ role: r.key, layout: "a", photoOn: false, photoUrl: null }));
+  state.slides = ROLES.map(r => ({ role: r.key, layout: "a", angleIdx: 0, photoOn: false, photoUrl: null }));
   reRender();
   if (state.product) injectProductContent(state.product);
+  refreshArt();
 });
 
 /* ─── Export ────────────────────────────────────────────────────── */
@@ -2237,6 +2933,8 @@ reRender();
 populateProductDropdown(INITIAL_PRODUCTS);
 setStatus(`내장 스냅샷 ${INITIAL_PRODUCTS.length}개 제품 로드 (${SNAPSHOT_DATE}) · 등록 제품 동기화 중…`, "ok");
 refreshProducts(true);
+refreshArt();
+renderCaptions(null);
 </script>
 </body>
 </html>

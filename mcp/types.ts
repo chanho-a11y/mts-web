@@ -77,6 +77,11 @@ export interface ProductRow {
   evidence: unknown;
   attributes: Record<string, unknown> | null;
   attributes_en: Record<string, unknown> | null;
+  /** 제품 설명 정본. one_liner 와 다른 필드다(D-104) */
+  story: string | null;
+  story_en: string | null;
+  /** 카테고리 슬러그 배열. product_categories 관계를 정규화한 값 */
+  categories: string[] | null;
 }
 
 export interface VariantRow {

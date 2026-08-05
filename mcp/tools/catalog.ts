@@ -122,7 +122,10 @@ export const getProduct = {
         slug: p.slug,
         title: en ? p.title_en || p.title : p.title,
         one_liner: en ? p.one_liner_en : p.one_liner,
+        // 제품 설명 정본. one_liner 는 16~25자 한 줄 요약이라 다른 필드다(D-104).
+        story: en ? p.story_en : p.story,
         product_type: p.product_type,
+        categories: p.categories ?? [],
         status: p.status,
         is_b2b_only: p.is_b2b_only,
         weight_g: p.weight_g,

@@ -10,6 +10,7 @@ const ROWS: Record<string, any[]> = {
   mcp_v_product: [{ id: "p1", slug: "sample-200", title: "샘플상품", title_en: "Sample", product_type: "blend",
     status: "active", is_b2b_only: false, weight_g: 200, key_color: "#C68D62", published_at: "2026-01-01",
     attributes: { attr_a: "값A", attr_b: ["값B"] }, attributes_en: {}, evidence: null,
+    story: "제품 설명 본문", story_en: null, categories: ["blends"],
     seo_title: null, seo_description: null, seo_title_en: null, seo_description_en: null, one_liner: null, one_liner_en: null }],
   mcp_v_variant: [{ id: "v1", product_id: "p1", sku: "SAMPLE-200", base_price: 18000, currency: "KRW",
     is_active: true, is_b2b_only: false, inventory_policy: "deny", position: 1, option_values: {}, weight_g: 200, grind: null }],

@@ -221,3 +221,186 @@ export const getInventory = {
     };
   }),
 };
+
+/**
+ * 상품 수정 제안 — 이 서버가 상품에 대해 가진 유일한 쓰기 경로.
+ *
+ * 설계상 할 수 없는 것(금지가 아니라 부재다):
+ *   - 즉시 반영 : product 를 건드리지 않는다. mcp_product_change 에 제안만 쌓는다.
+ *   - 삭제      : 삭제 툴도 삭제 함수도 없다. 빈 값 전달도 DB 함수가 거부한다.
+ *   - 신규 등록  : product INSERT 경로가 없다.
+ *   - 위험 필드  : 가격·재고·SKU 는 다른 테이블이고, 상태·표시사항·디자인 토큰은
+ *                 화이트리스트 밖이라 DB 함수가 예외를 던진다.
+ */
+
+/** DB 의 mcp_product_editable_fields() 와 같은 목록이어야 한다. */
+const EDITABLE = {
+  title_ko: "제품명(한국어)",
+  one_liner: "한 줄 요약",
+  story: "제품 설명·스토리",
+  seo_title: "SEO 제목",
+  seo_description: "SEO 설명",
+  roast_level: "로스팅 정도",
+  producer: "생산자",
+  variety: "품종",
+  altitude: "고도",
+  process: "가공방식",
+  product_type: "제품 유형",
+  title_en: "제품명(영문)",
+  one_liner_en: "한 줄 요약(영문)",
+  story_en: "제품 설명(영문)",
+  seo_title_en: "SEO 제목(영문)",
+  seo_description_en: "SEO 설명(영문)",
+  roast_level_en: "로스팅 정도(영문)",
+  producer_en: "생산자(영문)",
+  variety_en: "품종(영문)",
+  altitude_en: "고도(영문)",
+  process_en: "가공방식(영문)",
+} as const;
+
+const STR = (label: string) => z.string().min(1).max(4000).optional().describe(label);
+
+export const proposeProductUpdate = {
+  name: "commerce_propose_product_update",
+  config: {
+    title: "상품 수정 제안",
+    description:
+      "상품 정보 수정을 '제안'한다. 상품 자체는 바뀌지 않는다 — 관리자가 /admin/products/changes 에서 " +
+      "before→after 를 확인하고 반영해야 적용된다. " +
+      "초안(draft)·발행(active)·보관(archived) 어떤 상태의 상품이든 제안할 수 있다. " +
+      "가격·재고·SKU·판매상태·표시사항(원재료·소비기한·품목보고번호 등)·디자인 토큰은 수정할 수 없다. " +
+      "값을 비우는 것도 불가능하다(빈 문자열·빈 배열을 보내면 오류). " +
+      "먼저 commerce_get_product 로 현재 값을 읽고, 실제로 바꿀 필드만 담아 보낼 것. " +
+      "note 에는 왜 바꾸는지 근거를 남긴다 — 관리자가 그것을 보고 판단한다.",
+    inputSchema: {
+      slug: z.string().min(1).max(200).describe("commerce_search_products 로 확인한 상품 슬러그"),
+      note: z.string().max(1000).optional().describe("변경 근거. 관리자가 판단할 때 읽는다"),
+
+      title_ko: STR("제품명(한국어)"),
+      one_liner: STR("한 줄 요약. 16~25자"),
+      story: STR("제품 설명·스토리. 상세 페이지 정본"),
+      seo_title: STR("SEO 제목"),
+      seo_description: STR("SEO 설명"),
+      roast_level: STR("로스팅 정도"),
+      producer: STR("생산자"),
+      variety: STR("품종"),
+      altitude: STR("고도"),
+      process: STR("가공방식"),
+      product_type: STR("제품 유형. 예: 싱글 오리진 / 블렌드"),
+      categories: z
+        .array(z.string().min(1).max(60))
+        .min(1)
+        .max(6)
+        .optional()
+        .describe("카테고리 슬러그 배열. 보낸 목록으로 통째로 교체된다. 선택지는 commerce_get_schema 의 categories"),
+      flavor_notes: z.array(z.string().min(1).max(60)).min(1).max(12).optional().describe("풍미 노트. 카드뉴스·라벨의 정본"),
+      hashtags: z.array(z.string().min(1).max(40)).min(1).max(20).optional(),
+      origin: z.record(z.any()).optional().describe("{country, country_en, region?, farm?} 형태"),
+      recipe: z.record(z.any()).optional().describe("{espresso:{dose_g,yield_g,time}, filter:{...}, milk:{...}} 형태"),
+      evidence: z.record(z.any()).optional().describe("자사 1차 데이터. roast_profile·cupping·competition·b2b_case·chanotonado 키만 쓴다"),
+
+      title_en: STR("제품명(영문)"),
+      one_liner_en: STR("한 줄 요약(영문)"),
+      story_en: STR("제품 설명(영문)"),
+      seo_title_en: STR("SEO 제목(영문)"),
+      seo_description_en: STR("SEO 설명(영문)"),
+      roast_level_en: STR("로스팅 정도(영문)"),
+      producer_en: STR("생산자(영문)"),
+      variety_en: STR("품종(영문)"),
+      altitude_en: STR("고도(영문)"),
+      process_en: STR("가공방식(영문)"),
+      flavor_notes_en: z.array(z.string().min(1).max(60)).min(1).max(12).optional(),
+      recipe_en: z.record(z.any()).optional(),
+    },
+    outputSchema: {
+      change_id: z.string(),
+      slug: z.string(),
+      fields: z.array(z.string()),
+      status: z.string(),
+      admin_url: z.string(),
+      next_step: z.string(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  handler: withTool<Record<string, unknown>>(
+    "commerce_propose_product_update",
+    "catalog:write",
+    async (args, ctx: ToolContext) => {
+      const slug = String(args.slug ?? "").trim();
+      if (!slug) throw new Error("슬러그가 필요합니다.");
+
+      const note = typeof args.note === "string" ? args.note : null;
+
+      // slug·note 를 뺀 나머지를 patch 로 만든다. undefined 는 담지 않는다.
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(args)) {
+        if (k === "slug" || k === "note") continue;
+        if (v === undefined) continue;
+        patch[k] = v;
+      }
+      if (Object.keys(patch).length === 0) {
+        throw new Error(
+          `바꿀 필드를 하나 이상 지정하세요. 수정 가능: ${Object.keys(EDITABLE).join(", ")}, flavor_notes, flavor_notes_en, hashtags, origin, recipe, recipe_en, evidence`,
+        );
+      }
+
+      const { data, error } = await ctx.db.rpc("mcp_propose_product_change", {
+        p_slug: slug,
+        p_patch: patch,
+        p_note: note,
+      });
+      if (error) throw new Error(`제안을 등록하지 못했습니다: ${error.message}`);
+
+      const row = (Array.isArray(data) ? data[0] : data) as {
+        change_id: string;
+        slug: string;
+        fields: string[];
+        status: string;
+      } | null;
+      if (!row) throw new Error("제안 등록 결과를 받지 못했습니다.");
+
+      return {
+        change_id: row.change_id,
+        slug: row.slug,
+        fields: row.fields ?? [],
+        status: row.status,
+        admin_url: "/admin/products/changes",
+        next_step:
+          "제안만 등록했습니다. 상품은 아직 바뀌지 않았습니다. /admin/products/changes 에서 확인 후 반영하세요.",
+      };
+    },
+  ),
+};
+
+export const listProductChanges = {
+  name: "commerce_list_product_changes",
+  config: {
+    title: "상품 수정 제안 목록",
+    description:
+      "MCP 가 올린 상품 수정 제안과 그 처리 상태(pending·applied·rejected)를 조회한다. " +
+      "같은 내용을 다시 제안하기 전에 먼저 확인할 것.",
+    inputSchema: {
+      slug: z.string().max(200).optional(),
+      status: z.enum(["pending", "applied", "rejected"]).optional(),
+      limit: z.number().int().min(1).max(100).default(20),
+    },
+    outputSchema: { items: z.array(z.record(z.any())) },
+    annotations: RO,
+  },
+  handler: withTool<{ slug?: string; status?: string; limit?: number }>(
+    "commerce_list_product_changes",
+    "catalog:read",
+    async (args, ctx: ToolContext) => {
+      let q = ctx.db
+        .from("mcp_v_product_change")
+        .select("id,slug,title,patch,before,note,status,created_at,reviewed_at");
+      if (args.slug) q = q.eq("slug", args.slug);
+      if (args.status) q = q.eq("status", args.status);
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(args.limit ?? 20);
+      if (error) throw new Error(`제안 목록을 조회하지 못했습니다: ${error.message}`);
+      return { items: data ?? [] };
+    },
+  ),
+};

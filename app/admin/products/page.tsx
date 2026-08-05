@@ -34,8 +34,23 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
   const categoryOptions = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
   const sortHref = (s: string) => `/admin/products?${new URLSearchParams({ ...(showArchived ? { show: "archived" } : {}), sort: s }).toString()}`;
 
+  // MCP 가 올린 상품 수정 제안 — 반영 전까지 상품은 바뀌지 않는다
+  const { count: pendingChanges } = await supabase
+    .from("mcp_product_change")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
   return (
     <main>
+      {(pendingChanges ?? 0) > 0 && (
+        <Link
+          href="/admin/products/changes"
+          className="mb-4 flex items-center gap-3 rounded-card border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100"
+        >
+          <span className="font-semibold">MCP 상품 수정 제안 {pendingChanges}건</span>
+          <span className="text-amber-700">— 반영 전까지 상품은 바뀌지 않습니다. 확인하러 가기 →</span>
+        </Link>
+      )}
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">제품 관리</h1>
         <div className="flex items-center gap-2">

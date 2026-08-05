@@ -21,7 +21,7 @@
 | `auth.ts` | P0 정적 헤더 토큰 → 신원·스코프. OAuth 로 교체 가능한 인터페이스 |
 | `policy.ts` | 스코프 게이트 + 감사로그 래퍼 + 응답 포맷 |
 | `markdown.ts` | 마크다운 → 화이트리스트 HTML. 의존성 0. 쓰기 툴의 유일한 본문 입력 경로 |
-| `tools/` | 툴 16종 (읽기 15 + 쓰기 1) |
+| `tools/` | 툴 18종 (읽기 16 + 쓰기 2) |
 | `index.ts` | 등록 진입점 |
 
 라우트 어댑터는 `app/api/mcp/route.ts` 한 파일이다. 고객사 인스턴스에서는 이 파일만 복사한다.
@@ -71,7 +71,14 @@ values (
 - **HTML 주입 불가** — HTML 인자가 없다. `markdown.ts` 가 입력을 먼저 전부 이스케이프한 뒤 화이트리스트 태그만 만든다.
 - **삭제 불가** — 삭제 툴도 삭제 함수도 없다.
 
-선행 SQL: `docs/mcp-write-blog-20260805.sql`(함수·뷰·권한), `docs/mcp-brand-tokens-20260805.sql`(브랜드 규범 시딩).
+상품(`commerce_propose_product_update`, D-106)도 라이브를 직접 바꾸지 못한다.
+
+- **즉시 반영 불가** — `mcp_product_change` 에 제안만 쌓는다. 관리자가 `/admin/products/changes` 에서 반영해야 적용된다.
+- **필드 제한** — 화이트리스트 29필드(마케팅 카피·커피 정보·영문·카테고리)만. 가격·재고·SKU·판매상태·표시사항·디자인 토큰은 불가.
+- **값 비우기 불가** — 빈 문자열·빈 배열·빈 객체·null 은 예외. 삭제 불가를 필드 단위까지 관철한다.
+- 반영·버림 함수는 **SECURITY INVOKER** 다(D-092·093).
+
+선행 SQL: `docs/mcp-write-blog-20260805.sql`(블로그), `docs/mcp-product-change-20260805.sql`(상품 제안 큐), `docs/mcp-brand-tokens-20260805.sql`(브랜드 규범 시딩).
 
 ## 현재 역할 매핑의 한계
 

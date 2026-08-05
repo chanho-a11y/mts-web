@@ -51,15 +51,23 @@ export const getSchema = {
     outputSchema: {
       product_attributes: z.array(z.record(z.any())),
       attribute_note: z.string(),
+      categories: z.array(z.record(z.any())),
       entities: z.array(z.record(z.any())),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   handler: withTool("commerce_get_schema", null, async (_args, ctx: ToolContext) => {
+    // 카테고리는 상점마다 다르다. 상품 분류를 제안하려면 선택지를 먼저 알아야 한다.
+    const { data: cats } = await ctx.db
+      .from("mcp_v_category")
+      .select("slug,name,name_en,kind,is_b2b")
+      .order("position");
+
     return {
       product_attributes: ctx.config.attributes,
       attribute_note:
         "attributes 는 업종별 속성이다. 키 목록은 이 상점 고유이며, 다른 상점에서는 다르다.",
+      categories: cats ?? [],
       entities: [
         { name: "product", tool: "commerce_search_products / commerce_get_product", key: "slug" },
         { name: "variant", tool: "commerce_get_product(include=variants)", key: "sku" },

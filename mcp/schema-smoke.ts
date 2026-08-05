@@ -33,6 +33,10 @@ const ROWS: Record<string, any[]> = {
   mcp_v_content_post: [{ slug: "hello", title: "첫 글", excerpt: null, body_html: "<p>본문</p>", cover_image: null,
     tags: [], author: "a", status: "published", published_at: "2026-01-01", seo_title: null, seo_description: null }],
   mcp_v_faq: [{ question: "배송은?", category: "shipping", is_b2b_only: false, status: "published", position: 1 }],
+  mcp_v_category: [{ slug: "blends", name: "블렌드", name_en: "Blends", kind: "blend", is_b2b: false, position: 1 }],
+  mcp_v_product_change: [{ id: "c1", slug: "sample-200", title: "샘플상품", patch: { story: "새 설명" },
+    before: { story: "옛 설명" }, note: "복사 오염 정정", status: "pending",
+    created_at: "2026-08-05T00:00:00Z", reviewed_at: null }],
 };
 
 function qb(table: string) {
@@ -48,12 +52,14 @@ const db: any = {
   rpc: async (fn: string) => {
     if (fn === "mcp_resolve_price") return { data: [{ price: 32000, source: "individual" }], error: null };
     if (fn === "mcp_draft_post") return { data: "smoke-post", error: null };
+    if (fn === "mcp_propose_product_change")
+      return { data: { change_id: "c1", slug: "sample-200", fields: ["story"], status: "pending" }, error: null };
     if (fn.startsWith("mcp_report_")) return { data: [{ period: "2026-07", orders: 11, gross_revenue: 3260230, refund_total: 0, net_revenue: 3260230 }], error: null };
     return { data: null, error: null };
   },
 };
 
-const ALL = ["catalog:read","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
+const ALL = ["catalog:read","catalog:write","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
 const ctx: any = {
   config: { storefrontId: "s1", currency: "KRW", timezone: "Asia/Seoul", schemaVersion: "1", enabledModules: ["coffee"],
     attributes: [{ key: "attr_a", label_ko: "속성A", type: "string", show_in_list: true }] },
@@ -83,6 +89,9 @@ const CALLS: [string, any][] = [
   ["commerce_search_content", {}],
   ["commerce_get_post", { slug: "hello" }],
   ["commerce_draft_post", { title: "스모크 초안", body_md: "## 소제목\n\n첫 문단.\n\n- 항목1\n- 항목2\n\n| a | b |\n|---|---|\n| 1 | 2 |\n" }],
+  ["commerce_list_product_changes", {}],
+  ["commerce_propose_product_update", { slug: "sample-200", note: "스모크", story: "새 설명",
+    flavor_notes: ["초콜릿"], product_type: "블렌드", categories: ["blends"] }],
 ];
 
 async function main() {

@@ -30,6 +30,8 @@ export interface McpConfig {
 /** 툴 게이트에 쓰는 스코프 */
 export type Scope =
   | "catalog:read"
+  /** 상품 수정 '제안' 권한. 상품을 직접 바꾸는 권한이 아니다 — 반영은 관리자가 한다 */
+  | "catalog:write"
   | "inventory:read"
   | "pricing:read"
   | "orders:read"

@@ -33,6 +33,7 @@ export class McpAuthError extends Error {
 
 const ALL: Scope[] = [
   "catalog:read",
+  "catalog:write",
   "inventory:read",
   "pricing:read",
   "orders:read",

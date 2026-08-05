@@ -12,7 +12,13 @@ import { makeAudit } from "./policy";
 import type { ToolContext } from "./types";
 
 import { getShopInfo, getSchema } from "./tools/context";
-import { searchProducts, getProduct, getInventory } from "./tools/catalog";
+import {
+  searchProducts,
+  getProduct,
+  getInventory,
+  proposeProductUpdate,
+  listProductChanges,
+} from "./tools/catalog";
 import { resolvePrice, listPriceOverrides } from "./tools/pricing";
 import { searchOrders, getOrder } from "./tools/orders";
 import { searchCustomers, getCustomer } from "./tools/customers";
@@ -35,8 +41,12 @@ const TOOLS = [
   getBrandTokens,
   searchContent,
   getPost,
-  // 유일한 쓰기 툴. 초안만 만들 수 있고 발행·삭제는 하지 못한다(tools/content.ts 머리말).
+  listProductChanges,
+  // ── 쓰기 툴 2종. 둘 다 라이브를 직접 바꾸지 못한다 ──
+  // 블로그: 초안(draft)만 저장. 발행·발행글 수정·삭제 불가(tools/content.ts 머리말)
   draftPost,
+  // 상품: 제안만 등록. 반영은 관리자가 /admin/products/changes 에서 한다(tools/catalog.ts 머리말)
+  proposeProductUpdate,
 ];
 
 export { McpSetupError, McpAuthError };

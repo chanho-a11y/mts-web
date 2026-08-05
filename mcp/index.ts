@@ -16,7 +16,7 @@ import { searchProducts, getProduct, getInventory } from "./tools/catalog";
 import { resolvePrice, listPriceOverrides } from "./tools/pricing";
 import { searchOrders, getOrder } from "./tools/orders";
 import { searchCustomers, getCustomer } from "./tools/customers";
-import { getBrandTokens, searchContent } from "./tools/content";
+import { getBrandTokens, searchContent, getPost, draftPost } from "./tools/content";
 import { runReport } from "./tools/reports";
 
 const TOOLS = [
@@ -34,6 +34,9 @@ const TOOLS = [
   runReport,
   getBrandTokens,
   searchContent,
+  getPost,
+  // 유일한 쓰기 툴. 초안만 만들 수 있고 발행·삭제는 하지 못한다(tools/content.ts 머리말).
+  draftPost,
 ];
 
 export { McpSetupError, McpAuthError };

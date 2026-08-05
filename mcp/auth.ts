@@ -42,6 +42,7 @@ const ALL: Scope[] = [
   "analytics:read",
   "analytics:sql",
   "content:read",
+  "content:write",
   "brand:read",
 ];
 

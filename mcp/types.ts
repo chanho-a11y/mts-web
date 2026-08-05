@@ -39,6 +39,8 @@ export type Scope =
   | "analytics:read"
   | "analytics:sql"
   | "content:read"
+  /** 콘텐츠 초안 쓰기. 발행 권한이 아니다 — 발행은 관리자 화면에서 사람이 한다 */
+  | "content:write"
   | "brand:read";
 
 export interface Identity {

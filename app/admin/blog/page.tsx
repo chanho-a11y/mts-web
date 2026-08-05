@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { createPostAction, updatePostAction, deletePostAction } from "./actions";
+import { createPostAction, updatePostAction, deletePostAction, applyRevisionAction } from "./actions";
+import { REV_SUFFIX } from "./rev";
 import ImageUpload from "@/components/image-upload";
 import RichEditor from "@/components/rich-editor";
 
@@ -13,6 +14,14 @@ export default async function AdminBlogPage() {
     .from("content_post")
     .select("id,slug,title,excerpt,body_html,cover_image,status,published_at,created_at")
     .order("created_at", { ascending: false });
+
+  // MCP 가 만든 개선안 초안(`<원본slug>--rev`)을 알아보기 위한 슬러그 집합
+  const slugs = new Set((posts ?? []).map((p) => p.slug));
+  const revTargetOf = (slug: string): string | null => {
+    if (!slug.endsWith(REV_SUFFIX)) return null;
+    const base = slug.slice(0, -REV_SUFFIX.length);
+    return slugs.has(base) ? base : null;
+  };
 
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   return (
@@ -69,6 +78,20 @@ export default async function AdminBlogPage() {
                 {STATUS[p.status] ?? p.status}
               </span>
             </summary>
+            {revTargetOf(p.slug) && (
+              <form action={applyRevisionAction} className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <input type="hidden" name="rev_id" value={p.id} />
+                <p className="text-xs leading-relaxed text-amber-900">
+                  <span className="font-semibold">MCP 개선안 초안</span>입니다. 반영하면 원본{" "}
+                  <span className="font-mono">{revTargetOf(p.slug)}</span> 의 본문·요약·SEO 가 이 내용으로 바뀌고
+                  이 초안은 삭제됩니다. 최초 발행일은 그대로 유지됩니다.
+                </p>
+                <button className="ml-auto shrink-0 rounded-full bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90">
+                  원본에 반영
+                </button>
+              </form>
+            )}
+
             <form action={updatePostAction} className="mt-4 space-y-3">
               <input type="hidden" name="id" value={p.id} />
               <div className="grid gap-3 sm:grid-cols-2">

@@ -30,7 +30,8 @@ const ROWS: Record<string, any[]> = {
     approved_at: "2026-01-01", created_at: "2026-01-01", archived: false, language: "ko", marketing_opt_in: true }],
   mcp_v_site_setting: [{ key: "brand.color.key", value: "#123456", brand_code: "acme" },
                        { key: "brand.wordmark.rule", value: "재트래킹 금지", brand_code: "acme" }],
-  mcp_v_content_post: [{ slug: "hello", title: "첫 글", excerpt: null, tags: [], author: "a", status: "published", published_at: "2026-01-01" }],
+  mcp_v_content_post: [{ slug: "hello", title: "첫 글", excerpt: null, body_html: "<p>본문</p>", cover_image: null,
+    tags: [], author: "a", status: "published", published_at: "2026-01-01", seo_title: null, seo_description: null }],
   mcp_v_faq: [{ question: "배송은?", category: "shipping", is_b2b_only: false, status: "published", position: 1 }],
 };
 
@@ -46,12 +47,13 @@ const db: any = {
   from: (t: string) => qb(t),
   rpc: async (fn: string) => {
     if (fn === "mcp_resolve_price") return { data: [{ price: 32000, source: "individual" }], error: null };
+    if (fn === "mcp_draft_post") return { data: "smoke-post", error: null };
     if (fn.startsWith("mcp_report_")) return { data: [{ period: "2026-07", orders: 11, gross_revenue: 3260230, refund_total: 0, net_revenue: 3260230 }], error: null };
     return { data: null, error: null };
   },
 };
 
-const ALL = ["catalog:read","inventory:read","pricing:read","orders:read","analytics:read","content:read","brand:read","customers:read"];
+const ALL = ["catalog:read","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
 const ctx: any = {
   config: { storefrontId: "s1", currency: "KRW", timezone: "Asia/Seoul", schemaVersion: "1", enabledModules: ["coffee"],
     attributes: [{ key: "attr_a", label_ko: "속성A", type: "string", show_in_list: true }] },
@@ -79,6 +81,8 @@ const CALLS: [string, any][] = [
   ["commerce_get_customer", { profile_id: "22222222-2222-2222-2222-222222222222" }],
   ["commerce_get_brand_tokens", {}],
   ["commerce_search_content", {}],
+  ["commerce_get_post", { slug: "hello" }],
+  ["commerce_draft_post", { title: "스모크 초안", body_md: "## 소제목\n\n첫 문단.\n\n- 항목1\n- 항목2\n\n| a | b |\n|---|---|\n| 1 | 2 |\n" }],
 ];
 
 async function main() {

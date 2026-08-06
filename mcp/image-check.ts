@@ -181,5 +181,41 @@ check("스토리지 중복 오류 판별", () => {
   eq(isAlreadyExists(null), false, "null");
 });
 
+check("PNG 본문 손상은 CRC 로 잡는다", () => {
+  const good = png(1200, 800);
+  const bad = Buffer.from(good);
+  bad[bad.length - 30] ^= 0xff; // IDAT 안쪽 한 바이트 뒤집기
+  throws(() => inspectImage(bad), /손상|CRC/);
+});
+
+check("PNG 잘림은 IEND 부재로 잡는다", () => {
+  const good = png(1200, 800);
+  throws(() => inspectImage(good.subarray(0, good.length - 40)), /잘렸|벗어|IEND/);
+});
+
+check("JPEG 잘림은 EOI 부재로 잡는다", () => {
+  const good = jpeg(1600, 900);
+  throws(() => inspectImage(good.subarray(0, good.length - 2)), /EOI|잘렸/);
+});
+
+check("WebP 길이 불일치는 RIFF 헤더로 잡는다", () => {
+  const good = webpVp8x(1280, 720);
+  const bad = Buffer.concat([good, Buffer.alloc(4)]);
+  throws(() => inspectImage(bad), /불일치|잘렸/);
+});
+
+check("실측 사고 재현 — 중간에 블록이 중복 삽입된 PNG", () => {
+  // 2026-08-06: 모델이 emit 한 base64 가 반복 구간에서 늘어나(3,161B → 4,061B)
+  // IHDR 검사만 통과하고 열리지 않는 PNG 가 저장됐다. 같은 형태를 재현한다.
+  const good = png(1200, 800);
+  const cut = Math.floor(good.length / 2);
+  const bad = Buffer.concat([
+    good.subarray(0, cut),
+    good.subarray(cut - 300, cut), // 앞 구간을 한 번 더 끼워 넣는다
+    good.subarray(cut),
+  ]);
+  throws(() => inspectImage(bad), /손상|CRC|잘렸|벗어|IEND/);
+});
+
 console.log(`\nPASS ${pass} / FAIL ${fail}`);
 if (fail > 0) process.exit(1);

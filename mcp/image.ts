@@ -94,6 +94,79 @@ function sniff(b: Buffer): ImageMime {
   );
 }
 
+/**
+ * CRC32 (IEEE). PNG 청크 검증용.
+ * node:zlib 의 crc32 는 Node 20.15+ 에서만 있어 런타임 버전에 걸지 않고 직접 계산한다.
+ */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(buf: Buffer, start: number, end: number): number {
+  let c = 0xffffffff;
+  for (let i = start; i < end; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * 페이로드 무결성 검사.
+ *
+ * 헤더만 보면 "앞부분은 멀쩡한데 본문이 깨진" 파일이 통과한다. 실제로 그런 사고가 있었다
+ * (2026-08-06: 손상된 base64 가 IHDR 검사를 통과해 열리지 않는 PNG 가 저장됐다).
+ * 삭제가 부재로 차단돼 있어 한 번 들어가면 못 지우므로, 저장 전에 반드시 막아야 한다.
+ */
+function verifyIntegrity(b: Buffer, mime: ImageMime): void {
+  if (mime === "image/png") {
+    // 모든 청크의 CRC 를 검증한다. 한 바이트만 틀어져도 잡힌다.
+    let p = 8;
+    let sawIEND = false;
+    while (p + 8 <= b.length) {
+      const len = b.readUInt32BE(p);
+      const end = p + 8 + len; // length(4) + type(4) + data(len) ... 뒤에 crc(4)
+      if (len > b.length || end + 4 > b.length) {
+        throw new ImageError("PNG 청크 길이가 파일 크기를 벗어납니다. 전송 중 잘린 것 같습니다.");
+      }
+      const type = b.toString("ascii", p + 4, p + 8);
+      const want = b.readUInt32BE(end);
+      if (crc32(b, p + 4, end) !== want) {
+        throw new ImageError(
+          `PNG 데이터가 손상됐습니다(${type} 청크 CRC 불일치).`,
+          "base64 가 전송 중 변형됐을 수 있습니다. 다시 인코딩해 보내거나 /admin/blog 에서 직접 올리세요.",
+        );
+      }
+      if (type === "IEND") { sawIEND = true; break; }
+      p = end + 4;
+    }
+    if (!sawIEND) throw new ImageError("PNG 가 IEND 로 끝나지 않습니다. 파일이 잘렸습니다.");
+    return;
+  }
+
+  if (mime === "image/jpeg") {
+    // JPEG 에는 체크섬이 없다. 최소한 EOI(FFD9) 로 끝나는지는 본다 — 잘림은 잡힌다.
+    if (b.length < 4 || b[b.length - 2] !== 0xff || b[b.length - 1] !== 0xd9) {
+      throw new ImageError(
+        "JPEG 가 EOI 마커로 끝나지 않습니다. 파일이 잘렸습니다.",
+        "다시 인코딩해 보내거나 /admin/blog 에서 직접 올리세요.",
+      );
+    }
+    return;
+  }
+
+  // WebP: RIFF 헤더의 길이 필드가 실제 크기와 맞는지 본다.
+  const declared = b.readUInt32LE(4);
+  if (declared + 8 !== b.length) {
+    throw new ImageError(
+      `WebP 크기 불일치(선언 ${declared + 8}바이트 / 실제 ${b.length}바이트). 파일이 잘렸습니다.`,
+    );
+  }
+}
+
 /** PNG: 시그니처 8바이트 뒤 IHDR 청크에 가로·세로가 있다. */
 function pngSize(b: Buffer): { width: number; height: number } {
   if (b.length < 24 || b.toString("ascii", 12, 16) !== "IHDR") {
@@ -176,6 +249,7 @@ function webpSize(b: Buffer): { width: number; height: number } {
 /** 바이트를 받아 형식·크기·해시를 한 번에 낸다. */
 export function inspectImage(bytes: Buffer): ImageInfo {
   const mime = sniff(bytes);
+  verifyIntegrity(bytes, mime);
   const { width, height } =
     mime === "image/png" ? pngSize(bytes) : mime === "image/jpeg" ? jpegSize(bytes) : webpSize(bytes);
 

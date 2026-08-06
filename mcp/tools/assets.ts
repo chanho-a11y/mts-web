@@ -47,6 +47,7 @@ export const createImage = {
       "가로 1200px·세로 630px 이상이어야 한다(공유 썸네일이 깨지지 않는 최소 규격). " +
       "1MB 를 넘으면 거부하므로 그보다 크면 다시 인코딩하거나 관리자 화면에서 직접 올릴 것. " +
       "본문 안에 넣을 이미지는 이 툴로 올리지 않는다 — 관리자 화면에서 첨부한다. " +
+      "보내는 쪽에서 원본의 sha256 을 알면 sha256 인자에 함께 넘길 것 — 전송 중 변형되면 저장 전에 거부한다. " +
       "만들기 전에 commerce_get_brand_tokens 로 색·타이포·금지 사항을 먼저 확인할 것.",
     inputSchema: {
       purpose: z
@@ -69,6 +70,11 @@ export const createImage = {
         .optional()
         .describe("이 커버를 쓸 글의 슬러그. 미참조 자산 정리에 쓰인다"),
       name_hint: z.string().max(60).optional().describe("파일명 힌트. 생략하면 post_slug 를 쓴다"),
+      sha256: z
+        .string()
+        .regex(/^[a-fA-F0-9]{64}$/)
+        .optional()
+        .describe("원본 바이트의 sha256(16진 64자). 넘기면 서버가 대조해 전송 변형을 거부한다"),
     },
     outputSchema: {
       url: z.string(),
@@ -95,6 +101,7 @@ export const createImage = {
     alt: string;
     post_slug?: string;
     name_hint?: string;
+    sha256?: string;
   }>(
     "commerce_create_image",
     "content:write",
@@ -126,6 +133,16 @@ export const createImage = {
 
       // ── 2. 형식·크기 검증 ──
       const info = inspectImage(buf);
+
+      // 종단 무결성. PNG·WebP 는 구조로 잡히지만 JPEG 에는 체크섬이 없어
+      // 중간이 변형돼도 구조 검사만으로는 통과한다. 보내는 쪽이 해시를 알면 여기서 막는다.
+      const expected = (args.sha256 ?? "").toLowerCase();
+      if (expected && expected !== info.sha256) {
+        throw new Error(
+          `전송된 바이트가 원본과 다릅니다(기대 ${expected.slice(0, 12)}… / 실제 ${info.sha256.slice(0, 12)}…, ${buf.length}바이트). ` +
+            "base64 가 전송 중 변형됐습니다. 다시 보내거나 /admin/blog 에서 직접 올리세요.",
+        );
+      }
 
       if (!policy.mime.includes(info.mime)) {
         throw new Error(
@@ -225,6 +242,7 @@ export const createImage = {
         alt: args.alt ?? null,
         post_slug: args.post_slug ?? null,
         b64_len: String(args.data_base64 ?? "").length,
+        sha256_expected: args.sha256 ?? null,
         path: (data?.path as string) ?? null,
         sha256: (data?.sha256 as string) ?? null,
         bytes: (data?.bytes as number) ?? null,

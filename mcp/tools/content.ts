@@ -135,8 +135,55 @@ export const getPost = {
   }),
 };
 
+
 /**
- * 블로그 초안 저장 — 이 서버의 유일한 쓰기 툴.
+ * 기존 초안에 커버만 부착 (D-108).
+ *
+ * commerce_draft_post 로 커버를 붙이려면 body_md 를 다시 보내야 하는데,
+ * DB 에는 body_html 만 있어 마크다운 원본이 없다 — 재저장은 본문을 바꾼다(D-107 실측).
+ * 그래서 커버 부착을 분리했다. 이 툴은 cover_image 한 컬럼만 만진다.
+ * 발행글 거부·외부 URL 거부·대장 미등록 거부는 전부 DB 함수(mcp_attach_cover)가 한다.
+ */
+export const attachCover = {
+  name: "commerce_attach_cover",
+  config: {
+    title: "초안 커버 부착",
+    description:
+      "이미 저장된 초안(draft)에 커버 이미지만 붙인다. 본문·제목·태그는 건드리지 않는다. " +
+      "cover_image 는 commerce_create_image 가 돌려준 url 이어야 하며, 외부 URL 과 등록되지 않은 경로는 거부된다. " +
+      "발행된 글은 수정할 수 없다. 새 글을 쓰면서 커버를 함께 넣을 때는 commerce_draft_post 의 cover_image 인자를 쓸 것.",
+    inputSchema: {
+      slug: z.string().min(1).max(200).describe("커버를 붙일 초안의 슬러그"),
+      cover_image: z
+        .string()
+        .min(1)
+        .max(500)
+        .describe("commerce_create_image 가 돌려준 url. 다른 URL 은 거부된다"),
+    },
+    outputSchema: { slug: z.string(), cover_image: z.string(), next_step: z.string() },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  handler: withTool<{ slug: string; cover_image: string }>(
+    "commerce_attach_cover",
+    "content:write",
+    async (args, ctx: ToolContext) => {
+      const { data, error } = await ctx.db.rpc("mcp_attach_cover", {
+        p_slug: (args.slug ?? "").trim(),
+        p_cover_image: (args.cover_image ?? "").trim(),
+      });
+      if (error) throw new Error(`커버를 붙이지 못했습니다: ${error.message}`);
+      const saved = (Array.isArray(data) ? data[0] : data) as string | null;
+      return {
+        slug: saved ?? args.slug,
+        cover_image: args.cover_image,
+        next_step: "커버를 붙였습니다. 본문은 그대로입니다. /admin/blog 에서 검수한 뒤 발행하세요.",
+      };
+    },
+  ),
+};
+
+/**
+ * 블로그 초안 저장 — 이 서버의 쓰기 툴.
  *
  * 설계상 할 수 없는 것(금지가 아니라 부재다):
  *   - 발행: status 인자가 없고, DB 함수가 'draft' 를 하드코딩한다.

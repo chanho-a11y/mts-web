@@ -7,7 +7,7 @@ import {
   inspectImage,
   isAlreadyExists,
 } from "../image";
-import type { AssetPolicy, ToolContext } from "../types";
+import type { AssetPolicy, CoverFields, ToolContext } from "../types";
 
 /**
  * 자산 등록 — 이 서버가 바이너리를 받는 유일한 지점.
@@ -41,7 +41,9 @@ export const createImage = {
   config: {
     title: "커버 이미지 등록",
     description:
-      "블로그 커버(썸네일) 이미지를 등록하고 공개 URL 을 돌려준다. 이미지는 base64 로 넘긴다. " +
+      "블로그 커버(썸네일) 이미지를 등록하고 공개 URL 을 돌려준다. 입력은 둘 중 하나다 — " +
+      "① template + fields: 서버가 브랜드 토큰으로 커버를 직접 그린다(권장 — 토큰 비용 0, 전송 변형 없음). " +
+      "② data_base64: 직접 만든 이미지를 올린다. " +
       "돌려받은 url 을 commerce_draft_post 의 cover_image 인자에 그대로 넣으면 초안에 커버가 붙는다. " +
       "PNG·JPEG·WebP 만 받으며 형식은 선언값이 아니라 파일 내용으로 판별한다. " +
       "가로 1200px·세로 630px 이상이어야 한다(공유 썸네일이 깨지지 않는 최소 규격). " +
@@ -56,9 +58,22 @@ export const createImage = {
         .describe("현재는 블로그 커버만 지원한다"),
       data_base64: z
         .string()
-        .min(1)
         .max(1_400_000)
-        .describe("이미지 바이트의 base64. 데이터 URI 접두사가 있어도 된다"),
+        .optional()
+        .describe("이미지 바이트의 base64. template 와 동시에 줄 수 없다"),
+      template: z
+        .enum(["signature-cover"])
+        .optional()
+        .describe("서버측 렌더 템플릿. data_base64 와 동시에 줄 수 없다"),
+      fields: z
+        .object({
+          headline: z.string().min(4).max(60).describe("헤드라인. \\n 으로 줄바꿈"),
+          eyebrow: z.string().max(40).optional().describe("헤드라인 위 작은 소개줄"),
+          notes: z.string().max(80).optional().describe("하단 모노 라벨(예: 플레이버 노트). 대문자로 표시된다"),
+          variant: z.enum(["light", "dark"]).default("light"),
+        })
+        .optional()
+        .describe("template 렌더에 쓸 텍스트"),
       alt: z
         .string()
         .min(5)
@@ -97,7 +112,9 @@ export const createImage = {
   },
   handler: withTool<{
     purpose?: string;
-    data_base64: string;
+    data_base64?: string;
+    template?: "signature-cover";
+    fields?: CoverFields;
     alt: string;
     post_slug?: string;
     name_hint?: string;
@@ -114,16 +131,48 @@ export const createImage = {
         throw new Error("대체 텍스트(alt)를 5자 이상 적어주세요. 접근성과 이미지 SEO 에 쓰입니다.");
       }
 
-      // ── 1. 디코드 전에 길이부터 본다(메모리 방어) ──
-      const raw = args.data_base64 ?? "";
-      if (raw.length > policy.max_b64_len) {
+      // ── 1. 입력 경로 확정 — base64 업로드 XOR 템플릿 렌더 ──
+      const hasData = Boolean(args.data_base64 && args.data_base64.trim());
+      const hasTemplate = Boolean(args.template);
+      if (hasData === hasTemplate) {
         throw new Error(
-          `이미지가 너무 큽니다(base64 ${raw.length.toLocaleString()}자, 상한 ${policy.max_b64_len.toLocaleString()}자). ` +
-            "가로 1200px · JPEG 품질 85 로 다시 인코딩하거나 /admin/blog 에서 직접 올리세요.",
+          "data_base64 와 template 중 정확히 하나만 주세요. " +
+            "서버가 그리게 하려면 template + fields, 직접 만든 이미지를 올리려면 data_base64 입니다.",
         );
       }
 
-      const buf = decodeBase64(raw);
+      let buf: Buffer;
+      if (hasTemplate) {
+        if (!ctx.render) {
+          throw new Error("이 배포에는 커버 렌더러가 없습니다. data_base64 로 직접 올리거나 관리자에게 문의하세요.");
+        }
+        const fields = args.fields;
+        if (!fields?.headline?.trim()) {
+          throw new Error("template 렌더에는 fields.headline 이 필요합니다.");
+        }
+        // 브랜드 토큰 — 렌더러가 색·워드마크를 여기서 읽는다. 코드에 기본값을 두지 않는다.
+        const { data: tokRows, error: tokErr } = await ctx.db
+          .from("mcp_v_site_setting")
+          .select("key,value");
+        if (tokErr) throw new Error(`브랜드 설정을 읽지 못했습니다: ${tokErr.message}`);
+        const tokens: Record<string, string> = {};
+        for (const r of (tokRows ?? []) as { key: string; value: string }[]) tokens[r.key] = r.value;
+        if (!Object.keys(tokens).some((k) => k.startsWith("brand."))) {
+          throw new Error("브랜드 규범(brand.*)이 설정돼 있지 않습니다. 렌더 대신 data_base64 를 쓰거나 site_setting 을 채우세요.");
+        }
+        buf = await ctx.render({ template: args.template!, fields, tokens });
+      } else {
+        // ── 디코드 전에 길이부터 본다(메모리 방어) ──
+        const raw = (args.data_base64 ?? "").trim();
+        if (raw.length > policy.max_b64_len) {
+          throw new Error(
+            `이미지가 너무 큽니다(base64 ${raw.length.toLocaleString()}자, 상한 ${policy.max_b64_len.toLocaleString()}자). ` +
+              "가로 1200px · JPEG 품질 85 로 다시 인코딩하거나 /admin/blog 에서 직접 올리세요.",
+          );
+        }
+        buf = decodeBase64(raw);
+      }
+
       if (buf.length > policy.max_bytes) {
         throw new Error(
           `이미지가 ${Math.round(buf.length / 1024)}KB 로 상한(${Math.round(policy.max_bytes / 1024)}KB)을 넘습니다. ` +
@@ -136,7 +185,7 @@ export const createImage = {
 
       // 종단 무결성. PNG·WebP 는 구조로 잡히지만 JPEG 에는 체크섬이 없어
       // 중간이 변형돼도 구조 검사만으로는 통과한다. 보내는 쪽이 해시를 알면 여기서 막는다.
-      const expected = (args.sha256 ?? "").toLowerCase();
+      const expected = hasData ? (args.sha256 ?? "").toLowerCase() : "";
       if (expected && expected !== info.sha256) {
         throw new Error(
           `전송된 바이트가 원본과 다릅니다(기대 ${expected.slice(0, 12)}… / 실제 ${info.sha256.slice(0, 12)}…, ${buf.length}바이트). ` +
@@ -170,7 +219,7 @@ export const createImage = {
       }
 
       const name =
-        asciiSlug(args.name_hint) || asciiSlug(args.post_slug) || asciiSlug(purpose) || "cover";
+        asciiSlug(args.name_hint) || asciiSlug(args.post_slug) || asciiSlug(args.template) || asciiSlug(purpose) || "cover";
       const path = buildAssetPath(policy.prefix, name, info.sha256, info.ext);
 
       // ── 4. 사전 점검 — 바이트를 쓰기 전에 쿼터와 중복을 본다 ──
@@ -230,8 +279,8 @@ export const createImage = {
         mime: info.mime,
         duplicate,
         next_step: duplicate
-          ? "같은 이미지가 이미 등록돼 있어 그 URL 을 돌려줍니다. commerce_draft_post 의 cover_image 인자에 넣으세요."
-          : "등록했습니다. commerce_draft_post 의 cover_image 인자에 이 url 을 넣으면 초안에 커버가 붙습니다.",
+          ? "같은 이미지가 이미 등록돼 있어 그 URL 을 돌려줍니다. 새 글이면 commerce_draft_post 의 cover_image, 기존 초안이면 commerce_attach_cover 에 넣으세요."
+          : "등록했습니다. 새 글이면 commerce_draft_post 의 cover_image 인자에, 이미 저장된 초안이면 commerce_attach_cover 에 이 url 을 넣으세요.",
       };
     },
     {
@@ -242,6 +291,7 @@ export const createImage = {
         alt: args.alt ?? null,
         post_slug: args.post_slug ?? null,
         b64_len: String(args.data_base64 ?? "").length,
+        template: args.template ?? null,
         sha256_expected: args.sha256 ?? null,
         path: (data?.path as string) ?? null,
         sha256: (data?.sha256 as string) ?? null,

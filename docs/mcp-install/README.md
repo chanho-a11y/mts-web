@@ -82,6 +82,20 @@ values (
 
 ---
 
+### 1-6. 인스턴스 시딩 체크 (쓰기 툴, D-107·108)
+
+쓰기 툴은 `mcp_config` 값이 없으면 기동은 되지만 호출 시점에 실패한다. 인도 시 반드시 채운다:
+
+| 키 | 내용 | 빠뜨리면 |
+|---|---|---|
+| `default_author` | **고객사 저자명** | 초안 저자가 이전 인스턴스 값으로 나간다 — D-107 에서 하드코딩('홍찬호')을 이 키로 뺀 이유다. **교체 필수** |
+| `asset_base_url` | 해당 프로젝트의 `https://<ref>.supabase.co/storage/v1/object/public/product-assets/` | 커버 검증이 전부 거부된다 |
+| `asset_policy` | `value='json'` + `value_json` 에 blog-cover 정책(docs/mcp-asset-20260806.sql §1) | 이미지 등록이 거부된다 |
+| `site_setting` 의 `brand.color.*`·`brand.identity.name` | 고객사 브랜드 토큰 | 서버측 커버 렌더(template)가 거부된다 — 기본값을 쓰지 않는 것이 의도다 |
+
+함께 적용할 마이그레이션: `docs/mcp-asset-20260806.sql`(자산 대장·Storage RLS·draft_post 8인자) · `docs/mcp-attach-cover-20260806.sql`(커버 부착). ⚠️ draft_post 는 **기존 7인자 함수를 drop 한 뒤** 만들어야 한다(오버로드 모호성 42725 — 파일 안 주석 참조).
+폰트: `mcp/fonts/*.woff` 가 리포에 포함돼 있고 `next.config` 의 `outputFileTracingIncludes` 가 이를 배포에 싣는다. 커버 렌더가 배포에서만 실패하면 이것부터 확인한다.
+
 ## 2. 설계상 반드시 지킬 것
 
 **`install.sql` §7-3 의 anon/authenticated 회수를 절대 빼지 말 것.** Supabase 는 `public` 스키마의 신규 테이블·뷰·시퀀스에 `anon`·`authenticated` 권한을 기본 부여한다. `mcp_v_*` 는 소유자 권한 뷰라서, 이 회수를 빠뜨리면 **익명 사용자가 PostgREST 로 주문·고객 데이터를 RLS 우회해 전부 읽는다.** 2026-07-29 실제 설치에서 발생해 즉시 차단한 함정이다. 설치 후 `verify.sql` C 블록이 전부 `false` 인지 반드시 확인한다.
@@ -111,7 +125,7 @@ values (
 
 - **역할 세분화 미구현.** DB의 `customer_role` enum 이 `guest|individual|business|influencer|admin` 뿐이라, 현재는 `admin` 만 MCP 접근이 가능하다. 세분화가 필요하면 `mcp_token.scopes` 로 **좁힌다**(넓히지는 못한다). 직원 역할은 P1.
 - **인증은 정적 헤더 토큰(P0).** 고객사 인도본은 OAuth 로 갈 가능성이 높다 — 첫 고객사 Claude 플랜 확인 후 결정.
-- **쓰기 툴 없음.** P0 는 읽기 전용이다.
+- **쓰기는 승인 게이트 뒤에만 있다.** 블로그 초안(D-105)·상품 수정 제안(D-106)·커버 이미지(D-107)·커버 부착(D-108). 발행·반영·삭제는 전부 관리자 화면에서 사람이 한다.
 - **`orders` NOT NULL 미적용.** 주문 생성 코드가 `storefront_id`·`brand_id` 를 채우도록 고친 뒤에 건다.
 - Supabase Advisor 의 `security_definer_view` 경고는 이 설계의 의도된 결과다. `rls_enabled_no_policy`(mcp_config·mcp_token·mcp_audit_log) 도 의도적이다 — 정책이 없어야 service-role 외 접근이 막힌다.
 

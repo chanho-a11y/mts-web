@@ -9,6 +9,11 @@ const nextConfig = {
   },
   experimental: {
     // domain-based multi-storefront handled in middleware.ts
+    // D-108: 커버 렌더 폰트(mcp/fonts/*.woff)를 MCP 라우트 함수 번들에 포함.
+    // fs.readFile 로 읽는 파일은 트레이싱이 자동으로 못 잡는다 — 빠지면 렌더가 배포에서만 죽는다.
+    outputFileTracingIncludes: {
+      "/api/mcp": ["./mcp/fonts/**"],
+    },
   },
   // 보안 응답 헤더 (H-3). CSP 는 초기 회귀 방지를 위해 Report-Only 로 시작 → 검증 후 enforce 전환.
   async headers() {

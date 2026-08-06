@@ -145,6 +145,24 @@ export interface PriceResult {
   source: "individual" | "tier" | "base" | null;
 }
 
+/** 커버 렌더 필드 (D-108). 템플릿 레이아웃은 render.ts 가, 색·워드마크는 brand.* 토큰이 정한다 */
+export interface CoverFields {
+  headline: string;
+  eyebrow?: string;
+  notes?: string;
+  variant?: "light" | "dark";
+}
+
+/**
+ * 서버측 커버 렌더러. Next 런타임 결합(next/og)은 이 어댑터 뒤에 숨긴다 —
+ * 패키지 추출·스모크 하네스에서는 다른 구현(또는 부재)으로 갈아끼운다.
+ */
+export type CoverRenderer = (spec: {
+  template: "signature-cover";
+  fields: CoverFields;
+  tokens: Record<string, string>;
+}) => Promise<Buffer>;
+
 /** 툴 실행 컨텍스트 */
 export interface ToolContext {
   config: McpConfig;
@@ -153,6 +171,8 @@ export interface ToolContext {
   db: DbClient;
   /** 자산 저장소. DbClient 와 분리해 둔다 — 패키지 추출 시 어댑터를 따로 갈아끼울 수 있어야 한다 */
   storage: StorageClient;
+  /** 서버측 커버 렌더러. 없는 배포에서는 template 렌더가 명확한 오류를 낸다 */
+  render?: CoverRenderer;
   audit: (entry: AuditEntry) => Promise<void>;
 }
 

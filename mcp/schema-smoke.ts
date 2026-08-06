@@ -74,6 +74,11 @@ const ROWS: Record<string, any[]> = {
     role: "business", price_tier: "도매-기본", is_b2b: true, company_name_masked: "에*시", business_status: "approved",
     approved_at: "2026-01-01", created_at: "2026-01-01", archived: false, language: "ko", marketing_opt_in: true }],
   mcp_v_site_setting: [{ key: "brand.color.key", value: "#123456", brand_code: "acme" },
+                       { key: "brand.color.bg", value: "#F0F0E0 (bg)", brand_code: "acme" },
+                       { key: "brand.color.surface", value: "#E0D8C8", brand_code: "acme" },
+                       { key: "brand.color.text", value: "#333028", brand_code: "acme" },
+                       { key: "brand.color.text_muted", value: "#807868", brand_code: "acme" },
+                       { key: "brand.identity.name", value: "ACME COFFEE", brand_code: "acme" },
                        { key: "brand.wordmark.rule", value: "재트래킹 금지", brand_code: "acme" }],
   mcp_v_content_post: [{ slug: "hello", title: "첫 글", excerpt: null, body_html: "<p>본문</p>", cover_image: null,
     tags: [], author: "a", status: "published", published_at: "2026-01-01", seo_title: null, seo_description: null }],
@@ -98,6 +103,7 @@ const db: any = {
     if (fn === "mcp_resolve_price") return { data: [{ price: 32000, source: "individual" }], error: null };
     if (fn === "mcp_draft_post") return { data: "smoke-post", error: null };
     if (fn === "mcp_asset_precheck") return { data: null, error: null };
+    if (fn === "mcp_attach_cover") return { data: "smoke-post", error: null };
     if (fn === "mcp_register_asset") return { data: false, error: null };
     if (fn === "mcp_propose_product_change")
       return { data: { change_id: "c1", slug: "sample-200", fields: ["story"], status: "pending" }, error: null };
@@ -107,6 +113,9 @@ const db: any = {
 };
 
 const ALL = ["catalog:read","catalog:write","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
+// 진짜 렌더러(next/og)는 여기서 부르지 않는다 — 하네스는 형태 검증이 목적이다.
+const fakeRender = async () => solidPng(1200, 800);
+
 const storage: any = {
   upload: async () => ({ error: null }),
   publicUrl: (bucket: string, path: string) => `https://example.test/storage/v1/object/public/${bucket}/${path}`,
@@ -125,7 +134,7 @@ const ctx: any = {
     } },
   // profileId 는 자산 쿼터의 기준이라 null 이면 안 된다(OAuth 경로도 항상 채운다).
   identity: { tokenId: null, profileId: "33333333-3333-3333-3333-333333333333", role: "admin", scopes: ALL, tokenName: "smoke"  },
-  db, storage, audit: async () => {},
+  db, storage, render: fakeRender, audit: async () => {},
 };
 
 const CALLS: [string, any][] = [
@@ -155,6 +164,11 @@ const CALLS: [string, any][] = [
     flavor_notes: ["초콜릿"], product_type: "블렌드", categories: ["blends"] }],
   ["commerce_create_image", { purpose: "blog-cover", data_base64: SMOKE_PNG_B64,
     alt: "스모크용 검정 커버", post_slug: "smoke-post", name_hint: "smoke-cover" }],
+  ["commerce_create_image", { purpose: "blog-cover", template: "signature-cover",
+    fields: { headline: "스모크 렌더 커버", eyebrow: "검증", notes: "smoke", variant: "light" },
+    alt: "렌더 경로 스모크 커버" }],
+  ["commerce_attach_cover", { slug: "smoke-post",
+    cover_image: "https://example.test/storage/v1/object/public/product-assets/mcp/blog/cover/202608/smoke-abcdef012345.png" }],
 ];
 
 async function main() {

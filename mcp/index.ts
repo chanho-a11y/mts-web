@@ -22,7 +22,7 @@ import {
 import { resolvePrice, listPriceOverrides } from "./tools/pricing";
 import { searchOrders, getOrder } from "./tools/orders";
 import { searchCustomers, getCustomer } from "./tools/customers";
-import { getBrandTokens, searchContent, getPost, draftPost } from "./tools/content";
+import { getBrandTokens, searchContent, getPost, draftPost, attachCover } from "./tools/content";
 import { createImage } from "./tools/assets";
 import { runReport } from "./tools/reports";
 
@@ -50,6 +50,8 @@ const TOOLS = [
   proposeProductUpdate,
   // 자산: mcp/ 프리픽스 안에 커버 이미지만 만든다. 덮어쓰기·삭제 불가(tools/assets.ts 머리말)
   createImage,
+  // 블로그: 기존 초안에 커버만 부착. 본문을 건드리지 않는다(D-108 — draft_post 재저장은 본문을 바꾼다)
+  attachCover,
 ];
 
 export { McpSetupError, McpAuthError };
@@ -74,7 +76,13 @@ export async function createContext(req: Request): Promise<ToolContext> {
   if (mode === "fallback") {
     console.warn(`[mcp] fallback 모드 요청 — token=${identity.tokenName}`);
   }
-  return { config, identity, db, storage, audit: makeAudit(db, identity) };
+  // 렌더러는 동적 import — render.ts 만 next/og 에 결합돼 있어서,
+  // 스모크 하네스(가짜 렌더러 주입)와 패키지 추출이 next 없이 성립한다.
+  const render: ToolContext["render"] = async (spec) => {
+    const mod = await import("./render");
+    return mod.renderCover(spec.fields, spec.tokens);
+  };
+  return { config, identity, db, storage, render, audit: makeAudit(db, identity) };
 }
 
 /**

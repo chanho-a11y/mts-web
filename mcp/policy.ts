@@ -85,11 +85,34 @@ function countRows(data: Record<string, unknown>): number {
   return 1;
 }
 
+/**
+ * 툴별 부가 설정.
+ *
+ * auditArgs — 감사로그에 남길 인자를 툴이 직접 만든다.
+ *   redact() 는 200자 초과 문자열을 자르므로 base64 가 로그를 채우지는 않지만,
+ *   잘린 앞토막 200자는 "무엇이 올라갔는지"를 알려주지 못한다. 감사로그의
+ *   목적이 사라지므로, 원문 대신 해시·크기·경로를 남기게 한다.
+ */
+export interface ToolOptions<A> {
+  auditArgs?: (args: A, data: Record<string, unknown> | null) => Record<string, unknown>;
+}
+
 export function withTool<A extends Record<string, unknown>>(
   name: string,
   scope: Scope | null,
   handler: (args: A, ctx: ToolContext) => Promise<Record<string, unknown>>,
+  opts?: ToolOptions<A>,
 ) {
+  const forAudit = (args: A, data: Record<string, unknown> | null): Record<string, unknown> => {
+    if (!opts?.auditArgs) return args;
+    try {
+      return opts.auditArgs(args, data);
+    } catch {
+      // 감사 인자 변환 실패가 툴을 죽이지는 않는다. 다만 원문을 흘리지도 않는다.
+      return { tool: name, note: "audit_args_failed" };
+    }
+  };
+
   return async (args: A, ctx: ToolContext): Promise<ToolResult> => {
     const started = Date.now();
     try {
@@ -97,7 +120,7 @@ export function withTool<A extends Record<string, unknown>>(
       const data = await handler(args ?? ({} as A), ctx);
       await ctx.audit({
         tool: name,
-        args,
+        args: forAudit(args, data),
         rowCount: countRows(data),
         durationMs: Date.now() - started,
         status: "ok",
@@ -108,7 +131,7 @@ export function withTool<A extends Record<string, unknown>>(
       const denied = err.name === "ScopeError";
       await ctx.audit({
         tool: name,
-        args,
+        args: forAudit(args, null),
         rowCount: 0,
         durationMs: Date.now() - started,
         status: denied ? "denied" : "error",

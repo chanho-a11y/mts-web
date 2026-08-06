@@ -12,7 +12,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SignJWT } from "jose";
-import type { DbClient } from "./types";
+import type { DbClient, StorageClient } from "./types";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,7 +49,42 @@ async function readerJwt(): Promise<string> {
 
 export interface DbHandle {
   db: DbClient;
+  storage: StorageClient;
   mode: DbMode;
+}
+
+/**
+ * 자산 저장소 어댑터.
+ *
+ * reader 모드에서는 global.headers 의 Authorization(= mcp_reader JWT)이
+ * 스토리지 요청에도 실린다. 따라서 파일 쓰기는 storage.objects 의 RLS
+ * (bucket_id='product-assets' and name like 'mcp/%')로 묶인다.
+ *
+ * upsert 는 쓰지 않는다. UPDATE 정책이 없으므로 어차피 통과하지 못하고,
+ * 무엇보다 덮어쓰기는 이 서버가 하지 못해야 하는 일이다.
+ */
+function makeStorage(client: SupabaseClient): StorageClient {
+  return {
+    async upload(bucket, path, body, opts) {
+      const { error } = await client.storage.from(bucket).upload(path, body, {
+        contentType: opts.contentType,
+        cacheControl: opts.cacheControl,
+        upsert: false,
+      });
+      if (!error) return { error: null };
+      const raw = error as unknown as { message?: string; statusCode?: string | number; name?: string };
+      return {
+        error: {
+          message: raw.message ?? String(error),
+          statusCode: raw.statusCode,
+          name: raw.name,
+        },
+      };
+    },
+    publicUrl(bucket, path) {
+      return client.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    },
+  };
 }
 
 export async function createDb(): Promise<DbHandle> {
@@ -66,7 +101,7 @@ export async function createDb(): Promise<DbHandle> {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: `Bearer ${jwt}` } },
     });
-    return { db: client as unknown as DbClient, mode: "reader" };
+    return { db: client as unknown as DbClient, storage: makeStorage(client), mode: "reader" };
   }
 
   if (ALLOW_FALLBACK && SERVICE_KEY) {
@@ -76,7 +111,7 @@ export async function createDb(): Promise<DbHandle> {
     const client: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    return { db: client as unknown as DbClient, mode: "fallback" };
+    return { db: client as unknown as DbClient, storage: makeStorage(client), mode: "fallback" };
   }
 
   throw new McpSetupError(

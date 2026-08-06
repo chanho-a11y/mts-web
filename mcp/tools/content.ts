@@ -153,6 +153,7 @@ export const draftPost = {
       "이 툴은 글을 발행하지 못하고, 이미 발행된 글도 수정하지 못한다(오류가 난다). " +
       "발행된 글을 고치려면 commerce_get_post 로 원문을 읽고 '<원본slug>--rev' 처럼 다른 슬러그로 개선안 초안을 저장할 것. " +
       "발행은 관리자 화면(/admin/blog)에서 사람이 직접 한다. " +
+      "커버 이미지는 commerce_create_image 로 먼저 등록한 뒤 그 url 을 cover_image 인자에 넘긴다 — 외부 URL 은 거부된다. " +
       "쓰기 전에 commerce_get_brand_tokens 를 호출해 브랜드 규범과 금지 표현을 먼저 확인할 것.",
     inputSchema: {
       title: z.string().min(1).max(200).describe("글 제목. 15~60자 권장"),
@@ -166,12 +167,18 @@ export const draftPost = {
       tags: z.array(z.string().max(40)).max(10).optional(),
       seo_title: z.string().max(200).optional(),
       seo_description: z.string().max(300).optional(),
+      cover_image: z
+        .string()
+        .max(500)
+        .optional()
+        .describe("commerce_create_image 가 돌려준 url. 다른 URL 은 거부된다"),
     },
     outputSchema: {
       slug: z.string(),
       status: z.string(),
       word_count: z.number(),
       char_count: z.number(),
+      has_cover: z.boolean(),
       admin_url: z.string(),
       next_step: z.string(),
     },
@@ -185,6 +192,7 @@ export const draftPost = {
     tags?: string[];
     seo_title?: string;
     seo_description?: string;
+    cover_image?: string;
   }>("commerce_draft_post", "content:write", async (args, ctx: ToolContext) => {
     const title = (args.title ?? "").trim();
     if (!title) throw new Error("제목이 필요합니다.");
@@ -207,6 +215,10 @@ export const draftPost = {
 
     const excerpt = (args.excerpt ?? text).trim().slice(0, 150) || null;
 
+    // 값 검증은 DB 함수가 정본이다(접두사·'..'·허용문자). 여기서는 빈 값만 정리한다.
+    // 생략하면 null 이 가고, DB 가 coalesce 로 기존 커버를 지키므로 재저장이 커버를 지우지 않는다.
+    const cover = (args.cover_image ?? "").trim() || null;
+
     const { data, error } = await ctx.db.rpc("mcp_draft_post", {
       p_slug: slug,
       p_title: title,
@@ -215,6 +227,7 @@ export const draftPost = {
       p_tags: args.tags ?? null,
       p_seo_title: args.seo_title ?? null,
       p_seo_description: args.seo_description ?? null,
+      p_cover_image: cover,
     });
     if (error) throw new Error(`초안을 저장하지 못했습니다: ${error.message}`);
 
@@ -225,9 +238,11 @@ export const draftPost = {
       status: "draft",
       word_count: countWords(text),
       char_count: text.length,
+      has_cover: Boolean(cover),
       admin_url: "/admin/blog",
-      next_step:
-        "초안으로 저장했습니다. 사이트에는 아직 보이지 않습니다. /admin/blog 에서 검수한 뒤 직접 발행하세요.",
+      next_step: cover
+        ? "초안으로 저장했습니다. 사이트에는 아직 보이지 않습니다. /admin/blog 에서 검수한 뒤 직접 발행하세요."
+        : "초안으로 저장했습니다. 커버 이미지가 없어 공유 시 썸네일이 나오지 않습니다 — commerce_create_image 로 커버를 만들어 붙이거나 /admin/blog 에서 첨부한 뒤 발행하세요.",
     };
   }),
 };

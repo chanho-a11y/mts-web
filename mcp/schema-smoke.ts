@@ -2,7 +2,51 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { deflateSync } from "node:zlib";
 import { registerTools } from "./index";
+
+/**
+ * 최소 PNG 인코더 — 스모크용 단색 이미지를 만든다.
+ * 커버 정책의 하한(1200x630)을 통과해야 하므로 실제 크기의 이미지가 필요한데,
+ * 단색이면 deflate 후 몇 KB 라 파일에 박아 넣지 않고 여기서 만든다.
+ */
+function solidPng(width: number, height: number): Buffer {
+  const raw = Buffer.alloc((width * 3 + 1) * height); // 필터 0 + RGB, 전부 0 = 검정
+  const idat = deflateSync(raw, { level: 9 });
+
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc32 = (b: Buffer) => {
+    let c = 0xffffffff;
+    for (const byte of b) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, body: Buffer) => {
+    const head = Buffer.alloc(4);
+    head.writeUInt32BE(body.length, 0);
+    const typed = Buffer.concat([Buffer.from(type, "ascii"), body]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(typed), 0);
+    return Buffer.concat([head, typed, crc]);
+  };
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;  // bit depth
+  ihdr[9] = 2;  // color type = truecolor
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", idat),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+const SMOKE_PNG_B64 = solidPng(1200, 800).toString("base64");
 
 // --- 가짜 DB: 모든 툴의 "성공 경로"를 태워 outputSchema 를 검증한다 ---
 const ROWS: Record<string, any[]> = {
@@ -53,6 +97,8 @@ const db: any = {
   rpc: async (fn: string) => {
     if (fn === "mcp_resolve_price") return { data: [{ price: 32000, source: "individual" }], error: null };
     if (fn === "mcp_draft_post") return { data: "smoke-post", error: null };
+    if (fn === "mcp_asset_precheck") return { data: null, error: null };
+    if (fn === "mcp_register_asset") return { data: false, error: null };
     if (fn === "mcp_propose_product_change")
       return { data: { change_id: "c1", slug: "sample-200", fields: ["story"], status: "pending" }, error: null };
     if (fn.startsWith("mcp_report_")) return { data: [{ period: "2026-07", orders: 11, gross_revenue: 3260230, refund_total: 0, net_revenue: 3260230 }], error: null };
@@ -61,11 +107,25 @@ const db: any = {
 };
 
 const ALL = ["catalog:read","catalog:write","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
+const storage: any = {
+  upload: async () => ({ error: null }),
+  publicUrl: (bucket: string, path: string) => `https://example.test/storage/v1/object/public/${bucket}/${path}`,
+};
+
 const ctx: any = {
   config: { storefrontId: "s1", currency: "KRW", timezone: "Asia/Seoul", schemaVersion: "1", enabledModules: ["coffee"],
-    attributes: [{ key: "attr_a", label_ko: "속성A", type: "string", show_in_list: true }] },
-  identity: { tokenId: null, profileId: null, role: "admin", scopes: ALL, tokenName: "smoke"  },
-  db, audit: async () => {},
+    attributes: [{ key: "attr_a", label_ko: "속성A", type: "string", show_in_list: true }],
+    assetPolicy: {
+      "blog-cover": {
+        bucket: "product-assets", prefix: "mcp/blog/cover",
+        mime: ["image/png", "image/jpeg", "image/webp"],
+        max_bytes: 1048576, max_b64_len: 1400000,
+        min_width: 1200, min_height: 630, aspect_min: 1.2, aspect_max: 2.0, max_per_hour: 20,
+      },
+    } },
+  // profileId 는 자산 쿼터의 기준이라 null 이면 안 된다(OAuth 경로도 항상 채운다).
+  identity: { tokenId: null, profileId: "33333333-3333-3333-3333-333333333333", role: "admin", scopes: ALL, tokenName: "smoke"  },
+  db, storage, audit: async () => {},
 };
 
 const CALLS: [string, any][] = [
@@ -93,6 +153,8 @@ const CALLS: [string, any][] = [
   ["commerce_list_product_changes", {}],
   ["commerce_propose_product_update", { slug: "sample-200", note: "스모크", story: "새 설명",
     flavor_notes: ["초콜릿"], product_type: "블렌드", categories: ["blends"] }],
+  ["commerce_create_image", { purpose: "blog-cover", data_base64: SMOKE_PNG_B64,
+    alt: "스모크용 검정 커버", post_slug: "smoke-post", name_hint: "smoke-cover" }],
 ];
 
 async function main() {

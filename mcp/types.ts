@@ -16,6 +16,24 @@ export interface AttributeDescriptor {
   show_in_list?: boolean;
 }
 
+/**
+ * mcp_config.asset_policy 의 한 항목.
+ * 크기·형식·상한을 코드가 아니라 설정이 갖는다 — 인스턴스마다 다르기 때문이다.
+ */
+export interface AssetPolicy {
+  bucket: string;
+  /** 스토리지 경로 접두사. 반드시 mcp/ 로 시작한다(RLS 가 그렇게 묶여 있다) */
+  prefix: string;
+  mime: string[];
+  max_bytes: number;
+  max_b64_len: number;
+  min_width: number;
+  min_height: number;
+  aspect_min: number;
+  aspect_max: number;
+  max_per_hour: number;
+}
+
 export interface McpConfig {
   storefrontId: string;
   /** ISO 4217. mcp_config.currency 에서 온다. 코드에 하드코딩하지 않는다 */
@@ -25,6 +43,8 @@ export interface McpConfig {
   schemaVersion: string;
   enabledModules: string[];
   attributes: AttributeDescriptor[];
+  /** purpose → 정책. 마이그레이션 전 인스턴스에서는 비어 있고, 자산 툴이 그때 오류를 낸다 */
+  assetPolicy: Record<string, AssetPolicy>;
 }
 
 /** 툴 게이트에 쓰는 스코프 */
@@ -131,6 +151,8 @@ export interface ToolContext {
   identity: Identity;
   /** mcp_v_* 뷰와 지정 함수만 조회하는 클라이언트 */
   db: DbClient;
+  /** 자산 저장소. DbClient 와 분리해 둔다 — 패키지 추출 시 어댑터를 따로 갈아끼울 수 있어야 한다 */
+  storage: StorageClient;
   audit: (entry: AuditEntry) => Promise<void>;
 }
 
@@ -152,4 +174,24 @@ export interface AuditEntry {
 export interface DbClient {
   from: (table: string) => any;
   rpc: (fn: string, args?: Record<string, unknown>) => any;
+}
+
+export interface StorageError {
+  message: string;
+  statusCode?: string | number;
+  name?: string;
+}
+
+/**
+ * 자산 저장소의 최소 표면.
+ * 덮어쓰기(upsert)·삭제는 의도적으로 노출하지 않는다 — 부재로 강제한다.
+ */
+export interface StorageClient {
+  upload: (
+    bucket: string,
+    path: string,
+    body: Uint8Array,
+    opts: { contentType: string; cacheControl: string },
+  ) => Promise<{ error: StorageError | null }>;
+  publicUrl: (bucket: string, path: string) => string;
 }

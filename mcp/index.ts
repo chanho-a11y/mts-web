@@ -23,6 +23,7 @@ import { resolvePrice, listPriceOverrides } from "./tools/pricing";
 import { searchOrders, getOrder } from "./tools/orders";
 import { searchCustomers, getCustomer } from "./tools/customers";
 import { getBrandTokens, searchContent, getPost, draftPost } from "./tools/content";
+import { createImage } from "./tools/assets";
 import { runReport } from "./tools/reports";
 
 const TOOLS = [
@@ -47,6 +48,8 @@ const TOOLS = [
   draftPost,
   // 상품: 제안만 등록. 반영은 관리자가 /admin/products/changes 에서 한다(tools/catalog.ts 머리말)
   proposeProductUpdate,
+  // 자산: mcp/ 프리픽스 안에 커버 이미지만 만든다. 덮어쓰기·삭제 불가(tools/assets.ts 머리말)
+  createImage,
 ];
 
 export { McpSetupError, McpAuthError };
@@ -65,13 +68,13 @@ export interface ToolContextRef {
  * 토큰 없는 tools/list 로 툴 표면이 열람되지 않는다.
  */
 export async function createContext(req: Request): Promise<ToolContext> {
-  const { db, mode } = await createDb();
+  const { db, storage, mode } = await createDb();
   const identity = await resolveIdentity(req, db);
   const config = await loadConfig(db);
   if (mode === "fallback") {
     console.warn(`[mcp] fallback 모드 요청 — token=${identity.tokenName}`);
   }
-  return { config, identity, db, audit: makeAudit(db, identity) };
+  return { config, identity, db, storage, audit: makeAudit(db, identity) };
 }
 
 /**

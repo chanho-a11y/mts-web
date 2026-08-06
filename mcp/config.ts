@@ -4,7 +4,7 @@
  * 설정은 mcp_config 테이블이 아니라 mcp_config_text / mcp_config_json 함수로 읽는다.
  * (mcp_reader 에게는 테이블 권한이 없다.)
  */
-import type { AttributeDescriptor, DbClient, McpConfig } from "./types";
+import type { AssetPolicy, AttributeDescriptor, DbClient, McpConfig } from "./types";
 import { McpSetupError } from "./db";
 
 /** 이 패키지 버전이 지원하는 DB 스키마 계약 */
@@ -69,7 +69,29 @@ export async function loadConfig(db: DbClient, force = false): Promise<McpConfig
   const currency = (await cfgText(db, "currency")) ?? "KRW";
   const timezone = (await cfgText(db, "timezone")) ?? "UTC";
 
-  const value: McpConfig = { storefrontId, currency, timezone, schemaVersion, enabledModules, attributes };
+  /**
+   * 자산 정책.
+   *
+   * 여기서 부팅을 실패시키지 않는 이유: 이 설정이 없다는 것은 자산 마이그레이션이
+   * 아직 안 됐다는 뜻일 뿐인데, 그걸로 읽기 툴까지 전부 죽이면 코드를 먼저 배포한
+   * 인스턴스가 통째로 멈춘다. "기본값을 대신 쓰지 않는다"는 원칙은 지키되,
+   * 실패 지점은 자산 툴 호출 시점으로 미룬다(tools/assets.ts 의 policyFor).
+   */
+  const policyRaw = await cfgJson(db, "asset_policy");
+  const assetPolicy: Record<string, AssetPolicy> =
+    policyRaw && typeof policyRaw === "object" && !Array.isArray(policyRaw)
+      ? (policyRaw as Record<string, AssetPolicy>)
+      : {};
+
+  const value: McpConfig = {
+    storefrontId,
+    currency,
+    timezone,
+    schemaVersion,
+    enabledModules,
+    attributes,
+    assetPolicy,
+  };
   cached = { at: Date.now(), value };
   return value;
 }

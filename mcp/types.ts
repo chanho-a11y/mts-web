@@ -142,7 +142,7 @@ export interface OrderRow {
 
 export interface PriceResult {
   price: number | null;
-  source: "individual" | "tier" | "base" | null;
+  source: "individual" | "tier" | "tier_default" | "base" | null;
 }
 
 /** 커버 렌더 필드 (D-108). 템플릿 레이아웃은 render.ts 가, 색·워드마크는 brand.* 토큰이 정한다 */

@@ -72,7 +72,7 @@ export const getSchema = {
         { name: "product", tool: "commerce_search_products / commerce_get_product", key: "slug" },
         { name: "variant", tool: "commerce_get_product(include=variants)", key: "sku" },
         { name: "inventory", tool: "commerce_get_inventory", note: "판매 가능 재고. 생산·원료 재고가 아님" },
-        { name: "price", tool: "commerce_resolve_price", note: "근거는 individual / tier / base" },
+        { name: "price", tool: "commerce_resolve_price", note: "근거는 individual / tier / tier_default / base" },
         { name: "order", tool: "commerce_search_orders / commerce_get_order", key: "order_no" },
         { name: "report", tool: "commerce_run_report" },
       ],

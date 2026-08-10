@@ -6,7 +6,8 @@ const RO = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, o
 
 const SOURCE_LABEL: Record<string, string> = {
   individual: "회원 개별가",
-  tier: "등급가",
+  tier: "등급가(수동 지정)",
+  tier_default: "등급 기본할인가",
   base: "기본 소비자가",
 };
 
@@ -15,7 +16,7 @@ export const resolvePrice = {
   config: {
     title: "적용 단가 확정",
     description:
-      "특정 고객이 특정 옵션을 살 때의 최종 단가와 그 근거를 반환한다. 근거는 individual(회원 개별가) / tier(등급가) / base(기본가) 중 하나이며, 체크아웃과 동일한 규칙으로 계산된다.",
+      "특정 고객이 특정 옵션을 살 때의 최종 단가와 그 근거를 반환한다. 근거는 individual(회원 개별가) / tier(변형별 수동 등급가) / tier_default(등급 기본할인율 규칙가) / base(기본가) 중 하나이며, 체크아웃과 동일한 규칙으로 계산된다.",
     inputSchema: {
       variant_id: z.string().uuid().optional(),
       sku: z.string().optional(),

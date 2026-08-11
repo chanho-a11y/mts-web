@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 export interface StorefrontContext {
   brand: Brand;
   storefrontId: string | null;
+  /** storefront.brand_id — 주문 귀속(orders.brand_id)에 쓰는 '판매 주체' 브랜드 UUID (D-112). */
+  brandId: string | null;
   locale: Locale;
 }
 
@@ -17,16 +19,19 @@ export const getStorefrontContext = cache(async function getStorefrontContext():
   const brand = brandForHost(h.get("host"));
   const locale: Locale = h.get("x-locale") === "en" ? "en" : "ko";
   let storefrontId: string | null = null;
+  let brandId: string | null = null;
   try {
     const supabase = createClient();
     const { data } = await supabase
       .from("storefront")
-      .select("id")
+      .select("id,brand_id")
       .eq("domain", brand.domain)
       .maybeSingle();
     storefrontId = data?.id ?? null;
+    brandId = (data as { brand_id?: string } | null)?.brand_id ?? null;
   } catch {
     storefrontId = null;
+    brandId = null;
   }
-  return { brand, storefrontId, locale };
+  return { brand, storefrontId, brandId, locale };
 });

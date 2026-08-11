@@ -5,6 +5,7 @@ import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { getAdapter, type Provider } from "@/lib/payments";
 import { computeShipping } from "@/lib/shipping";
 import { getKrwPerUsd } from "@/lib/fx";
+import { getStorefrontContext } from "@/lib/storefront";
 
 export interface CheckoutItem { variantId: string; qty: number }
 export interface CheckoutPayload {
@@ -158,6 +159,12 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const taxableKRW = Math.max(0, subtotal - disc.amount);
   const tax = !usd ? Math.round((taxableKRW * vatRate) / (100 + vatRate)) : 0;
 
+  // 주문 귀속(D-112) — 요청 호스트로 결정된 스토어프론트를 명시적으로 기록한다.
+  // 이 값이 비면 집계·리포트·MCP 조회에서 주문이 통째로 사라진다(2026-08-11 사고).
+  // 조회 실패로 null 이 되더라도 order_item INSERT 시 DB 안전망 트리거가 보정한다.
+  const { storefrontId, brandId } = await getStorefrontContext();
+  if (!storefrontId) console.error(`[order-storefront-unresolved] host=${headers().get("host") ?? "?"} — storefront 미해석, DB 안전망 트리거 보정 대기`);
+
   // order_no
   const { data: noData } = await db.rpc("next_order_no");
   const orderNo = (noData as string) ?? `MTS${Date.now()}`;
@@ -166,6 +173,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     .from("orders")
     .insert({
       order_no: orderNo, profile_id: profileId, customer_type: guest ? "guest" : "individual",
+      storefront_id: storefrontId, brand_id: brandId,
       status: "created", email: user?.email ?? payload.email ?? null, phone: payload.shipping.phone,
       shipping_address: { ...payload.shipping, shipping_label: ship.label },
       items_subtotal: usd ? Math.round(subtotal / fxRate) : subtotal, tip_amount: tip,

@@ -4,6 +4,7 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
 import { formatKRW, t, type Locale } from "@/lib/i18n";
+import { MAX_ADDRESSES, formatAddressLine, type AddressRow } from "@/lib/address";
 import { createOrderAction } from "@/app/checkout/actions";
 import { resolveCartPricesAction } from "@/app/checkout/price-actions";
 import type { Provider } from "@/lib/payments";
@@ -84,7 +85,13 @@ async function startInicis(fields: Record<string, string>) {
 }
 
 interface CheckoutInitial { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string }
-export default function CheckoutForm({ tip, email = "", locale = "ko", initial }: { tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial }) {
+export default function CheckoutForm({
+  tip, email = "", locale = "ko", initial,
+  savedAddresses = [], canSaveAddress = false, addressBookFull = false,
+}: {
+  tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial;
+  savedAddresses?: AddressRow[]; canSaveAddress?: boolean; addressBookFull?: boolean;
+}) {
   // 장바구니 비우기는 결제 완료 페이지(CheckoutCompleteClear)에서 처리한다.
   const { items } = useCart();
   const tt = t(locale);
@@ -118,6 +125,27 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
   const [city, setCity] = useState("");
   const [zipcode, setZipcode] = useState(initial?.zipcode || "");
   const [addr1, setAddr1] = useState(initial?.addr1 || "");
+  // 배송지 선택기(D-113) — 저장된 배송지를 고르면 아래 필드를 통째로 채운다.
+  // 그래서 recipient·phone·addr2 도 controlled 로 둔다(defaultValue 로는 갱신이 안 된다).
+  const [recipient, setRecipient] = useState(initial?.recipient || "");
+  const [phone, setPhone] = useState(initial?.phone || "");
+  const [addr2, setAddr2] = useState(initial?.addr2 || "");
+  const [addrChoice, setAddrChoice] = useState<string>(savedAddresses[0]?.id ?? "new");
+  const [saveAddress, setSaveAddress] = useState(false);
+
+  function pickAddress(id: string) {
+    setAddrChoice(id);
+    if (id === "new") {
+      setRecipient(""); setPhone(""); setCountry("KR");
+      setZipcode(""); setAddr1(""); setAddr2("");
+      return;
+    }
+    const a = savedAddresses.find((x) => x.id === id);
+    if (!a) return;
+    setRecipient(a.recipient || ""); setPhone(a.phone || ""); setCountry(a.country || "KR");
+    setZipcode(a.zipcode || ""); setAddr1(a.addr1 || ""); setAddr2(a.addr2 || "");
+    setSaveAddress(false); // 이미 주소록에 있는 주소다
+  }
   const [quote, setQuote] = useState<Quote | null>(null);
   // 로그인 고객의 개별가/등급가 실적용가 맵 (없으면 담을 때 저장된 정가로 폴백)
   const [priceMap, setPriceMap] = useState<Record<string, number>>({});
@@ -200,6 +228,7 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
         payMethod: isMobile ? payMethod : undefined,
         code: code.trim() || undefined,
         email: String(formData.get("email") || "") || undefined,
+        saveAddress: saveAddress && canSaveAddress && isKR && addrChoice === "new",
         shipping: {
           recipient: String(formData.get("recipient") || ""),
           phone: String(formData.get("phone") || ""),
@@ -253,8 +282,28 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
         <label className="block text-sm">{tt.emailOrderConfirm}<input type="email" name="email" defaultValue={email} required className={input} /></label>
         <h2 className="pt-2 font-bold">{tt.shippingAddress}</h2>
         <Script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" strategy="lazyOnload" />
-        <label className="block text-sm">{tt.recipient}<input name="recipient" defaultValue={initial?.recipient || ""} required className={input} /></label>
-        <label className="block text-sm">{tt.phone}<input name="phone" defaultValue={initial?.phone || ""} required className={input} /></label>
+
+        {/* 저장된 배송지 선택 — 여러 배송지를 쓰는 고객이 매번 재입력하지 않게 한다(D-113) */}
+        {savedAddresses.length > 0 && (
+          <label className="block text-sm">{tt.savedAddresses}
+            <select value={addrChoice} onChange={(e) => pickAddress(e.target.value)} className={input}>
+              {savedAddresses.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {[a.label, a.recipient].filter(Boolean).join(" · ")} — {formatAddressLine(a)}
+                  {a.is_default ? ` (${tt.default})` : ""}
+                </option>
+              ))}
+              <option value="new">{tt.enterNewAddress}</option>
+            </select>
+          </label>
+        )}
+
+        <label className="block text-sm">{tt.recipient}
+          <input name="recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} required className={input} />
+        </label>
+        <label className="block text-sm">{tt.phone}
+          <input name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required className={input} />
+        </label>
         <label className="block text-sm">{tt.country}
           <select name="country" value={country} onChange={(e) => setCountry(e.target.value)} className={input}>
             {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{en ? c.en : c.ko}</option>)}
@@ -279,7 +328,7 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
               </button>
             </div>
             <input name="addr1" placeholder={tt.addr1Placeholder} value={addr1} onChange={(e) => setAddr1(e.target.value)} required className={input} />
-            <input name="addr2" defaultValue={initial?.addr2 || ""} placeholder={tt.addr2Placeholder} className={input} />
+            <input name="addr2" value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder={tt.addr2Placeholder} className={input} />
           </>
         ) : (
           <>
@@ -295,9 +344,22 @@ export default function CheckoutForm({ tip, email = "", locale = "ko", initial }
               <input name="zipcode" value={zipcode} onChange={(e) => setZipcode(e.target.value)} className={input} />
             </label>
             <input name="addr1" placeholder={en ? "Street address" : "주소 (Street address)"} value={addr1} onChange={(e) => setAddr1(e.target.value)} required className={input} />
-            <input name="addr2" defaultValue={initial?.addr2 || ""} placeholder={en ? "Apartment, suite, etc. (optional)" : "상세주소 (선택)"} className={input} />
+            <input name="addr2" value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder={en ? "Apartment, suite, etc. (optional)" : "상세주소 (선택)"} className={input} />
             <p className="text-xs text-neutral-400">{en ? "International orders ship via EMS (coffee beans only)." : "해외 주문은 EMS로 발송됩니다(원두에 한함)."}</p>
           </>
+        )}
+
+        {/* 새로 입력한 주소만 주소록 저장 대상 — 이미 저장된 주소를 고른 경우는 중복이라 숨긴다 */}
+        {addrChoice === "new" && canSaveAddress && isKR && (
+          <label className="flex items-center gap-2 pt-1 text-sm">
+            <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+            {tt.saveToAddressBook}
+          </label>
+        )}
+        {addrChoice === "new" && addressBookFull && isKR && (
+          <p className="pt-1 text-xs text-neutral-400">
+            {tt.saveToAddressBookFull.replace("{max}", String(MAX_ADDRESSES))}
+          </p>
         )}
 
         <h2 className="pt-4 font-bold">{tt.paymentMethod}</h2>

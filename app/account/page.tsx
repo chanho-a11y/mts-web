@@ -1,14 +1,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOutAction, deleteAddressAction, setDefaultAddressAction, updateMarketingOptInAction } from "@/app/account/actions";
-import AddressBookForm from "@/components/address-book-form";
+import { signOutAction, updateMarketingOptInAction } from "@/app/account/actions";
+import AddressBook from "@/components/address-book";
+import type { AddressRow } from "@/lib/address";
 import OrderHistory, { type HistoryItem } from "@/components/order-history";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function AccountPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
   const { locale } = await getStorefrontContext();
   const tt = t(locale);
   const ROLE_LABEL: Record<string, string> = {
@@ -36,7 +37,7 @@ export default async function AccountPage({ searchParams }: { searchParams: { sa
 
   const { data: addresses } = await supabase
     .from("addresses")
-    .select("id,recipient,phone,country,zipcode,addr1,addr2,entrance_memo,is_default")
+    .select("id,label,recipient,phone,country,zipcode,addr1,addr2,entrance_memo,is_default")
     .eq("profile_id", user.id)
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
@@ -88,40 +89,20 @@ export default async function AccountPage({ searchParams }: { searchParams: { sa
         </section>
       )}
 
-      <section className="mt-4 rounded-xl border p-5 text-sm">
+      <section id="addresses" className="mt-4 rounded-xl border p-5 text-sm">
         <h2 className="mb-3 font-bold">{tt.addressBook}</h2>
-        {addresses && addresses.length ? (
-          <ul className="mb-4 space-y-3">
-            {addresses.map((a) => (
-              <li key={a.id} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">
-                    {a.recipient} {a.is_default && <span className="ml-1 rounded bg-ink px-1.5 py-0.5 text-[10px] text-oat">{tt.default}</span>}
-                  </p>
-                  <div className="flex gap-2 text-xs">
-                    {!a.is_default && (
-                      <form action={setDefaultAddressAction}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <button className="text-neutral-500 hover:underline">{tt.setAsDefault}</button>
-                      </form>
-                    )}
-                    <form action={deleteAddressAction}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <button className="text-red-500 hover:underline">{tt.remove}</button>
-                    </form>
-                  </div>
-                </div>
-                <p className="mt-1 text-neutral-600">
-                  ({a.zipcode}) {a.addr1} {a.addr2}
-                </p>
-                <p className="text-neutral-400">{a.phone}{a.entrance_memo ? ` · ${a.entrance_memo}` : ""}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mb-4 text-neutral-500">{tt.noAddresses}</p>
+        {searchParams?.saved === "address" && (
+          <p className="mb-3 rounded bg-green-50 px-3 py-2 text-xs text-green-700">{tt.addressSaved}</p>
         )}
-        <AddressBookForm defaultName={profile?.name ?? ""} defaultPhone={profile?.phone ?? ""} locale={locale} />
+        {searchParams?.error && (
+          <p className="mb-3 rounded bg-red-50 px-3 py-2 text-xs text-red-700">{searchParams.error}</p>
+        )}
+        <AddressBook
+          addresses={(addresses ?? []) as AddressRow[]}
+          defaultName={profile?.name ?? ""}
+          defaultPhone={profile?.phone ?? ""}
+          locale={locale}
+        />
       </section>
 
       <Orders userId={user.id} locale={locale} />

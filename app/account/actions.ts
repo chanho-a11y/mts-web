@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { MAX_ADDRESSES } from "@/lib/address";
 import {
   clientIp, ipRateExceeded, logSignupAttempt, normalizedEmailTaken, verifyFormToken,
 } from "@/lib/signup-guard";
@@ -187,35 +188,104 @@ export async function signOutAction() {
 
 /* ---------- 배송지 주소록 (마이페이지) ---------- */
 
+// 폼 → DB 행. 필수값 검증까지 함께 처리한다.
+function readAddressForm(formData: FormData):
+  | { ok: true; row: Record<string, string | null> }
+  | { ok: false; error: string } {
+  const recipient = String(formData.get("recipient") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const addr1 = String(formData.get("addr1") || "").trim();
+  if (!recipient || !phone || !addr1) {
+    return { ok: false, error: "받는 분·전화번호·기본 주소는 필수입니다." };
+  }
+  return {
+    ok: true,
+    row: {
+      label: String(formData.get("label") || "").trim().slice(0, 20) || null,
+      recipient,
+      phone,
+      country: String(formData.get("country") || "KR"),
+      zipcode: String(formData.get("zipcode") || "").trim(),
+      addr1,
+      addr2: String(formData.get("addr2") || "").trim(),
+      entrance_memo: String(formData.get("entrance_memo") || "").trim() || null,
+    },
+  };
+}
+
+function addressError(msg: string): never {
+  redirect(`/account?error=${encodeURIComponent(msg)}#addresses`);
+}
+
 export async function saveAddressAction(formData: FormData) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/account/login");
 
-  const makeDefault = formData.get("is_default") === "on";
-  const row = {
-    profile_id: user.id,
-    recipient: String(formData.get("recipient") || "").trim(),
-    phone: String(formData.get("phone") || "").trim(),
-    country: String(formData.get("country") || "KR"),
-    zipcode: String(formData.get("zipcode") || "").trim(),
-    addr1: String(formData.get("addr1") || "").trim(),
-    addr2: String(formData.get("addr2") || "").trim(),
-    entrance_memo: String(formData.get("entrance_memo") || "").trim() || null,
-    is_default: makeDefault,
-  };
+  const parsed = readAddressForm(formData);
+  if (!parsed.ok) addressError(parsed.error);
 
-  // 기본 배송지로 지정하면 기존 기본값 해제
-  if (makeDefault) {
-    await supabase.from("addresses").update({ is_default: false }).eq("profile_id", user.id);
-  }
-  // 첫 주소는 자동으로 기본 배송지
+  // 상한(D-113) — 기존에 상한을 넘겨 저장된 계정은 그대로 두고, 신규 추가만 막는다.
   const { count } = await supabase
     .from("addresses").select("id", { count: "exact", head: true }).eq("profile_id", user.id);
-  if (!count) row.is_default = true;
+  const existing = count ?? 0;
+  if (existing >= MAX_ADDRESSES) {
+    addressError(`배송지는 최대 ${MAX_ADDRESSES}개까지 저장할 수 있습니다. 기존 배송지를 삭제하거나 수정해 주세요.`);
+  }
 
-  await supabase.from("addresses").insert(row);
-  redirect("/account?saved=address");
+  // 첫 주소는 무조건 기본. 그 외에는 체크박스를 따른다.
+  const makeDefault = existing === 0 || formData.get("is_default") === "on";
+
+  // 순서가 중요하다: 먼저 is_default=false 로 넣고, 성공한 뒤에 RPC 로 기본을 옮긴다.
+  // (기존 기본을 먼저 해제했다가 INSERT 가 실패하면 '기본 배송지 0건' 상태로 남는다.)
+  const { data: inserted, error } = await supabase
+    .from("addresses")
+    .insert({ ...parsed.row, profile_id: user.id, is_default: existing === 0 })
+    .select("id")
+    .single();
+
+  // 예전 구현은 error 를 버리고 무조건 성공처럼 리다이렉트했다 → 저장 안 됐는데 저장된 줄 알던 문제.
+  if (error || !inserted) {
+    console.error("[address-insert-failed]", error?.message);
+    addressError("배송지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+
+  if (makeDefault && existing > 0) {
+    const { error: dErr } = await supabase.rpc("set_default_address", { p_address_id: inserted.id });
+    if (dErr) console.error("[address-set-default-failed]", dErr.message);
+  }
+  redirect("/account?saved=address#addresses");
+}
+
+export async function updateAddressAction(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/account/login");
+
+  const id = String(formData.get("id") || "");
+  if (!id) addressError("수정할 배송지를 찾을 수 없습니다.");
+
+  const parsed = readAddressForm(formData);
+  if (!parsed.ok) addressError(parsed.error);
+
+  // is_default 는 여기서 건드리지 않는다 — 전환은 RPC 한 번으로 원자적으로 처리한다.
+  // .eq("profile_id") 는 RLS 와 별개로 한 번 더 두는 소유권 방어선.
+  const { error } = await supabase
+    .from("addresses")
+    .update({ ...parsed.row, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("profile_id", user.id);
+
+  if (error) {
+    console.error("[address-update-failed]", error.message);
+    addressError("배송지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+
+  if (formData.get("is_default") === "on") {
+    const { error: dErr } = await supabase.rpc("set_default_address", { p_address_id: id });
+    if (dErr) console.error("[address-set-default-failed]", dErr.message);
+  }
+  redirect("/account?saved=address#addresses");
 }
 
 export async function deleteAddressAction(formData: FormData) {
@@ -223,8 +293,10 @@ export async function deleteAddressAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/account/login");
   const id = String(formData.get("id") || "");
+  // 기본 배송지를 지우면 DB 트리거(addresses_promote_default_after_delete)가
+  // 남은 주소 중 최신 1건을 자동으로 기본으로 승격한다.
   await supabase.from("addresses").delete().eq("id", id).eq("profile_id", user.id);
-  redirect("/account");
+  redirect("/account#addresses");
 }
 
 export async function setDefaultAddressAction(formData: FormData) {
@@ -232,9 +304,16 @@ export async function setDefaultAddressAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/account/login");
   const id = String(formData.get("id") || "");
-  await supabase.from("addresses").update({ is_default: false }).eq("profile_id", user.id);
-  await supabase.from("addresses").update({ is_default: true }).eq("id", id).eq("profile_id", user.id);
-  redirect("/account");
+  if (!id) redirect("/account#addresses");
+
+  // 해제 → 지정을 한 트랜잭션에서 처리(RPC). 두 번의 UPDATE 사이에 다른 요청이 끼어들어
+  // 기본 배송지가 0건이나 2건이 되는 경합을 막는다.
+  const { error } = await supabase.rpc("set_default_address", { p_address_id: id });
+  if (error) {
+    console.error("[address-set-default-failed]", error.message);
+    addressError("기본 배송지 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+  redirect("/account?saved=address#addresses");
 }
 
 /* ---------- 마케팅 수신동의 (마이페이지) ---------- */

@@ -6,6 +6,7 @@ import { getAdapter, type Provider } from "@/lib/payments";
 import { computeShipping } from "@/lib/shipping";
 import { getKrwPerUsd } from "@/lib/fx";
 import { getStorefrontContext } from "@/lib/storefront";
+import { MAX_ADDRESSES, addressKey } from "@/lib/address";
 
 export interface CheckoutItem { variantId: string; qty: number }
 export interface CheckoutPayload {
@@ -16,6 +17,7 @@ export interface CheckoutPayload {
   email?: string;
   mobile?: boolean;   // 클라이언트 기기 판별(이니시스 PC/모바일 모듈 분기)
   payMethod?: string; // 모바일 이니시스 지불수단(CARD|BANK)
+  saveAddress?: boolean; // 이 배송지를 주소록에 저장(로그인 회원·국내 주소만)
   shipping: {
     recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string;
     state?: string; city?: string; countryName?: string; // 해외 배송지(주/도·도시·기타국가명)
@@ -188,6 +190,37 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   await db.from("order_item").insert(
     lines.map((l) => ({ order_id: order.id, variant_id: l.variant_id, sku: l.sku, title_snapshot: l.title, option_snapshot: l.option, unit_price: l.unit, price_source: l.source, qty: l.qty, line_total: l.unit * l.qty })),
   );
+
+  // 체크아웃에서 '주소록에 저장'을 선택한 경우 (D-113)
+  // - 로그인 회원 + 국내 주소만: addresses 에 state/city 컬럼이 없어 해외 주소는 주·도/도시가 소실된다.
+  // - 상한(MAX_ADDRESSES) 초과나 동일 주소 중복이면 조용히 건너뛴다.
+  // - 여기서 실패해도 주문·결제는 그대로 진행한다(주소록은 부가 기능).
+  if (payload.saveAddress && profileId && payload.shipping.country === "KR") {
+    try {
+      const { data: existing } = await supabase
+        .from("addresses")
+        .select("id,country,zipcode,addr1,addr2,recipient")
+        .eq("profile_id", profileId);
+      const rows = existing ?? [];
+      const key = addressKey(payload.shipping);
+      const dup = rows.some((r) => addressKey(r) === key);
+      if (!dup && rows.length < MAX_ADDRESSES) {
+        const { error: aErr } = await supabase.from("addresses").insert({
+          profile_id: profileId,
+          recipient: payload.shipping.recipient,
+          phone: payload.shipping.phone,
+          country: "KR",
+          zipcode: payload.shipping.zipcode,
+          addr1: payload.shipping.addr1,
+          addr2: payload.shipping.addr2,
+          is_default: rows.length === 0, // 첫 주소만 자동 기본 — 기존 기본을 뺏지 않는다
+        });
+        if (aErr) console.error("[checkout-save-address-failed]", aErr.message);
+      }
+    } catch (e) {
+      console.error("[checkout-save-address-error]", e);
+    }
+  }
 
   // 결제를 요청한 실제 페이지의 origin — 이니시스 closeUrl 도메인 일치 요건(V023).
   // Vercel 뒤에서는 x-forwarded-host/proto, 로컬에서는 host 헤더 사용.

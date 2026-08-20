@@ -19,6 +19,23 @@ const CAT_TYPE: Record<string, string> = {
   normcore: "블렌드", decaf: "디카페인", merch: "merch", limited: "블렌드",
 };
 function typeFromCategory(cat: string): string { return CAT_TYPE[cat] ?? "블렌드"; }
+
+/** 제품의 카테고리를 1개로 '교체'한다.
+ *  관리자 폼·일괄등록 모두 카테고리는 단일 선택이므로, 새 카테고리를 넣기만 하면
+ *  이전 카테고리 행이 남아 다른 컬렉션(예: 사업자 전용)에 계속 노출된다. → 먼저 지우고 넣는다. */
+async function setProductCategory(
+  supabase: ReturnType<typeof createClient>,
+  productId: string,
+  catSlug: string,
+): Promise<void> {
+  const slug = catSlug.trim();
+  if (!slug) return;
+  const { data: cat } = await supabase.from("category").select("id").eq("slug", slug).maybeSingle();
+  if (!cat) return;
+  const catId = (cat as { id: string }).id;
+  await supabase.from("product_categories").delete().eq("product_id", productId).neq("category_id", catId);
+  await supabase.from("product_categories").upsert({ product_id: productId, category_id: catId });
+}
 // 발행(published) → active(스토어프론트 노출), 초안(draft) → draft(숨김)
 function mapStatus(s: string): string { return s === "draft" ? "draft" : "active"; }
 
@@ -104,11 +121,8 @@ export async function upsertProductAction(formData: FormData) {
   } else if (price > 0) {
     await supabase.from("product_variant").insert({ product_id: prodId, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
   }
-  // 카테고리·스토어프론트 연결
-  if (catSlug) {
-    const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
-    if (cat) await supabase.from("product_categories").upsert({ product_id: prodId, category_id: cat.id });
-  }
+  // 카테고리·스토어프론트 연결 — 카테고리는 단일 선택이므로 교체(이전 카테고리 제거)
+  await setProductCategory(supabase, prodId, catSlug);
   // MTSPACE 단일 사이트 — 모든 제품을 mtspace.coffee 스토어프론트에 노출(B2B 여부는 RLS·역할로 제어)
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prodId, storefront_id: sf.id, is_visible: true });
@@ -176,10 +190,7 @@ async function saveProductRow(
     await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
   }
   const catSlug = String(d.category || "").trim();
-  if (catSlug) {
-    const { data: cat } = await supabase.from("category").select("id").eq("slug", catSlug).maybeSingle();
-    if (cat) await supabase.from("product_categories").upsert({ product_id: prod.id, category_id: cat.id });
-  }
+  await setProductCategory(supabase, prod.id, catSlug);
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
 

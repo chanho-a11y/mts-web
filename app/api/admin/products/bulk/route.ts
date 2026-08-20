@@ -95,7 +95,11 @@ export async function POST(req: Request) {
         const { data: prod } = await admin.from("product").select("id").eq("slug", slug).maybeSingle();
         if (!prod) { failed++; continue; }
         const pid = (prod as { id: string }).id;
-        await admin.from("product").update({ product_type, ...(is_b2b ? { is_b2b_only: true } : {}) }).eq("id", pid);
+        // is_b2b_only 는 항상 카테고리 기준으로 재설정한다(wholesale → 다른 유형으로 되돌릴 때 해제되도록).
+        await admin.from("product").update({ product_type, is_b2b_only: is_b2b }).eq("id", pid);
+        // 대표 변형도 함께 동기화 — 구매 차단·가격 노출은 변형의 is_b2b_only 를 본다.
+        const { data: repV } = await admin.from("product_variant").select("id").eq("product_id", pid).order("position").limit(1).maybeSingle();
+        if (repV) await admin.from("product_variant").update({ is_b2b_only: is_b2b }).eq("id", (repV as { id: string }).id);
         await admin.from("product_categories").delete().eq("product_id", pid);
         await admin.from("product_categories").insert({ product_id: pid, category_id: (cat as { id: string }).id });
         changed++;

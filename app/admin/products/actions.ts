@@ -111,15 +111,17 @@ export async function upsertProductAction(formData: FormData) {
   }
 
   // 대표 변형 — SKU = 슬러그(자동). 기존 변형이 있으면 갱신(중복 변형 방지).
+  // is_b2b_only 는 제품 값과 반드시 동기화한다. 구매 차단·가격 노출은 변형 값을 보므로,
+  // 제품만 소비자로 바꾸면 상세에서 "사업자 전용 상품입니다"가 그대로 남는다.
   const sku = slug;
   const price = parseInt(String(formData.get("base_price") || "0"), 10) || 0;
   const { data: existV } = await supabase.from("product_variant").select("id").eq("product_id", prodId).order("position").limit(1).maybeSingle();
   if (existV) {
-    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g };
+    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g, is_b2b_only: is_b2b };
     if (price > 0) upd.base_price = price;
     await supabase.from("product_variant").update(upd).eq("id", (existV as { id: string }).id);
   } else if (price > 0) {
-    await supabase.from("product_variant").insert({ product_id: prodId, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
+    await supabase.from("product_variant").insert({ product_id: prodId, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1, is_b2b_only: is_b2b });
   }
   // 카테고리·스토어프론트 연결 — 카테고리는 단일 선택이므로 교체(이전 카테고리 제거)
   await setProductCategory(supabase, prodId, catSlug);
@@ -178,16 +180,16 @@ async function saveProductRow(
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };
 
-  // SKU = 슬러그(자동)
+  // SKU = 슬러그(자동). is_b2b_only 는 제품 값과 동기화(단건 폼과 동일 규칙).
   const sku = slug;
   const price = parseInt(String(d.base_price || "0"), 10) || 0;
   const { data: existBV } = await supabase.from("product_variant").select("id").eq("product_id", prod.id).order("position").limit(1).maybeSingle();
   if (existBV) {
-    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g };
+    const upd: Record<string, unknown> = { sku, weight_g: row.weight_g, is_b2b_only: row.is_b2b_only };
     if (price > 0) upd.base_price = price;
     await supabase.from("product_variant").update(upd).eq("id", (existBV as { id: string }).id);
   } else if (price > 0) {
-    await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1 });
+    await supabase.from("product_variant").insert({ product_id: prod.id, sku, base_price: price, weight_g: row.weight_g, grind: "whole", option_values: {}, position: 1, is_b2b_only: row.is_b2b_only });
   }
   const catSlug = String(d.category || "").trim();
   await setProductCategory(supabase, prod.id, catSlug);

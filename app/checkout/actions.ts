@@ -74,13 +74,23 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   // 관리자, 또는 '승인 완료(approved)'된 사업자만 도매 권한. 승인 대기(pending)·반려 사업자는
   // 소매만 가능 → 도매 전용(is_b2b_only) variant 구매 차단, 도매가 미적용(티어 없음 → resolve_price 가 정가 반환).
   let isBusinessBuyer = false;
+  // 주문에 기록할 고객 구분. 과거에는 회원이면 무조건 "individual" 로 하드코딩되어
+  // 도매 주문이 전부 일반회원으로 집계됐다. 아래 판정은 도매 권한 조회에서 이미
+  // 읽은 값(prof.role · biz.status)을 재사용하므로 추가 쿼리가 없다.
+  //  · admin      → 대표/관리자 테스트 주문(집계에서 제외 대상)
+  //  · business   → role=business 이고 사업자 승인 완료(approved) 인 경우만
+  //  · individual → 그 외 회원(승인 대기 사업자 포함 — D-055 "대기=소매만" 과 일치)
+  //  · guest      → 비회원
+  let buyerType: "guest" | "individual" | "business" | "admin" = guest ? "guest" : "individual";
   if (profileId) {
     const { data: prof } = await db.from("profiles").select("role").eq("id", profileId).maybeSingle();
     if (prof?.role === "admin") {
       isBusinessBuyer = true;
+      buyerType = "admin";
     } else if (prof?.role === "business") {
       const { data: biz } = await db.from("business_accounts").select("status").eq("profile_id", profileId).maybeSingle();
       isBusinessBuyer = biz?.status === "approved";
+      if (isBusinessBuyer) buyerType = "business";
     }
   }
 
@@ -174,7 +184,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const { data: order, error: oErr } = await db
     .from("orders")
     .insert({
-      order_no: orderNo, profile_id: profileId, customer_type: guest ? "guest" : "individual",
+      order_no: orderNo, profile_id: profileId, customer_type: buyerType,
       storefront_id: storefrontId, brand_id: brandId,
       status: "created", email: user?.email ?? payload.email ?? null, phone: payload.shipping.phone,
       shipping_address: { ...payload.shipping, shipping_label: ship.label },

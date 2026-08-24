@@ -2,7 +2,13 @@
 // 지원: Resend(RESEND_API_KEY) · 범용 웹훅(EMAIL_WEBHOOK_URL) · (그 외 미설정 시 발송 생략)
 // Gmail은 SMTP 릴레이를 웹훅으로 두거나 Resend로 보내는 것을 권장.
 
-export interface SendResult { sent: boolean; provider?: string; reason?: string }
+export interface SendResult {
+  sent: boolean;
+  provider?: string;
+  reason?: string;
+  /** 프로바이더가 준 메시지 ID. Resend 웹훅(오픈·클릭)과 발송 로그를 잇는 열쇠. */
+  messageId?: string;
+}
 
 const GMAIL_USER = process.env.GMAIL_USER || "chanho@mtspace.coffee";
 const FROM = process.env.EMAIL_FROM || `MTSPACE COFFEE <${GMAIL_USER}>`;
@@ -19,8 +25,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         host: "smtp.gmail.com", port: 465, secure: true,
         auth: { user: GMAIL_USER, pass: gmailPass.replace(/\s+/g, "") },
       });
-      await transporter.sendMail({ from: FROM, to, subject, html });
-      return { sent: true, provider: "gmail" };
+      const info = await transporter.sendMail({ from: FROM, to, subject, html });
+      return { sent: true, provider: "gmail", messageId: (info as { messageId?: string })?.messageId };
     } catch (e) {
       // Gmail 실패 시 다음 프로바이더(Resend·webhook)로 폴백한다.
       console.warn("[email] gmail failed, falling back:", (e as Error)?.message?.slice(0, 120) || "smtp_error");
@@ -35,7 +41,10 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from: FROM, to: [to], subject, html }),
       });
-      return res.ok ? { sent: true, provider: "resend" } : { sent: false, provider: "resend", reason: `http_${res.status}` };
+      if (!res.ok) return { sent: false, provider: "resend", reason: `http_${res.status}` };
+      // 응답 body 의 id 를 흘려보내면 웹훅 이벤트를 발송 로그에 붙일 수 있다.
+      const j = (await res.json().catch(() => null)) as { id?: string } | null;
+      return { sent: true, provider: "resend", messageId: j?.id };
     } catch (e) {
       return { sent: false, provider: "resend", reason: "fetch_error" };
     }

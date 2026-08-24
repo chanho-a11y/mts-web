@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { approveOrder } from "@/lib/payments-approve";
 import { paypalToken, paypalCapture } from "@/lib/payments";
+import { logPaymentEvent } from "@/lib/payment-events";
 
 export const dynamic = "force-dynamic";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -16,10 +17,15 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
 // (env 가 실수로 prod 에 남아도 결제 우회 불가)
 const TEST = process.env.PAYMENTS_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 
+// 모바일 이니시스는 P_NEXT_URL 에 쿼리를 붙이지 않고 P_NOTI(가맹점 임의데이터)로 orderId 를 왕복시킨다.
+// handle() 과 이벤트 로깅이 같은 값을 봐야 하므로 한 곳에서 뽑는다(표현식은 기존과 동일).
+function pickOrderId(q: URLSearchParams, body: Record<string, unknown>) {
+  return String(q.get("oid") || body.oid || body.order_id || body.P_NOTI || "");
+}
+
 // 공통 승인 처리. provider별 검증 후 approveOrder.
 async function handle(provider: string, q: URLSearchParams, body: Record<string, unknown>) {
-  // 모바일 이니시스는 P_NEXT_URL 에 쿼리를 붙이지 않고 P_NOTI(가맹점 임의데이터)로 orderId 를 왕복시킨다.
-  const orderId = String(q.get("oid") || body.oid || body.order_id || body.P_NOTI || "");
+  const orderId = pickOrderId(q, body);
   const orderNo = String(q.get("order") || body.order || body.order_no || "");
   if (!orderId) return { ok: false, reason: "no_order", orderNo };
 
@@ -107,6 +113,14 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
 export async function GET(req: NextRequest, { params }: { params: { provider: string } }) {
   const q = req.nextUrl.searchParams;
   const r = await handle(params.provider, q, {});
+  // 분석용 부가 기록 — 실패해도 결제 흐름에 영향을 주지 않는다(lib/payment-events.ts).
+  await logPaymentEvent({
+    orderId: pickOrderId(q, {}),
+    provider: params.provider,
+    stage: "return",
+    ok: r.ok,
+    code: r.ok ? null : (r as { reason?: string }).reason ?? null,
+  });
   const url = new URL("/checkout/complete", SITE);
   if (r.orderNo) url.searchParams.set("order", r.orderNo);
   url.searchParams.set("paid", r.ok ? "1" : "0");
@@ -122,6 +136,13 @@ export async function POST(req: NextRequest, { params }: { params: { provider: s
     else { const fd = await req.formData(); fd.forEach((v, k) => { body[k] = String(v); }); }
   } catch { body = {}; }
   const r = await handle(params.provider, req.nextUrl.searchParams, body);
+  await logPaymentEvent({
+    orderId: pickOrderId(req.nextUrl.searchParams, body),
+    provider: params.provider,
+    stage: "approve",
+    ok: r.ok,
+    code: r.ok ? null : (r as { reason?: string }).reason ?? null,
+  });
 
   // 이니시스는 인증 결과를 returnUrl 로 브라우저 POST 한다(결제창 팝업 컨텍스트).
   // → 부모창을 결제완료 페이지로 이동시키는 HTML 응답.

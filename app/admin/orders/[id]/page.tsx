@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatKRW } from "@/lib/i18n";
+import { customerTypeLabel } from "@/lib/analytics";
 import OrderCancelPanel from "@/components/order-cancel-panel";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
             <div className="flex justify-between"><dt className="text-neutral-500">주문일</dt><dd>{order.placed_at ? new Date(order.placed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-"}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-500">결제일</dt><dd>{order.paid_at ? new Date(order.paid_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-"}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-500">고객</dt><dd>{order.email ?? "-"}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-500">구분</dt><dd>{order.customer_type === "business" ? "기업" : order.customer_type === "guest" ? "비회원" : "일반"}</dd></div>
+            <div className="flex justify-between"><dt className="text-neutral-500">구분</dt><dd>{customerTypeLabel(order.customer_type)}</dd></div>
           </dl>
           <h2 className="mb-2 mt-4 font-bold">배송지</h2>
           <p className="text-neutral-700">

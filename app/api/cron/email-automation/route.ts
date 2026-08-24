@@ -45,8 +45,23 @@ export async function GET(req: Request) {
     const { data } = await db.from("email_send_log").select("id").eq("kind", kind).eq("ref_id", ref).maybeSingle();
     return !!data;
   }
-  async function logSend(kind: string, ref: string, to: string, sent: boolean) {
-    await db.from("email_send_log").insert({ kind, ref_id: ref, to_email: to, status: sent ? "sent" : "skipped" });
+  // meta 를 함께 남기면 Resend 웹훅(오픈·클릭)이 이 행을 찾아 갱신할 수 있다.
+  async function logSend(
+    kind: string,
+    ref: string,
+    to: string,
+    sent: boolean,
+    meta?: { provider?: string; messageId?: string; subject?: string },
+  ) {
+    await db.from("email_send_log").insert({
+      kind,
+      ref_id: ref,
+      to_email: to,
+      status: sent ? "sent" : "skipped",
+      provider: meta?.provider ?? null,
+      provider_message_id: meta?.messageId ?? null,
+      subject: meta?.subject ?? null,
+    });
   }
 
   // 1) 신규 제품 안내 — 판매개시(published_at) delay_hours 경과, 24h 윈도우, 제품당 1회
@@ -68,13 +83,16 @@ export async function GET(req: Request) {
         `<p>${p.one_liner ?? "새로운 원두가 입고되었습니다."}</p>
          <p style="margin-top:14px"><a href="https://mtspace.coffee/products/${p.slug}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">제품 보기</a></p>`);
       let any = false;
+      const subject = `[MTSPACE] 새 커피 출시 — ${title}`;
+      let lastMeta: { provider?: string; messageId?: string } = {};
       for (const s of subs ?? []) {
         if (!s.email) continue;
-        const r = await sendEmail(s.email, `[MTSPACE] 새 커피 출시 — ${title}`, html);
+        const r = await sendEmail(s.email, subject, html);
         if (r.reason === "no_provider") { result.skipped_provider++; any = false; break; }
+        lastMeta = { provider: r.provider, messageId: r.messageId };
         any = true;
       }
-      await logSend("new_product", p.id, "(broadcast)", any);
+      await logSend("new_product", p.id, "(broadcast)", any, { ...lastMeta, subject });
       if (any) result.new_product++;
     }
   }
@@ -142,9 +160,10 @@ export async function GET(req: Request) {
       const html = emailLayout("결제를 완료해 주세요",
         `<p>주문(<b>${o.order_no}</b>) 결제가 아직 완료되지 않았습니다. 장바구니가 사라지기 전에 마저 결제해 주세요.</p>
          <p style="margin-top:14px"><a href="https://mtspace.coffee/cart" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">결제 계속하기</a></p>`);
-      const r = await sendEmail(o.email, `[MTSPACE] 결제를 완료해 주세요 (${o.order_no})`, html);
+      const subject = `[MTSPACE] 결제를 완료해 주세요 (${o.order_no})`;
+      const r = await sendEmail(o.email, subject, html);
       if (r.reason === "no_provider") { result.skipped_provider++; continue; }
-      await logSend("abandoned_cart", o.id, o.email, r.sent);
+      await logSend("abandoned_cart", o.id, o.email, r.sent, { provider: r.provider, messageId: r.messageId, subject });
       if (r.sent) result.abandoned++;
     }
   }

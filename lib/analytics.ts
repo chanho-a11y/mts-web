@@ -1,8 +1,60 @@
 // 매출·이익 집계 헬퍼 (KST 기준). 대시보드/분석 공용.
 
-export const PAID_STATUSES = ["paid", "preparing", "shipped", "in_transit", "delivered", "confirmed"];
+// ─────────────────────────────────────────────────────────────
+// 주문 상태 집합 — 용도별로 분리한다.
+//
+// 과거에는 PAID_STATUSES 하나를 매출 집계와 "베스트셀러 판매수량 정렬"이
+// 함께 썼다. 정렬은 고객이 보는 홈 화면에 노출되므로, 매출 정의를 손대면
+// 스토어프론트가 같이 흔들린다. 그래서 이름을 나눠 의도를 고정한다.
+//
+// 구 PAID_STATUSES 는 enum(order_status)에 존재하지 않는 'confirmed' 를 담고
+// 있었고(죽은 값), 실재하는 'partial_refunded' 는 빠져 있었다. 아래 값은
+// DB 정본 함수 public.mcp_revenue_statuses() 와 일치한다 — 한쪽만 고치면
+// 관리자 화면과 MCP/oleander 리포트의 매출이 갈라지므로 반드시 함께 바꿀 것.
+// ─────────────────────────────────────────────────────────────
 
-type OrderRow = { status: string; grand_total: number; currency: string; placed_at: string | null };
+/** 매출·이익 집계 기준. 정본: public.mcp_revenue_statuses() */
+export const REVENUE_STATUSES = [
+  "paid", "preparing", "shipped", "in_transit", "delivered", "partial_refunded",
+];
+
+/**
+ * 판매 수량 집계 기준(베스트셀러 정렬 등 고객 노출용).
+ * 현재 값은 REVENUE_STATUSES 와 같으나, "매출로 인정"과 "판매된 것으로 인정"은
+ * 앞으로 갈라질 수 있는 별개 개념이라 상수를 따로 둔다.
+ */
+export const SOLD_STATUSES = [
+  "paid", "preparing", "shipped", "in_transit", "delivered", "partial_refunded",
+];
+
+/** 결제까지 도달하지 못한 상태 — 결제 전환율 계산에 쓴다. */
+export const UNPAID_STATUSES = ["created", "expired"];
+
+/** 집계에서 제외하는 내부 주문 구분 — 대표/관리자 테스트 주문. */
+export const INTERNAL_CUSTOMER_TYPES = ["admin"];
+
+type OrderRow = {
+  status: string; grand_total: number; currency: string; placed_at: string | null;
+  customer_type?: string | null;
+};
+
+/** 내부(관리자) 테스트 주문인가 — 집계에서 뺀다. customer_type 미기록 주문은 외부로 본다. */
+export function isInternalOrder(o: { customer_type?: string | null }): boolean {
+  return !!o.customer_type && INTERNAL_CUSTOMER_TYPES.includes(o.customer_type);
+}
+
+/** 주문 고객 구분 표기 — 관리자/마이페이지/CSV 공용. 한 곳에서만 정의한다. */
+export const CUSTOMER_TYPE_LABEL: Record<string, string> = {
+  guest: "비회원",
+  individual: "일반",
+  business: "기업",
+  influencer: "인플루언서",
+  admin: "관리자",
+};
+
+export function customerTypeLabel(v?: string | null): string {
+  return (v && CUSTOMER_TYPE_LABEL[v]) || "일반";
+}
 
 // KST(Asia/Seoul) 기준 오늘 0시를 UTC Date 로 반환하기 위한 오프셋 계산
 function kstParts(d: Date) {
@@ -32,7 +84,9 @@ export function kstPeriodBounds(now = new Date()) {
 
 export function periodRevenue(orders: OrderRow[], now = new Date()) {
   const b = kstPeriodBounds(now);
-  const paid = orders.filter((o) => o.currency === "KRW" && PAID_STATUSES.includes(o.status) && o.placed_at);
+  const paid = orders.filter(
+    (o) => o.currency === "KRW" && REVENUE_STATUSES.includes(o.status) && o.placed_at && !isInternalOrder(o),
+  );
   const sumFrom = (fromMs: number) =>
     paid.reduce((s, o) => (new Date(o.placed_at as string).getTime() >= fromMs ? s + (o.grand_total || 0) : s), 0);
   return {

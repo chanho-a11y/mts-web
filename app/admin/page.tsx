@@ -11,7 +11,8 @@ export default async function AdminDashboard() {
     supabase.from("orders").select("*", { count: "exact", head: true }),
     supabase.from("product").select("*", { count: "exact", head: true }),
     supabase.from("business_accounts").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("orders").select("status,grand_total,currency,placed_at").limit(5000),
+    // customer_type 을 함께 읽어 관리자 테스트 주문을 매출에서 제외한다(periodRevenue 내부 처리).
+    supabase.from("orders").select("status,grand_total,currency,placed_at,customer_type").limit(5000),
   ]);
 
   const rev = periodRevenue(paidOrders ?? []);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setOrderStatusAction, bulkOrdersAction } from "@/app/admin/orders/actions";
 import { formatKRW } from "@/lib/i18n";
+import { customerTypeLabel } from "@/lib/analytics";
 
 export interface OrderRow {
   id: string; order_no: string; email: string | null; phone: string | null;
@@ -61,7 +62,7 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
                   </div>
                 )}
               </td>
-              <td>{o.customer_type === "business" ? "기업" : o.customer_type === "guest" ? "비회원" : "일반"}</td>
+              <td>{customerTypeLabel(o.customer_type)}</td>
               <td>{o.currency === "USD" ? `$${o.grand_total}` : formatKRW(o.grand_total)}</td>
               <td>{STATUS[o.status] ?? o.status}</td>
               <td className="text-right">

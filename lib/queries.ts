@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { PAID_STATUSES } from "@/lib/analytics";
+import { SOLD_STATUSES, isInternalOrder } from "@/lib/analytics";
 
 export interface VariantLite {
   id: string;
@@ -172,12 +172,13 @@ export const getBestsellers = cache(async function getBestsellers(
   const supabase = createClient();
   const { data } = await supabase
     .from("order_item")
-    .select("qty,order:orders(status,currency),variant:product_variant(product:product(slug))")
+    .select("qty,order:orders(status,currency,customer_type),variant:product_variant(product:product(slug))")
     .limit(20000);
   const sold = new Map<string, number>();
   for (const it of (data ?? []) as any[]) {
     const o = it.order;
-    if (!o || o.currency !== "KRW" || !PAID_STATUSES.includes(o.status)) continue;
+    if (!o || o.currency !== "KRW" || !SOLD_STATUSES.includes(o.status)) continue;
+    if (isInternalOrder(o)) continue; // 관리자 테스트 주문은 베스트셀러 순위에서 제외
     const slug = it.variant?.product?.slug;
     if (!slug) continue;
     sold.set(slug, (sold.get(slug) ?? 0) + (it.qty || 0));

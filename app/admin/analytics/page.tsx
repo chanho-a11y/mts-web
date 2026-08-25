@@ -239,11 +239,24 @@ async function OverviewTab({
         />
       </div>
 
-      <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <section
+        className={`rounded-xl border p-4 text-sm ${
+          num(cost?.coverage_pct) >= 100
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+            : "border-amber-200 bg-amber-50 text-amber-900"
+        }`}
+      >
         <b>이익 지표 읽는 법</b> — 원가(<code>product.cost</code>)가 입력된 제품의 매출{" "}
         {formatKRW(num(cost?.revenue_with_cost))}만으로 계산합니다. 전체 상품매출은 {formatKRW(num(cost?.item_revenue))}이고, 제품{" "}
-        {num(cost?.products_with_cost)}/{num(cost?.products_total)}건에 원가가 있습니다. 커버리지가 100%가 되기 전까지 이익률은
-        참고치입니다. <Link href="/admin/products" className="underline">제품 관리에서 원가 입력</Link>
+        {num(cost?.products_with_cost)}/{num(cost?.products_total)}건에 원가가 있습니다.{" "}
+        {num(cost?.coverage_pct) >= 100 ? (
+          <>판매된 제품 전량에 원가가 입력돼 있어 이 이익률은 실측값입니다.</>
+        ) : (
+          <>
+            커버리지가 100%가 되기 전까지 이익률은 참고치입니다.{" "}
+            <Link href="/admin/products" className="underline">제품 관리에서 원가 입력</Link>
+          </>
+        )}
       </section>
 
       <section>

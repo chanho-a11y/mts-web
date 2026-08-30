@@ -263,6 +263,126 @@ const EDITABLE = {
 
 const STR = (label: string) => z.string().min(1).max(4000).optional().describe(label);
 
+/**
+ * 신규 상품 draft 생성/갱신 (D-121).
+ *
+ * 블로그 mcp_draft_post 와 동일한 패턴 — 스토어프론트는 active 만 노출하므로
+ * draft 는 고객에게 보이지 않고, 발행 버튼이 곧 승인 게이트다.
+ *   - 발행 불가: DB 함수가 status='draft' 를 하드코딩한다
+ *   - 발행·보관 상품은 거부 → commerce_propose_product_update 로 안내
+ *   - 가격·SKU·재고·표시사항·weight_g 은 화이트리스트 밖(대표 영역)
+ */
+export const draftProduct = {
+  name: "commerce_draft_product",
+  config: {
+    title: "신규 상품 초안",
+    description:
+      "신규 상품을 초안(draft)으로 생성한다. draft 는 스토어프론트에 노출되지 않으며, " +
+      "발행은 관리자가 /admin/products/<slug> 에서 가격·SKU·표시사항을 채운 뒤 직접 한다. " +
+      "같은 슬러그가 draft 상태면 보낸 필드만 덮어쓴다(초안 다듬기). " +
+      "발행(active)·보관(archived)된 상품은 이 툴로 수정할 수 없다 — commerce_propose_product_update 로 제안할 것. " +
+      "가격·재고·SKU·중량·판매상태·표시사항(원재료·소비기한·품목보고번호 등)은 쓸 수 없다. " +
+      "빈 값을 보내면 오류. 외부사 소개 문단을 그대로 복사하지 말고 사실 정보만 추출해 스토리는 재작성할 것.",
+    inputSchema: {
+      slug: z
+        .string()
+        .min(1)
+        .max(200)
+        .describe("새 상품 슬러그. 영문 소문자·숫자·하이픈. 예: peru-buenos-aires"),
+      brand: z.enum(["mtspace", "normcore"]).optional().describe("생략하면 mtspace"),
+      category: z
+        .string()
+        .min(1)
+        .max(60)
+        .optional()
+        .describe("카테고리 슬러그 1개. 생략하면 single-origins. 선택지는 commerce_get_schema 의 categories"),
+
+      title_ko: STR("제품명(한국어). 신규 생성 시 필수"),
+      one_liner: STR("한 줄 요약. 16~25자"),
+      story: STR("제품 설명·스토리. 상세 페이지 정본"),
+      seo_title: STR("SEO 제목"),
+      seo_description: STR("SEO 설명"),
+      roast_level: STR("로스팅 정도"),
+      producer: STR("생산자"),
+      variety: STR("품종"),
+      altitude: STR("고도"),
+      process: STR("가공방식"),
+      product_type: STR("제품 유형. 생략하면 카테고리에서 파생"),
+      flavor_notes: z.array(z.string().min(1).max(60)).min(1).max(12).optional().describe("풍미 노트. 카드뉴스·라벨의 정본"),
+      hashtags: z.array(z.string().min(1).max(40)).min(1).max(20).optional(),
+      origin: z.record(z.any()).optional().describe("{country, country_en, region?, farm?} 형태"),
+      recipe: z.record(z.any()).optional().describe("{espresso:{dose_g,yield_g,time}, filter:{...}, milk:{...}} 형태"),
+      evidence: z.record(z.any()).optional().describe("자사 1차 데이터. roast_profile·cupping·competition·b2b_case·chanotonado 키만 쓴다"),
+
+      title_en: STR("제품명(영문)"),
+      one_liner_en: STR("한 줄 요약(영문)"),
+      story_en: STR("제품 설명(영문)"),
+      seo_title_en: STR("SEO 제목(영문)"),
+      seo_description_en: STR("SEO 설명(영문)"),
+      roast_level_en: STR("로스팅 정도(영문)"),
+      producer_en: STR("생산자(영문)"),
+      variety_en: STR("품종(영문)"),
+      altitude_en: STR("고도(영문)"),
+      process_en: STR("가공방식(영문)"),
+      flavor_notes_en: z.array(z.string().min(1).max(60)).min(1).max(12).optional(),
+      recipe_en: z.record(z.any()).optional(),
+    },
+    outputSchema: {
+      slug: z.string(),
+      created: z.boolean(),
+      status: z.string(),
+      fields: z.array(z.string()),
+      admin_url: z.string(),
+      next_step: z.string(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  handler: withTool<Record<string, unknown>>(
+    "commerce_draft_product",
+    "catalog:write",
+    async (args, ctx: ToolContext) => {
+      const slug = String(args.slug ?? "").trim();
+      if (!slug) throw new Error("슬러그가 필요합니다.");
+
+      // slug 를 뺀 나머지를 patch 로 만든다(brand·category 포함). undefined 는 담지 않는다.
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(args)) {
+        if (k === "slug") continue;
+        if (v === undefined) continue;
+        patch[k] = v;
+      }
+      if (Object.keys(patch).length === 0) {
+        throw new Error("내용을 하나 이상 지정하세요. 신규 생성에는 title_ko 가 필수입니다.");
+      }
+
+      const { data, error } = await ctx.db.rpc("mcp_draft_product", {
+        p_slug: slug,
+        p_patch: patch,
+      });
+      if (error) throw new Error(`초안을 저장하지 못했습니다: ${error.message}`);
+
+      const row = (Array.isArray(data) ? data[0] : data) as {
+        slug: string;
+        created: boolean;
+        status: string;
+        fields: string[];
+      } | null;
+      if (!row) throw new Error("초안 저장 결과를 받지 못했습니다.");
+
+      return {
+        slug: row.slug,
+        created: row.created,
+        status: row.status ?? "draft",
+        fields: row.fields ?? [],
+        admin_url: `/admin/products/${row.slug}`,
+        next_step: row.created
+          ? "초안을 만들었습니다. 고객에게 보이지 않습니다. 관리자에서 가격·SKU·표시사항을 채운 뒤 발행하세요."
+          : "초안을 갱신했습니다. 발행은 관리자에서 합니다.",
+      };
+    },
+  ),
+};
+
 export const proposeProductUpdate = {
   name: "commerce_propose_product_update",
   config: {

@@ -17,6 +17,7 @@ import {
   getProduct,
   getInventory,
   proposeProductUpdate,
+  draftProduct,
   listProductChanges,
 } from "./tools/catalog";
 import { resolvePrice, listPriceOverrides } from "./tools/pricing";
@@ -48,6 +49,8 @@ const TOOLS = [
   draftPost,
   // 상품: 제안만 등록. 반영은 관리자가 /admin/products/changes 에서 한다(tools/catalog.ts 머리말)
   proposeProductUpdate,
+  // 상품: 신규는 draft 로만 생성. 발행은 관리자가 한다(D-121, tools/catalog.ts 머리말)
+  draftProduct,
   // 자산: mcp/ 프리픽스 안에 커버 이미지만 만든다. 덮어쓰기·삭제 불가(tools/assets.ts 머리말)
   createImage,
   // 블로그: 기존 초안에 커버만 부착. 본문을 건드리지 않는다(D-108 — draft_post 재저장은 본문을 바꾼다)

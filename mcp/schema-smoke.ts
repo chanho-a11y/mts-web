@@ -105,6 +105,8 @@ const db: any = {
     if (fn === "mcp_asset_precheck") return { data: null, error: null };
     if (fn === "mcp_attach_cover") return { data: "smoke-post", error: null };
     if (fn === "mcp_register_asset") return { data: false, error: null };
+    if (fn === "mcp_draft_product")
+      return { data: { slug: "smoke-product", created: true, status: "draft", fields: ["title_ko"] }, error: null };
     if (fn === "mcp_propose_product_change")
       return { data: { change_id: "c1", slug: "sample-200", fields: ["story"], status: "pending" }, error: null };
     if (fn.startsWith("mcp_report_")) return { data: [{ period: "2026-07", orders: 11, gross_revenue: 3260230, refund_total: 0, net_revenue: 3260230 }], error: null };
@@ -160,6 +162,8 @@ const CALLS: [string, any][] = [
   ["commerce_get_post", { slug: "hello" }],
   ["commerce_draft_post", { title: "스모크 초안", body_md: "## 소제목\n\n첫 문단.\n\n- 항목1\n- 항목2\n\n| a | b |\n|---|---|\n| 1 | 2 |\n" }],
   ["commerce_list_product_changes", {}],
+  ["commerce_draft_product", { slug: "smoke-product", title_ko: "스모크 제품", category: "single-origins",
+    flavor_notes: ["초콜릿"], story: "스모크 스토리" }],
   ["commerce_propose_product_update", { slug: "sample-200", note: "스모크", story: "새 설명",
     flavor_notes: ["초콜릿"], product_type: "블렌드", categories: ["blends"] }],
   ["commerce_create_image", { purpose: "blog-cover", data_base64: SMOKE_PNG_B64,

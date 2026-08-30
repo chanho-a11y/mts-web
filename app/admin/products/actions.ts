@@ -39,6 +39,32 @@ async function setProductCategory(
 // 발행(published) → active(스토어프론트 노출), 초안(draft) → draft(숨김)
 function mapStatus(s: string): string { return s === "draft" ? "draft" : "active"; }
 
+/** 발행 가드(D-121) — draft(또는 신규)를 active 로 바꿀 때 최소 요건을 검사한다.
+ *  MCP 가 가격 없는 draft 를 만들 수 있으므로, 미완성 상품이 실수로 발행되는 경로를 막는다.
+ *  이미 active 인 상품의 재저장(active→active)과 보관 복구(archived→active)에는 적용하지 않는다
+ *  — 레거시 상품의 기존 운영을 막지 않기 위함. 부족 항목을 메시지로 돌려준다. */
+async function publishGuardError(
+  supabase: ReturnType<typeof createClient>,
+  productId: string | null,
+  vals: { base_price: number; report_no: string | null; material: string | null },
+): Promise<string | null> {
+  const missing: string[] = [];
+  if (!vals.report_no) missing.push("품목보고번호");
+  if (!vals.material) missing.push("원재료명");
+  let priced = vals.base_price > 0;
+  if (!priced && productId) {
+    const { data: v } = await supabase
+      .from("product_variant").select("id")
+      .eq("product_id", productId).gt("base_price", 0)
+      .limit(1).maybeSingle();
+    priced = !!v;
+  }
+  if (!priced) missing.push("판매가");
+  return missing.length
+    ? `발행하려면 다음이 필요합니다: ${missing.join(", ")}. 값을 채우거나 초안으로 저장하세요.`
+    : null;
+}
+
 export async function upsertProductAction(formData: FormData) {
   await requireAdmin();
   const supabase = createClient();
@@ -85,11 +111,32 @@ export async function upsertProductAction(formData: FormData) {
     recipe: buildRecipeFromForm(g),
     evidence: buildEvidenceFromForm(g),
   };
+  // 발행 가드(D-121) — draft→active 또는 신규 active 저장 시 최소 요건 검사.
+  if (row.status === "active") {
+    let prevStatus: string | null = null;
+    let prevId: string | null = null;
+    if (origSlug) {
+      const { data: prev } = await supabase.from("product").select("id,status").eq("slug", origSlug).maybeSingle();
+      prevStatus = (prev as { status?: string } | null)?.status ?? null;
+      prevId = (prev as { id?: string } | null)?.id ?? null;
+    }
+    if (!origSlug || prevStatus === "draft") {
+      const formPrice = parseInt(String(formData.get("base_price") || "0"), 10) || 0;
+      const guardMsg = await publishGuardError(supabase, prevId, {
+        base_price: formPrice, report_no: row.report_no, material: row.material,
+      });
+      if (guardMsg) {
+        const back = origSlug ? `/admin/products/${origSlug}` : "/admin/products/new";
+        redirect(`${back}?error=${encodeURIComponent(guardMsg)}`);
+      }
+    }
+  }
+
   // 신규 = insert(슬러그 중복 가드) · 기존 = id 기준 update.
   // 슬러그 변경 시 예전 슬러그를 prev_slugs 에 누적 → 공개 상세에서 예전 URL → 새 URL 리다이렉트.
   let prodId: string;
   if (origSlug) {
-    const { data: existing } = await supabase.from("product").select("id,prev_slugs").eq("slug", origSlug).maybeSingle();
+    const { data: existing } = await supabase.from("product").select("id,prev_slugs,status").eq("slug", origSlug).maybeSingle();
     if (!existing) redirect(`/admin/products?error=${encodeURIComponent("원본 제품을 찾을 수 없습니다")}`);
     prodId = (existing as { id: string }).id;
     let updateRow: Record<string, unknown> = row;
@@ -177,6 +224,18 @@ async function saveProductRow(
     cost: parseInt(gd("cost"), 10) || null,
     recipe: buildRecipeFromForm(gd),
   };
+  // 발행 가드(D-121) — 벌크도 단건과 동일 규칙. 기존 active 행의 재저장은 통과시킨다.
+  if (row.status === "active") {
+    const { data: prev } = await supabase.from("product").select("id,status").eq("slug", slug).maybeSingle();
+    const prevStatus = (prev as { status?: string } | null)?.status ?? null;
+    if (!prev || prevStatus === "draft") {
+      const bulkPrice = parseInt(String(d.base_price || "0"), 10) || 0;
+      const guardMsg = await publishGuardError(supabase, (prev as { id?: string } | null)?.id ?? null, {
+        base_price: bulkPrice, report_no: row.report_no, material: row.material,
+      });
+      if (guardMsg) return { slug, ok: false, error: guardMsg };
+    }
+  }
   const { data: prod, error } = await supabase.from("product").upsert(row, { onConflict: "slug" }).select("id").single();
   if (error || !prod) return { slug, ok: false, error: error?.message ?? "저장 실패" };
 

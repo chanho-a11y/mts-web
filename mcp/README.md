@@ -21,7 +21,7 @@
 | `auth.ts` | P0 정적 헤더 토큰 → 신원·스코프. OAuth 로 교체 가능한 인터페이스 |
 | `policy.ts` | 스코프 게이트 + 감사로그 래퍼 + 응답 포맷 |
 | `markdown.ts` | 마크다운 → 화이트리스트 HTML. 의존성 0. 쓰기 툴의 유일한 본문 입력 경로 |
-| `tools/` | 툴 18종 (읽기 16 + 쓰기 2) |
+| `tools/` | 툴 19종 (읽기 16 + 쓰기 3) |
 | `index.ts` | 등록 진입점 |
 
 라우트 어댑터는 `app/api/mcp/route.ts` 한 파일이다. 고객사 인스턴스에서는 이 파일만 복사한다.
@@ -64,7 +64,7 @@ values (
 
 ## 쓰기 경계 (D-105)
 
-쓰기 툴은 `commerce_draft_post` 하나뿐이고, 다음은 **금지가 아니라 부재**다.
+쓰기 툴은 `commerce_draft_post`·`commerce_draft_product`(D-121, draft 전용)·`commerce_propose_product_update`(제안 큐) 셋이고, 다음은 **금지가 아니라 부재**다.
 
 - **발행 불가** — 툴에 `status` 인자가 없고 `mcp_draft_post()` 가 `'draft'` 를 하드코딩한다.
 - **발행글 수정 불가** — DB 함수가 `status='published'` 행을 거부한다. 개선안은 `<원본slug>--rev` 별도 초안으로만 들어오고, `/admin/blog` 의 「원본에 반영」을 사람이 눌러야 원본이 바뀐다.

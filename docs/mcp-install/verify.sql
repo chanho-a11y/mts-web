@@ -72,3 +72,15 @@ select
   (select count(*) from public.mcp_v_order_item)   as order_items,
   (select count(*) from public.mcp_v_customer)     as customers,
   (select count(*) from public.mcp_v_kb_entry)     as kb_entries;
+
+
+-- ---------- H. 신규 상품 draft 생성 함수 (D-121) ----------
+-- H-1. 권한: mcp_reader 만 EXECUTE 여야 한다.
+select grantee, privilege_type
+from information_schema.routine_privileges
+where routine_name = 'mcp_draft_product'
+order by grantee;
+
+-- H-2. draft 하드코딩 확인 — 함수 정의에 status 인자가 없어야 한다.
+select pg_get_function_arguments(oid) as args_should_be_slug_and_patch_only
+from pg_proc where proname = 'mcp_draft_product';

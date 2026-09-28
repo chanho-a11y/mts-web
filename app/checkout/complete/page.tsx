@@ -16,13 +16,22 @@ async function loadPurchase(orderNo: string) {
     const supabase = createClient();
     const { data } = await supabase
       .from("orders")
-      .select("order_no,grand_total,currency,order_item(sku,title_snapshot,qty,unit_price)")
+      .select("order_no,grand_total,currency,order_item(sku,title_snapshot,qty,unit_price,product_variant(product(slug)))")
       .eq("order_no", orderNo)
       .maybeSingle();
     if (!data) return null;
-    const items: PurchaseItem[] = ((data.order_item ?? []) as {
+    type Row = {
       sku: string | null; title_snapshot: string | null; qty: number | null; unit_price: number | null;
-    }[]).map((it) => ({
+      product_variant: { product: { slug: string | null } | null } | null;
+    };
+    const rows = (data.order_item ?? []) as unknown as Row[];
+    // Meta Pixel 용 content id = 피드 g:id 와 같은 상품 slug (없으면 sku 로 대체)
+    const metaLines = rows.map((it) => ({
+      id: it.product_variant?.product?.slug ?? it.sku ?? "",
+      quantity: it.qty ?? 1,
+      price: it.unit_price ?? 0,
+    }));
+    const items: PurchaseItem[] = rows.map((it) => ({
       item_id: it.sku ?? "",
       item_name: it.title_snapshot ?? it.sku ?? "",
       quantity: it.qty ?? 1,
@@ -33,6 +42,7 @@ async function loadPurchase(orderNo: string) {
       value: (data.grand_total as number) ?? 0,
       currency: (data.currency as string) ?? "KRW",
       items,
+      metaLines,
     };
   } catch {
     return null;
@@ -58,6 +68,7 @@ export default async function CheckoutComplete({ searchParams }: { searchParams:
           value={purchase.value}
           currency={purchase.currency}
           items={purchase.items}
+          metaLines={purchase.metaLines}
         />
       )}
       <h1 className="text-2xl font-bold">{paid ? tt.paidTitle : tt.orderReceivedTitle}</h1>

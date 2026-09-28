@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BRANDS } from "@/lib/brands";
 import { formatKRW, t } from "@/lib/i18n";
 import AddToCart from "@/components/add-to-cart";
+import MetaViewContent from "@/components/meta-view-content";
 import ProductCard from "@/components/product-card";
 import { addReviewAction } from "@/app/products/review-action";
 import { resolveTheme } from "@/lib/point-color";
@@ -252,6 +253,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     <div className="mtpdp" style={pointVars}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <MetaViewContent slug={p.slug} name={title} value={visibleMinPrice} />
       <div className="page">
         <div className="accent" />
         <header className="bar">

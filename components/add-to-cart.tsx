@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useCart } from "@/components/cart-provider";
 import { formatKRW, t, type Locale } from "@/lib/i18n";
+import { trackMeta } from "@/lib/meta-pixel";
 
 interface V { id: string; base_price: number; option: string | null; }
 export default function AddToCart({
@@ -25,7 +26,14 @@ export default function AddToCart({
       <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, +e.target.value))}
         className="w-16 rounded-card border border-line bg-paper px-2 py-2 text-sm" />
       <button
-        onClick={() => { add({ variantId: v.id, slug, title, option: v.option, price: v.base_price, image, qty }); setDone(true); setTimeout(() => setDone(false), 1500); }}
+        onClick={() => {
+          add({ variantId: v.id, slug, title, option: v.option, price: v.base_price, image, qty });
+          trackMeta("AddToCart", {
+            content_ids: [slug], content_type: "product", content_name: title,
+            contents: [{ id: slug, quantity: qty, item_price: v.base_price }],
+            value: v.base_price * qty, currency: "KRW",
+          });
+          setDone(true); setTimeout(() => setDone(false), 1500); }}
         className="rounded-card bg-ink px-6 py-3 text-sm font-semibold tracking-wide text-oat hover:bg-[#4A443A]">
         {done ? tt.addedToCart : label}
       </button>

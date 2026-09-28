@@ -8,6 +8,7 @@ import { MAX_ADDRESSES, formatAddressLine, type AddressRow } from "@/lib/address
 import { createOrderAction } from "@/app/checkout/actions";
 import { resolveCartPricesAction } from "@/app/checkout/price-actions";
 import type { Provider } from "@/lib/payments";
+import { trackMeta, toMetaContents } from "@/lib/meta-pixel";
 
 declare global {
   interface Window { daum?: any; INIStdPay?: any }
@@ -94,6 +95,21 @@ export default function CheckoutForm({
 }) {
   // 장바구니 비우기는 결제 완료 페이지(CheckoutCompleteClear)에서 처리한다.
   const { items } = useCart();
+  // Meta Pixel InitiateCheckout: 장바구니가 localStorage 에서 복원된 뒤 한 번만 보낸다.
+  const icFired = useRef(false);
+  useEffect(() => {
+    if (icFired.current || items.length === 0) return;
+    icFired.current = true;
+    const contents = toMetaContents(items.map((i) => ({ id: i.slug, quantity: i.qty, price: i.price })));
+    trackMeta("InitiateCheckout", {
+      content_ids: contents.map((c) => c.id),
+      content_type: "product",
+      contents,
+      num_items: items.reduce((s, i) => s + i.qty, 0),
+      value: items.reduce((s, i) => s + i.price * i.qty, 0),
+      currency: "KRW",
+    });
+  }, [items]);
   const tt = t(locale);
   const en = locale === "en";
   const ALL_METHODS: { p: Provider; label: string }[] = [

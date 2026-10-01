@@ -65,6 +65,26 @@ async function publishGuardError(
     : null;
 }
 
+/**
+ * 제조원가 저장 (D-132). 원가는 product.cost 가 아니라 관리자 전용 테이블 product_cost 에만 둔다.
+ *  · 양수면 upsert, 비어 있거나 0 이면 행 삭제(= 미입력). product.cost 에는 더 이상 쓰지 않는다.
+ *  · 실패해도 제품 저장 자체를 되돌리지 않는다. 원가는 이익 지표용 보조 데이터라, 원가 저장 오류로 상품 수정이 막히면 안 된다.
+ *    대신 오류 메시지를 반환해 화면에 띄운다.
+ */
+async function saveProductCost(
+  supabase: ReturnType<typeof createClient>,
+  productId: string,
+  raw: string,
+): Promise<string | null> {
+  const cost = parseInt(String(raw ?? "").trim(), 10);
+  if (Number.isFinite(cost) && cost > 0) {
+    const { error } = await supabase.from("product_cost").upsert({ product_id: productId, cost }, { onConflict: "product_id" });
+    return error ? `원가 저장 실패: ${error.message}` : null;
+  }
+  const { error } = await supabase.from("product_cost").delete().eq("product_id", productId);
+  return error ? `원가 삭제 실패: ${error.message}` : null;
+}
+
 export async function upsertProductAction(formData: FormData) {
   await requireAdmin();
   const supabase = createClient();
@@ -107,7 +127,6 @@ export async function upsertProductAction(formData: FormData) {
     material: orNull(g("material")),
     story: orNull(g("story")),
     story_en: orNull(g("story_en")),
-    cost: parseInt(g("cost"), 10) || null,
     recipe: buildRecipeFromForm(g),
     evidence: buildEvidenceFromForm(g),
   };
@@ -176,7 +195,10 @@ export async function upsertProductAction(formData: FormData) {
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prodId, storefront_id: sf.id, is_visible: true });
 
+  const costErr = await saveProductCost(supabase, prodId, g("cost"));
+
   revalidatePath("/admin/products");
+  if (costErr) redirect(`/admin/products/${slug}?saved=1&error=${encodeURIComponent(costErr)}`);
   redirect(`/admin/products/${slug}?saved=1`);
 }
 
@@ -221,7 +243,6 @@ async function saveProductRow(
     material: orNull(gd("material")),
     story: orNull(gd("story")),
     story_en: orNull(gd("story_en")),
-    cost: parseInt(gd("cost"), 10) || null,
     recipe: buildRecipeFromForm(gd),
   };
   // 발행 가드(D-121) — 벌크도 단건과 동일 규칙. 기존 active 행의 재저장은 통과시킨다.
@@ -254,6 +275,12 @@ async function saveProductRow(
   await setProductCategory(supabase, prod.id, catSlug);
   const { data: sf } = await supabase.from("storefront").select("id").eq("domain", "mtspace.coffee").maybeSingle();
   if (sf) await supabase.from("product_storefronts").upsert({ product_id: prod.id, storefront_id: sf.id, is_visible: true });
+
+  // 원가(D-132): CSV 에 cost 열이 있을 때만 반영. 열이 없으면 기존 원가를 건드리지 않는다.
+  if (Object.prototype.hasOwnProperty.call(d, "cost")) {
+    const costErr = await saveProductCost(supabase, prod.id, gd("cost"));
+    if (costErr) return { slug, ok: false, error: costErr };
+  }
 
   if (isTrue(d.auto_content)) {
     try { await generateForProduct(prod.id); } catch {}

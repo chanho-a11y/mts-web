@@ -246,7 +246,7 @@ async function OverviewTab({
             : "border-amber-200 bg-amber-50 text-amber-900"
         }`}
       >
-        <b>이익 지표 읽는 법</b> — 원가(<code>product.cost</code>)가 입력된 제품의 매출{" "}
+        <b>이익 지표 읽는 법</b> — 원가(<code>product_cost</code>)가 입력된 제품의 매출{" "}
         {formatKRW(num(cost?.revenue_with_cost))}만으로 계산합니다. 전체 상품매출은 {formatKRW(num(cost?.item_revenue))}이고, 제품{" "}
         {num(cost?.products_with_cost)}/{num(cost?.products_total)}건에 원가가 있습니다.{" "}
         {num(cost?.coverage_pct) >= 100 ? (

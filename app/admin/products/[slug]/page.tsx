@@ -11,10 +11,12 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   const supabase = createClient();
   const { data: p } = await supabase
     .from("product")
-    .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,product_type,status,is_b2b_only,roast_level,roast_level_en,flavor_notes,flavor_notes_en,origin,variety,variety_en,process,process_en,weight_g,key_color,report_no,material,story,story_en,cost,recipe,evidence,
+    .select(`id,slug,title_ko,title_en,one_liner,one_liner_en,product_type,status,is_b2b_only,roast_level,roast_level_en,flavor_notes,flavor_notes_en,origin,variety,variety_en,process,process_en,weight_g,key_color,report_no,material,story,story_en,recipe,evidence,
       brand(code), product_variant(id,sku,base_price), product_categories(category(slug))`)
     .eq("slug", params.slug).maybeSingle();
   if (!p) notFound();
+  // 제조원가는 관리자 전용 테이블 product_cost 에서 읽는다(D-132). 없으면 미입력.
+  const { data: costRow } = await supabase.from("product_cost").select("cost").eq("product_id", p.id).maybeSingle();
   const pv = (p as any).product_variant?.[0];
   const variants = ((p as any).product_variant ?? []) as { id: string; sku: string; base_price: number }[];
   const catSlug = (p as any).product_categories?.[0]?.category?.slug ?? "blends";
@@ -57,7 +59,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     weight_g: p.weight_g, key_color: p.key_color ?? "",
     sku: pv?.sku ?? "", base_price: pv?.base_price ?? undefined, category: catSlug,
     report_no: px.report_no ?? "", material: px.material ?? "",
-    story: px.story ?? "", story_en: px.story_en ?? "", cost: px.cost ?? null,
+    story: px.story ?? "", story_en: px.story_en ?? "", cost: costRow?.cost ?? null,
     recipe: px.recipe ?? null,
     evidence: px.evidence ?? null,
   };

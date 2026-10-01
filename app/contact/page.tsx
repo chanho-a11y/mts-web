@@ -13,7 +13,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title, description, alternates: { canonical: "/contact" }, openGraph: { title: `${title} · ${brand.name}`, description, type: "website" } };
 }
 
-export default async function ContactPage() {
+const CONTACT_TYPES = ["general", "wholesale", "consulting", "education", "product"] as const;
+
+export default async function ContactPage({ searchParams }: { searchParams?: { type?: string } }) {
   const { locale } = await getStorefrontContext();
-  return <ContactForm locale={locale} />;
+  // B2B CTA(?type=wholesale) 진입 시 문의 유형을 미리 선택한다(D-129).
+  const q = searchParams?.type;
+  const defaultType = (CONTACT_TYPES as readonly string[]).includes(q ?? "") ? (q as string) : "general";
+  return <ContactForm locale={locale} defaultType={defaultType} />;
 }

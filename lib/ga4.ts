@@ -70,6 +70,10 @@ export interface Ga4Row {
   metrics: number[];
 }
 
+export async function ga4RunReport(body: Record<string, unknown>): Promise<Ga4Row[] | null> {
+  return runReport(body);
+}
+
 async function runReport(body: Record<string, unknown>): Promise<Ga4Row[] | null> {
   const token = await getAccessToken();
   if (!token) return null;
@@ -148,4 +152,71 @@ export async function ga4ProductViews(from?: string, to?: string, limit = 30) {
     orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
     limit,
   });
+}
+
+// ---------------------------------------------------------------------------
+// D-129: 주간 마케팅 보고(MCP commerce_run_report web_traffic / content_performance)용.
+// GA4 는 세션 기준, 자사 DB 는 주문 기준이다. 둘을 합산하지 말고 나란히 읽는다.
+// 봇 의심 트래픽은 engagedSessions(참여 세션)를 함께 내려 읽는 쪽에서 걸러 본다.
+
+type Section = { section: string; rows: Record<string, string | number>[]; available: boolean };
+
+function toSection(name: string, dimNames: string[], metricNames: string[], rows: Ga4Row[] | null): Section {
+  if (!rows) return { section: name, rows: [], available: false };
+  return {
+    section: name,
+    available: true,
+    rows: rows.map((r) => {
+      const o: Record<string, string | number> = {};
+      dimNames.forEach((d, i) => (o[d] = r.dims[i] ?? ""));
+      metricNames.forEach((m, i) => (o[m] = r.metrics[i] ?? 0));
+      return o;
+    }),
+  };
+}
+
+async function q(name: string, from: string, to: string, dims: string[], metrics: string[], extra: Record<string, unknown> = {}) {
+  const rows = await runReport({
+    dateRanges: range(from, to),
+    dimensions: dims.map((n) => ({ name: n })),
+    metrics: metrics.map((n) => ({ name: n })),
+    orderBys: [{ metric: { metricName: metrics[0] }, desc: true }],
+    ...extra,
+  });
+  return toSection(name, dims, metrics, rows);
+}
+
+const begins = (field: string, values: string[]) => ({
+  orGroup: {
+    expressions: values.map((v) => ({ filter: { fieldName: field, stringFilter: { matchType: "BEGINS_WITH", value: v } } })),
+  },
+});
+
+export async function ga4WebTrafficReport(from: string, to: string): Promise<Section[]> {
+  const S = ["sessions", "engagedSessions", "keyEvents", "totalUsers"];
+  return Promise.all([
+    q("channel", from, to, ["sessionDefaultChannelGroup"], S, { limit: 20 }),
+    q("source_medium", from, to, ["sessionSource", "sessionMedium"], S, { limit: 20 }),
+    q("country", from, to, ["country"], ["sessions", "engagedSessions"], { limit: 10 }),
+    q("new_vs_returning", from, to, ["newVsReturning"], ["totalUsers", "sessions", "engagedSessions"], { limit: 5 }),
+    q("customer_type", from, to, ["customUser:customer_type"], ["totalUsers", "sessions", "keyEvents"], { limit: 10 }),
+  ]);
+}
+
+export async function ga4ContentPerformanceReport(from: string, to: string): Promise<Section[]> {
+  return Promise.all([
+    q("content_pages", from, to, ["pagePath"], ["screenPageViews", "activeUsers", "userEngagementDuration"], {
+      dimensionFilter: begins("pagePath", ["/education", "/en/education", "/blogs/"]),
+      limit: 30,
+    }),
+    q("landing_pages", from, to, ["landingPage", "sessionSource"], ["sessions", "engagedSessions", "keyEvents"], { limit: 30 }),
+    q("b2b_cta_by_page", from, to, ["pagePath"], ["eventCount"], {
+      dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: "b2b_cta_click" } } },
+      limit: 30,
+    }),
+    q("b2b_cta_by_type", from, to, ["customEvent:cta", "customEvent:cta_source"], ["eventCount"], {
+      dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: "b2b_cta_click" } } },
+      limit: 20,
+    }),
+  ]);
 }

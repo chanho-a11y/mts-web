@@ -1,3 +1,4 @@
+import B2bCta from "@/components/b2b-cta";
 import Link from "next/link";
 import AboutMoreModal from "@/components/about-more-modal";
 import { getStorefrontContext } from "@/lib/storefront";
@@ -225,6 +226,7 @@ export default async function AboutPage() {
         <p className="prose-serif mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-ink/80">{c.consP}</p>
         <Link href="/consulting" className="mt-5 inline-block rounded-card border border-line bg-paper px-6 py-2.5 text-sm font-semibold text-ink hover:bg-warmPaper">{c.consCta}</Link>
       </section>
+      <B2bCta locale={locale} source="about" />
     </main>
   );
 }

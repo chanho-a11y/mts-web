@@ -8,10 +8,10 @@ import TurnstileWidget from "@/components/turnstile-widget";
 import { t, type Locale } from "@/lib/i18n";
 
 export default function SignupForm(
-  { error, locale = "ko", formToken = "" }: { error?: string; locale?: Locale; formToken?: string },
+  { error, locale = "ko", formToken = "", initialRole = "individual" }: { error?: string; locale?: Locale; formToken?: string; initialRole?: "individual" | "business" },
 ) {
   const tt = t(locale);
-  const [role, setRole] = useState<"individual" | "business">("individual");
+  const [role, setRole] = useState<"individual" | "business">(initialRole);
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
   // 카카오 간편가입은 Supabase Provider 설정 완료 후 플래그로 활성화 (NEXT_PUBLIC_KAKAO_LOGIN_ENABLED=1)
   const kakaoEnabled = process.env.NEXT_PUBLIC_KAKAO_LOGIN_ENABLED === "1";

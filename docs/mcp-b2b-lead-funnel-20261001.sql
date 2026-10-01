@@ -1,0 +1,4 @@
+-- D-129 (2026-10-01) Supabase mtspace-commerce 에 적용 완료된 마이그레이션 사본: mcp_report_b2b_lead_funnel_d129
+-- MCP commerce_run_report(report=b2b_lead_funnel)가 호출한다. 개인정보 없이 집계값만 반환.
+-- 검증(8/25~9/30): signups_total 4, business_applications 0, inquiries_wholesale 1, first_b2b_orders 1, b2b_paid_orders 58, b2b_revenue 20,905,405
+-- 정의 본문은 Supabase 에서 확인: select pg_get_functiondef('public.mcp_report_b2b_lead_funnel(timestamptz,timestamptz)'::regprocedure);

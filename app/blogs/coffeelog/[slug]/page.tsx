@@ -1,3 +1,4 @@
+import B2bCta from "@/components/b2b-cta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -90,6 +91,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
           {post.tags.map((t: string) => <span key={t} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">#{t}</span>)}
         </div>
       )}
+      <B2bCta locale="ko" source="blog" />
     </main>
   );
 }

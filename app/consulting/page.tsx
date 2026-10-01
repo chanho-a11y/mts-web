@@ -1,3 +1,4 @@
+import B2bCta from "@/components/b2b-cta";
 import Link from "next/link";
 import { getStorefrontContext } from "@/lib/storefront";
 import { getPageSettings } from "@/lib/page-content";
@@ -132,6 +133,7 @@ export default async function ConsultingPage() {
           <Link href="/contact" className="rounded-card bg-ink px-6 py-2.5 text-sm font-semibold text-oat hover:bg-[#4A443A]">{c.ctaBtn}</Link>
         </div>
       </section>
+      <B2bCta locale={locale} source="consulting" />
     </main>
   );
 }

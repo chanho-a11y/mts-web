@@ -1,3 +1,4 @@
+import B2bCta from "@/components/b2b-cta";
 // 교육자료 공용 로직/뷰. ko/en 두 라우트가 모두 이 파일을 쓴다.
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -357,6 +358,8 @@ export function ChapterView({ locale, slug }: { locale: EduLocale; slug: string 
           ))}
         </dl>
       </section>
+
+      <B2bCta locale={locale} source="education" />
 
       {/* 이전 / 다음 */}
       <nav className="mt-12 grid gap-3 border-t border-line pt-8 md:grid-cols-2">

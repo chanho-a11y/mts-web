@@ -3,7 +3,7 @@ import { useState } from "react";
 import { submitContactAction } from "@/app/contact/actions";
 import { t, type Locale } from "@/lib/i18n";
 
-export default function ContactForm({ locale = "ko" }: { locale?: Locale }) {
+export default function ContactForm({ locale = "ko", defaultType = "general" }: { locale?: Locale; defaultType?: string }) {
   const tt = t(locale);
   const [msg, setMsg] = useState<string | null>(null);
   const input = "mt-1 w-full rounded border px-3 py-2 text-sm";
@@ -23,7 +23,7 @@ export default function ContactForm({ locale = "ko" }: { locale?: Locale }) {
         <label className="block text-sm">{tt.email} *<input type="email" name="email" required className={input} /></label>
         <label className="block text-sm">{tt.phone}<input name="phone" className={input} /></label>
         <label className="block text-sm">{tt.inquiryType}
-          <select name="type" className={input}>
+          <select name="type" className={input} defaultValue={defaultType}>
             <option value="general">{tt.typeGeneral}</option><option value="wholesale">{tt.typeWholesale}</option>
             <option value="consulting">{tt.typeConsulting}</option><option value="education">{tt.typeEducation}</option><option value="product">{tt.typeProduct}</option>
           </select>

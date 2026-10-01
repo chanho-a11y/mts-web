@@ -1,3 +1,4 @@
+import B2bCta from "@/components/b2b-cta";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getStorefrontContext } from "@/lib/storefront";
@@ -434,6 +435,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>{tt.submitReview}</button>
               </form>
             </section>
+            <div style={{ padding: "0 0 24px" }}><B2bCta locale={locale} source="product" /></div>
           </main>
         </div>
       </div>

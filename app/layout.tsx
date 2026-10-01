@@ -60,12 +60,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let promo: string | null = null;
   let signedIn = false;
   let role: string | null = null;
+  let userId: string | null = null;
   let cms: Record<string, string> = {};
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       signedIn = true;
+      userId = user.id;
       const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       role = prof?.role ?? "individual";
     }
@@ -105,7 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale}>
       <body style={bodyStyle}>
         <JsonLd data={[organizationJsonLd(brand, locale), webSiteJsonLd(brand)]} />
-        <GoogleAnalytics />
+        <GoogleAnalytics userId={userId} role={role} />
         <MetaPixel />
         <CartProvider>
           <PromoBanner message={promo} />

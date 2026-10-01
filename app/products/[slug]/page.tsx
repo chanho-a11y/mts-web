@@ -147,10 +147,23 @@ export default async function ProductPage({ params }: { params: { slug: string }
       viewerRole = prof?.role ?? "individual";
     }
   }
-  const isBusiness = viewerRole === "business" || viewerRole === "admin";
-  // 소비자에겐 도매 variant 숨김. 도매전용 제품을 비사업자가 열면 구매 옵션 없음.
-  const visibleVariants = p.variants.filter((v) => isBusiness || !v.is_b2b_only);
-  const visibleMinPrice = visibleVariants.length ? Math.min(...visibleVariants.map((v) => v.base_price)) : 0;
+  // D-130: 사업자 전용 상품도 모든 방문자에게 상세와 정가(base_price)를 보여준다.
+  // 구매(장바구니 담기)는 관리자 또는 '승인 완료' 사업자만. 승인 대기 사업자는 결제 단계(checkout/actions.ts)와 같은 기준으로 막는다.
+  // 도매가(등급가, 개별가)는 결제 시 resolve_price 로만 적용되므로 화면에는 항상 정가가 나온다.
+  let canBuyWholesale = viewerRole === "admin";
+  if (viewerRole === "business") {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (u) {
+      const { data: biz } = await supabase.from("business_accounts").select("status").eq("profile_id", u.id).maybeSingle();
+      canBuyWholesale = biz?.status === "approved";
+    }
+  }
+  const wholesaleLocked = p.is_b2b_only && !canBuyWholesale;
+  // 장바구니에 담을 수 있는 variant
+  const visibleVariants = p.variants.filter((v) => canBuyWholesale || !v.is_b2b_only);
+  // 표시 가격: 살 수 있는 variant 최저 정가, 없으면(사업자 전용) 전체 variant 최저 정가
+  const priceBase = visibleVariants.length ? visibleVariants : p.variants;
+  const visibleMinPrice = priceBase.length ? Math.min(...priceBase.map((v) => v.base_price)) : 0;
 
   const { data: reviews } = await supabase
     .from("review").select("rating,title,body,author_name,created_at")
@@ -235,7 +248,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
         description: oneLiner ?? flavorArr.join(", "),
         brand: { "@type": "Brand", name: pBrand.name },
         additionalProperty: infoRows.map(([k, v]) => ({ "@type": "PropertyValue", name: k, value: v })),
-        offers: { "@type": "Offer", priceCurrency: "KRW", price: p.minPrice, availability: "https://schema.org/InStock" },
+        offers: {
+          "@type": "Offer", priceCurrency: "KRW", price: p.minPrice, availability: "https://schema.org/InStock",
+          ...(p.is_b2b_only ? { eligibleCustomerType: "https://schema.org/Business" } : {}),
+        },
         ...(revCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating.toFixed(1), reviewCount: revCount } } : {}),
       },
       { "@type": "FAQPage", mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
@@ -280,6 +296,23 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 />
               ) : (
                 <div className="tax">{locale === "en" ? "Wholesale (business) accounts only. Please sign in with a business account." : "사업자 전용 상품입니다. 사업자 계정으로 로그인해 주세요."}</div>
+              )}
+              {wholesaleLocked && (
+                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                  <div className="tax">
+                    {locale === "en"
+                      ? "Shown at list price. Wholesale pricing applies after your business account is approved."
+                      : "표시 가격은 정가입니다. 도매가는 사업자 회원 승인 후 적용됩니다."}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <a href="/account/signup?role=business&src=product" style={{ background: "var(--ink)", color: "var(--oat)", borderRadius: 3, padding: "9px 14px", fontSize: 12, textDecoration: "none" }}>
+                      {locale === "en" ? "Register as a business" : "사업자 회원 가입"}
+                    </a>
+                    <a href="/account/login" style={{ border: "1px solid var(--ink)", color: "var(--ink)", borderRadius: 3, padding: "8px 14px", fontSize: 12, textDecoration: "none" }}>
+                      {locale === "en" ? "Sign in" : "로그인"}
+                    </a>
+                  </div>
+                </div>
               )}
             </div>
             <div className="chips">

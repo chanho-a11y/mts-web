@@ -16,8 +16,9 @@ export async function GET() {
   const { storefrontId } = await getStorefrontContext();
   const products = await getStorefrontProducts(storefrontId);
 
+  // D-130: 사업자 전용 상품은 비회원이 살 수 없으므로 광고 카탈로그(Meta, Google)에서 뺀다.
   const items = products
-    .filter((p) => p.minPrice > 0)
+    .filter((p) => p.minPrice > 0 && !p.is_b2b_only)
     .map((p) => {
       const title = p.title_ko.replace(/\[.*?\]\s*/g, "");
       const desc = p.one_liner || p.flavor_notes.join(", ") || title;

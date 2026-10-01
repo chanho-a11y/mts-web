@@ -17,8 +17,9 @@ export default function CategoryChips({
     { href: "/collections/single-origins", slug: "single-origins", label: tt.catSingleOrigins },
     { href: "/collections/normcore", slug: "normcore", label: "Normcore Coffee" },
   ];
-  // 사업자 전용 카테고리는 사업자 회원에게만 노출
-  const chips = isBusiness
+  // D-130: 사업자 전용 상품을 모든 방문자에게 정가로 보여주므로 카테고리도 모두에게 노출한다(구매는 승인 사업자만).
+  void isBusiness;
+  const chips = true
     ? [
         { href: "/collections/all", slug: "all", label: tt.catAll },
         { href: "/collections/wholesale", slug: "wholesale", label: tt.catWholesale },

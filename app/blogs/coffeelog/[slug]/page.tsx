@@ -6,26 +6,38 @@ import { sanitizeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 
+// 한글 슬러그(예: 어떤-커피를-원하시나요)는 Next 14 에서 params.slug 가 퍼센트 인코딩된 채로 들어와
+// DB 조회가 실패하고 404 가 났다(2026-10-01 CTA 검수에서 발견). 디코딩 후 조회한다.
+function decodeSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const slug = decodeSlug(params.slug);
   const supabase = createClient();
   const { data } = await supabase
-    .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", params.slug).maybeSingle();
+    .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", slug).maybeSingle();
   const title = data?.seo_title || data?.title || "Coffeelog";
   const description = data?.seo_description || data?.excerpt || undefined;
   return {
     title,
     description,
-    alternates: { canonical: `/blogs/coffeelog/${params.slug}` },
+    alternates: { canonical: `/blogs/coffeelog/${encodeURIComponent(slug)}` },
     openGraph: { title, description, type: "article", ...(data?.cover_image ? { images: [data.cover_image] } : {}) },
   };
 }
 
 export default async function CoffeelogPostPage({ params }: { params: { slug: string } }) {
+  const slug = decodeSlug(params.slug);
   const supabase = createClient();
   const { data: post } = await supabase
     .from("content_post")
     .select("title,body_html,excerpt,cover_image,author,tags,published_at,status")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .maybeSingle();
   if (!post || post.status !== "published") notFound();
 
@@ -37,7 +49,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
     url: "https://mtspace.coffee/about",
   };
   const authorName = post.author && post.author !== "통합 스튜디오" ? post.author : AUTHOR.name;
-  const pageUrl = `https://mtspace.coffee/blogs/coffeelog/${params.slug}`;
+  const pageUrl = `https://mtspace.coffee/blogs/coffeelog/${encodeURIComponent(slug)}`;
   const dateModified = post.published_at; // 갱신 시 dateModified 관리(P2)
 
   // 본문에서 FAQ(Q./답변) 추출 → FAQPage 스키마(AIEO 인용 대상)

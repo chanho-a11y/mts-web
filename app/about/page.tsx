@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "About MTSPACE COFFEE — 시드니에서 시작된 한국 스페셜티 커피",
   description: "경쟁 바리스타 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매 — Everyday Excellence.",
+  alternates: { canonical: "/about" },
+  openGraph: { title: "About MTSPACE COFFEE", description: "경쟁 바리스타 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매 — Everyday Excellence.", type: "website", url: "/about", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
 };
 
 // 대표 수상내역(Barista Awards) — 정본 풀리스트 (D-032, 2026-07-02 대표 제공)

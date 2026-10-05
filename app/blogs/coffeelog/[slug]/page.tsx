@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const supabase = createClient();
   const { data } = await supabase
     .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", slug).maybeSingle();
-  const title = data?.seo_title || data?.title || "Coffeelog";
+  // seo_title 끝에 이미 브랜드명이 붙어 있으면 떼어 낸다. layout 의 title 템플릿이 한 번 더 붙여
+  // "… - MTSPACE COFFEE · MTSPACE COFFEE" 가 되던 문제(D-134).
+  const title = (data?.seo_title || data?.title || "Coffeelog").replace(/\s*[|\-–—·]\s*MTSPACE COFFEE\s*$/i, "").trim();
   const description = data?.seo_description || data?.excerpt || undefined;
+  const images = [data?.cover_image || DEFAULT_OG_IMAGE];
+  const path = `/blogs/coffeelog/${encodeURIComponent(slug)}`;
   return {
     title,
     description,
-    alternates: { canonical: `/blogs/coffeelog/${encodeURIComponent(slug)}` },
-    openGraph: { title, description, type: "article", ...(data?.cover_image ? { images: [data.cover_image] } : {}) },
+    alternates: { canonical: path },
+    openGraph: { title, description, type: "article", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images },
+    twitter: { card: "summary_large_image", title, description, images },
   };
 }
 
@@ -68,11 +74,16 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
       {
         "@type": "Article",
         headline: post.title,
-        image: post.cover_image ? [post.cover_image] : undefined,
-        author: { "@type": "Person", name: authorName, jobTitle: "대표 · 경쟁 바리스타", worksFor: { "@type": "Organization", name: "MTSPACE COFFEE" }, url: AUTHOR.url },
+        ...(post.excerpt ? { description: post.excerpt } : {}),
+        image: [post.cover_image || `https://mtspace.coffee${DEFAULT_OG_IMAGE}`],
+        inLanguage: "ko-KR",
+        // 저자가 브랜드명으로 저장된 구형 글은 사람이 아니라 조직으로 표기한다(D-134).
+        author: authorName === "MTSPACE COFFEE"
+          ? { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" }
+          : { "@type": "Person", name: authorName, jobTitle: "대표 · 경쟁 바리스타", worksFor: { "@type": "Organization", name: "MTSPACE COFFEE" }, url: AUTHOR.url },
         datePublished: post.published_at,
         dateModified,
-        publisher: { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" },
+        publisher: { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee", logo: { "@type": "ImageObject", url: "https://mtspace.coffee/images/mtspace-logo.png" } },
         mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
       },
       ...(faqEntities.length ? [{ "@type": "FAQPage", mainEntity: faqEntities }] : []),

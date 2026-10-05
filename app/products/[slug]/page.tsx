@@ -13,17 +13,32 @@ import { addReviewAction } from "@/app/products/review-action";
 import { resolveTheme } from "@/lib/point-color";
 import ProductGallery from "@/components/product-gallery";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const p = await getProductBySlug(params.slug);
   if (!p) return {};
-  const desc = p.one_liner ?? p.flavor_notes.join(" · ");
+  const nameKo = p.title_ko.replace(/\[.*?\]\s*/g, "");
+  // 검색 결과 설명문(D-134): 한 줄 소개만 쓰면 13~32자로 너무 짧다. 플레이버, 로스팅, 유형, 로스팅 일정을 조합한다.
+  const kind = p.product_type || "원두";
+  const desc = [
+    `${nameKo}: ${p.flavor_notes.length ? `${p.flavor_notes.join(", ")} 노트의 ` : ""}${p.roast_level ? `${p.roast_level} 로스트 ` : ""}${kind}.`,
+    p.one_liner ? `${p.one_liner.replace(/[.。]\s*$/, "")}.` : "",
+    p.is_b2b_only ? "사업자 전용 상품입니다." : "",
+    "MTSPACE COFFEE가 매주 월, 화에 로스팅해 화, 수에 출고합니다.",
+  ].filter(Boolean).join(" ");
+  // 국문명과 영문명을 이어 붙이면 60자를 크게 넘는 상품이 있다. 합쳐서 45자를 넘으면 국문명만 쓴다.
+  const both = `${nameKo} ${p.title_en ?? ""}`.trim();
+  const title = both.length <= 45 ? both : nameKo;
+  const images = p.image ? [p.image] : [DEFAULT_OG_IMAGE];
   return {
-    title: `${p.title_ko.replace(/\[.*?\]\s*/g, "")} ${p.title_en ?? ""}`.trim(),
+    title,
     description: desc,
-    openGraph: { title: p.title_ko, description: desc, images: p.image ? [p.image] : [], type: "website" },
+    alternates: { canonical: `/products/${p.slug}` },
+    openGraph: { title: nameKo, description: desc, images, type: "website", url: `/products/${p.slug}`, siteName: "MTSPACE COFFEE", locale: "ko_KR" },
+    twitter: { card: "summary_large_image", title: nameKo, description: desc, images },
   };
 }
 
@@ -49,7 +64,7 @@ const CSS = `
 .mtpdp .thumbs .t{flex:1;height:48px;background:var(--tint);border:1px solid #e3dac8;overflow:hidden}
 .mtpdp .thumbs .t img{width:100%;height:100%;object-fit:cover}
 .mtpdp .rail .kicker{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--mute);text-transform:uppercase;margin-top:24px}
-.mtpdp .rail h1{font-weight:800;font-size:27px;line-height:1.1;margin:8px 0 2px}
+.mtpdp .rail .rtitle{font-weight:800;font-size:27px;line-height:1.1;margin:8px 0 2px}
 .mtpdp .rail .en{font-family:Spectral,serif;font-style:italic;font-size:15px;color:#6b6356}
 .mtpdp .price{font-family:'IBM Plex Mono',monospace;font-size:19px;margin-top:18px}.mtpdp .price .cur{font-size:10px;color:var(--faint)}
 .mtpdp .tax{font-size:10px;color:var(--faint);margin-top:8px}
@@ -247,9 +262,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
         "@type": "Product", name: title, image: p.images.map((i) => i.storage_path),
         description: oneLiner ?? flavorArr.join(", "),
         brand: { "@type": "Brand", name: pBrand.name },
+        url: `https://mtspace.coffee/products/${p.slug}`,
         additionalProperty: infoRows.map(([k, v]) => ({ "@type": "PropertyValue", name: k, value: v })),
         offers: {
           "@type": "Offer", priceCurrency: "KRW", price: p.minPrice, availability: "https://schema.org/InStock",
+          url: `https://mtspace.coffee/products/${p.slug}`,
           ...(p.is_b2b_only ? { eligibleCustomerType: "https://schema.org/Business" } : {}),
         },
         ...(revCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating.toFixed(1), reviewCount: revCount } } : {}),
@@ -258,7 +275,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       { "@type": "BreadcrumbList", itemListElement: [
         { "@type": "ListItem", position: 1, name: "Home", item: "https://mtspace.coffee" },
         { "@type": "ListItem", position: 2, name: "Coffee", item: "https://mtspace.coffee/collections/all" },
-        { "@type": "ListItem", position: 3, name: title },
+        { "@type": "ListItem", position: 3, name: title, item: `https://mtspace.coffee/products/${p.slug}` },
       ] },
     ],
   };
@@ -284,7 +301,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <aside className="rail">
             <ProductGallery primary={p.image} images={p.images} alt={p.imageAlt ?? title} />
             <div className="kicker">{typeLine}</div>
-            <h1>{title}</h1>
+            {/* 페이지 H1 은 본문 hero 의 제목 하나만 둔다(D-134) */}
+            <div className="rtitle">{title}</div>
             <div className="en">{en}{weightTxt ? ` · ${weightTxt}` : ""}</div>
             <div className="price">{visibleMinPrice > 0 ? formatKRW(visibleMinPrice) : "-"} <span className="cur">KRW</span></div>
             {!p.is_b2b_only && <div className="tax">{locale === "en" ? "Tax included · shipping calculated at checkout" : "세금 포함 · 배송비 결제 시 계산"}</div>}

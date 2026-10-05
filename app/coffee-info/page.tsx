@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "커피 정보 — 농장·플레이버·추천 레시피",
   description: "MTSPACE COFFEE 원두별 산지·플레이버 노트·추천 추출 레시피와 인포메이션 카드 다운로드.",
+  alternates: { canonical: "/coffee-info" },
+  openGraph: { title: "커피 정보 · MTSPACE COFFEE", description: "MTSPACE COFFEE 원두별 산지·플레이버 노트·추천 추출 레시피와 인포메이션 카드 다운로드.", type: "website", url: "/coffee-info", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
 };
 
 export default async function CoffeeInfoPage() {

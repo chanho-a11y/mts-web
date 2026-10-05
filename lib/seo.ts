@@ -9,6 +9,10 @@ export function siteBaseUrl(): string {
   return `${proto}://${host}`;
 }
 
+// 기본 소셜 공유 이미지(1200x630). 페이지가 openGraph 를 따로 정의하면 layout 값이 통째로 교체되므로
+// 각 페이지 openGraph.images 에도 이 값을 넣는다(D-134).
+export const DEFAULT_OG_IMAGE = "/images/og-default.png";
+
 export function absoluteUrl(path = "/"): string {
   const base = siteBaseUrl();
   if (!path) return base;

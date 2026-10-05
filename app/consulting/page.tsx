@@ -8,6 +8,8 @@ export const metadata = {
   title: "Consulting & Partnership — MTSPACE COFFEE 브랜드·운영·로스팅 파트너",
   description:
     "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅·파트너십. 브랜드 전략, 데이터·POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 — 검증된 노하우를 전수합니다.",
+  alternates: { canonical: "/consulting" },
+  openGraph: { title: "Consulting & Partnership · MTSPACE COFFEE", description: "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅·파트너십. 브랜드 전략, 데이터·POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 — 검증된 노하우를 전수합니다.", type: "website", url: "/consulting", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
 };
 
 const C = {

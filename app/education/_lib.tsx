@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/json-ld";
-import { absoluteUrl, siteBaseUrl, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo";
+import { absoluteUrl, siteBaseUrl, breadcrumbJsonLd, faqJsonLd, DEFAULT_OG_IMAGE } from "@/lib/seo";
 import { CHAPTERS, COPY_KO, LEVEL_LABEL, type ChapterCopy, type ChapterMeta, type Level } from "./_content/meta";
 import { COPY_EN } from "./_content/meta.en";
 import contentKo from "./_content/content.ko.json";
@@ -103,8 +103,17 @@ export function indexMetadata(l: EduLocale): Metadata {
       description: desc,
       url: absoluteUrl(path),
       locale: l === "ko" ? "ko_KR" : "en_US",
+      images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE) }],
     },
   };
+}
+
+// 검색 결과 설명문은 160자 안팎에서 잘린다. 긴 설명은 단어 경계에서 끊는다(JSON-LD 는 원문 유지).
+function clip(s: string, max = 158): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  const sp = cut.lastIndexOf(" ");
+  return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:·—-]+$/, "")}…`;
 }
 
 export function chapterMetadata(l: EduLocale, slug: string): Metadata {
@@ -112,9 +121,10 @@ export function chapterMetadata(l: EduLocale, slug: string): Metadata {
   const copy = chapterCopy(l, slug);
   if (!meta || !copy) return {};
   const path = chapterPath(l, slug);
+  const description = clip(copy.description);
   return {
     title: copy.title,
-    description: copy.description,
+    description,
     keywords: copy.keywords,
     authors: [{ name: "Chanho Hong" }],
     alternates: {
@@ -128,12 +138,12 @@ export function chapterMetadata(l: EduLocale, slug: string): Metadata {
     openGraph: {
       type: "article",
       title: copy.title,
-      description: copy.description,
+      description,
       url: absoluteUrl(path),
       locale: l === "ko" ? "ko_KR" : "en_US",
-      images: [{ url: absoluteUrl(`/education/icons/${meta.icon}.svg`) }],
+      images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE) }],
     },
-    twitter: { card: "summary", title: copy.title, description: copy.description },
+    twitter: { card: "summary_large_image", title: copy.title, description, images: [absoluteUrl(DEFAULT_OG_IMAGE)] },
   };
 }
 

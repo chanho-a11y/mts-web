@@ -30,7 +30,18 @@ const POLICIES: Record<string, { title: string; body: string }> = {
 };
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
-  return { title: POLICIES[params.slug]?.title ?? "정책" };
+  const policy = POLICIES[params.slug];
+  if (!policy) return { title: "정책" };
+  // 정책마다 고유한 설명문과 자기 경로 canonical 을 준다(D-134).
+  const flat = policy.body.replace(/\s+/g, " ").trim();
+  const description = flat.length > 150 ? `${flat.slice(0, 149)}…` : flat;
+  const path = `/policies/${params.slug}`;
+  return {
+    title: policy.title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title: `${policy.title} · MTSPACE COFFEE`, description, type: "website", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+  };
 }
 
 export default function PolicyPage({ params }: { params: { slug: string } }) {

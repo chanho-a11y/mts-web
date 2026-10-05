@@ -7,6 +7,8 @@ import HeroSlideshow from "@/components/hero-slideshow";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+// 홈의 canonical. layout 기본값으로 두면 모든 하위 페이지가 상속한다(D-134).
+export const metadata = { alternates: { canonical: "/" } };
 
 // 역할별 카테고리 노출 순서
 const CONSUMER_ORDER = ["blends", "single-origins", "decaf", "normcore", "merch"];

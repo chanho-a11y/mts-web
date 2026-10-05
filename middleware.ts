@@ -5,14 +5,15 @@ import { brandForHost } from "@/lib/brands";
 // Multi-storefront + locale + Supabase session refresh.
 export async function middleware(req: NextRequest) {
   const brand = brandForHost(req.headers.get("host"));
-  const country = (req.geo?.country ?? "KR").toUpperCase();
   const cookieLocale = req.cookies.get("locale")?.value;
   // 경로 기반 로케일: /en/* 은 쿠키와 무관하게 항상 영어로 렌더한다.
   // (교육 자료를 언어별 URL + hreflang 으로 색인시키기 위한 것 — 쿠키 전환만으로는
   //  검색엔진이 한 언어만 색인한다.)
   const pathname = req.nextUrl.pathname;
   const pathLocale = pathname === "/en" || pathname.startsWith("/en/") ? "en" : null;
-  const locale = pathLocale ?? cookieLocale ?? (country === "KR" ? "ko" : "en");
+  // 기본 언어는 접속 국가와 무관하게 한국어다(D-134). 국가로 정하면 해외 IP 크롤러(구글, AI 검색)가
+  // 한국어 주소에서 영문 화면을 받아 색인한다. 영문은 방문자가 직접 고르거나(/en 경로, 쿠키) 할 때만 쓴다.
+  const locale = pathLocale ?? (cookieLocale === "en" || cookieLocale === "ko" ? cookieLocale : "ko");
 
   // expose brand/locale to RSC via request headers
   const reqHeaders = new Headers(req.headers);

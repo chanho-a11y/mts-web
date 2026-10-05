@@ -12,13 +12,13 @@ import { t } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { brand, locale } = await getStorefrontContext();
+  const { brand, locale, storefrontId } = await getStorefrontContext();
   if (params.slug === "all") {
     const title = locale === "en" ? "All Coffee" : "전체 커피";
     const description = locale === "en"
       ? `Browse every ${brand.name} coffee — signature blends, single origins, decaf and wholesale, roasted fresh every week.`
       : `${brand.name}의 전체 커피를 한눈에 — 시그니쳐 블렌드, 싱글 오리진, 디카페인, 사업자 전용 도매까지. 매주 신선하게 로스팅합니다.`;
-    return { title, description, alternates: { canonical: "/collections/all" }, openGraph: { title: `${title} · ${brand.name}`, description, type: "website" } };
+    return { title, description, alternates: { canonical: "/collections/all" }, openGraph: { title: `${title} · ${brand.name}`, description, type: "website", url: "/collections/all", images: ["/images/og-default.png"] } };
   }
   const supabase = createClient();
   const { data: cat } = await supabase.from("category").select("name_ko,name_en").eq("slug", params.slug).maybeSingle();
@@ -26,7 +26,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const description = locale === "en"
     ? `${name} from ${brand.name} — specialty coffee roasted fresh every week. Everyday Excellence.`
     : `${brand.name} ${name} 컬렉션 — 매주 신선하게 로스팅한 스페셜티 커피. Everyday Excellence.`;
-  return { title: name, description, alternates: { canonical: `/collections/${params.slug}` }, openGraph: { title: `${name} · ${brand.name}`, description, type: "website" } };
+  // 상품이 하나도 없는 컬렉션(준비 중)은 색인하지 않는다(D-134).
+  const count = (await getCategories(storefrontId)).find((c) => c.slug === params.slug)?.products.length ?? 0;
+  return {
+    title: name, description, alternates: { canonical: `/collections/${params.slug}` },
+    ...(count === 0 ? { robots: { index: false, follow: true } } : {}),
+    openGraph: { title: `${name} · ${brand.name}`, description, type: "website", url: `/collections/${params.slug}`, images: ["/images/og-default.png"] },
+  };
 }
 
 async function getIsBusiness(): Promise<boolean> {

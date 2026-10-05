@@ -4,7 +4,13 @@ import { t } from "@/lib/i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "자주 묻는 질문 (FAQ)" };
+const FAQ_DESC = "MTSPACE COFFEE 자주 묻는 질문. 배송과 출고 일정, 교환과 환불, 원두 분쇄, 사업자 도매 주문, 회원 계정에 대한 답변을 모았습니다.";
+export const metadata = {
+  title: "자주 묻는 질문 (FAQ)",
+  description: FAQ_DESC,
+  alternates: { canonical: "/faq" },
+  openGraph: { title: "자주 묻는 질문 (FAQ) · MTSPACE COFFEE", description: FAQ_DESC, type: "website", url: "/faq", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+};
 
 export default async function FaqPage() {
   const { locale } = await getStorefrontContext();

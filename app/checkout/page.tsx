@@ -5,6 +5,7 @@ import { MAX_ADDRESSES, type AddressRow } from "@/lib/address";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "결제 · Checkout", robots: { index: false, follow: false } };
 
 export default async function CheckoutPage({ searchParams }: { searchParams: { tip?: string } }) {
   const { locale } = await getStorefrontContext();

@@ -83,6 +83,11 @@ const ROWS: Record<string, any[]> = {
   mcp_v_content_post: [{ slug: "hello", title: "첫 글", excerpt: null, body_html: "<p>본문</p>", cover_image: null,
     tags: [], author: "a", status: "published", published_at: "2026-01-01", seo_title: null, seo_description: null }],
   mcp_v_faq: [{ question: "배송은?", category: "shipping", is_b2b_only: false, status: "published", position: 1 }],
+  mcp_v_social_post: [{ slug: "ig-smoke", channel: "instagram", kind: "image", caption: "스모크 캡션", hashtags: ["mtspace"],
+    media: [{ url: "https://example.test/x.jpg", alt: null }], status: "rejected", suggested_time: null, scheduled_at: null,
+    source_ref: "product/sample-200", rule_check: { errors: [], warnings: [] }, rejection_reason: "톤 수정",
+    failure_reason: null, ig_media_id: null, ig_permalink: null, published_at: null, insights: null,
+    created_by: "mcp", created_at: "2026-10-05T00:00:00Z", updated_at: "2026-10-05T00:00:00Z" }],
   mcp_v_category: [{ slug: "blends", name: "블렌드", name_en: "Blends", kind: "blend", is_b2b: false, position: 1 }],
   mcp_v_product_change: [{ id: "c1", slug: "sample-200", title: "샘플상품", patch: { story: "새 설명" },
     before: { story: "옛 설명" }, note: "복사 오염 정정", status: "pending",
@@ -104,6 +109,7 @@ const db: any = {
     if (fn === "mcp_draft_post") return { data: "smoke-post", error: null };
     if (fn === "mcp_asset_precheck") return { data: null, error: null };
     if (fn === "mcp_attach_cover") return { data: "smoke-post", error: null };
+    if (fn === "mcp_social_draft") return { data: "ig-smoke", error: null };
     if (fn === "mcp_register_asset") return { data: false, error: null };
     if (fn === "mcp_draft_product")
       return { data: { slug: "smoke-product", created: true, status: "draft", fields: ["title_ko"] }, error: null };
@@ -116,7 +122,11 @@ const db: any = {
 
 const ALL = ["catalog:read","catalog:write","inventory:read","pricing:read","orders:read","analytics:read","content:read","content:write","brand:read","customers:read"];
 // 진짜 렌더러(next/og)는 여기서 부르지 않는다 — 하네스는 형태 검증이 목적이다.
-const fakeRender = async () => solidPng(1200, 800);
+// 템플릿별 규격만 맞춘다(인스타 정책 1080 하한·JPEG 변환 경로를 태우기 위해).
+const fakeRender = async (spec: { template: string }) =>
+  spec.template === "signature-cover" ? solidPng(1200, 800)
+  : spec.template === "feed-square" ? solidPng(1080, 1080)
+  : solidPng(1080, 1350);
 
 const storage: any = {
   upload: async () => ({ error: null }),
@@ -132,6 +142,12 @@ const ctx: any = {
         mime: ["image/png", "image/jpeg", "image/webp"],
         max_bytes: 1048576, max_b64_len: 1400000,
         min_width: 1200, min_height: 630, aspect_min: 1.2, aspect_max: 2.0, max_per_hour: 20,
+      },
+      instagram: {
+        bucket: "product-assets", prefix: "mcp/social",
+        mime: ["image/jpeg"],
+        max_bytes: 8388608, max_b64_len: 1400000,
+        min_width: 1080, min_height: 1080, aspect_min: 0.8, aspect_max: 1.91, max_per_hour: 40,
       },
     } },
   // profileId 는 자산 쿼터의 기준이라 null 이면 안 된다(OAuth 경로도 항상 채운다).
@@ -173,6 +189,17 @@ const CALLS: [string, any][] = [
     alt: "렌더 경로 스모크 커버" }],
   ["commerce_attach_cover", { slug: "smoke-post",
     cover_image: "https://example.test/storage/v1/object/public/product-assets/mcp/blog/cover/202608/smoke-abcdef012345.png" }],
+  // ── 인스타그램 (D-135) ──
+  ["commerce_create_image", { purpose: "instagram", template: "feed-portrait",
+    fields: { headline: "스모크 피드", eyebrow: "검증", notes: "smoke", variant: "light" }, alt: "인스타 스모크 이미지" }],
+  ["commerce_create_image", { purpose: "instagram", template: "carousel-card",
+    fields: { headline: "캐러셀 카드", body: "짧은 본문", page: "1/2" }, alt: "인스타 캐러셀 스모크 카드" }],
+  ["commerce_social_draft_post", { kind: "carousel", caption: "스모크 캡션입니다. 청평 로스터리에서 월·화 로스팅한 원두를 화·수에 출고합니다. 플레이버 노트와 가공 방식은 상품 페이지 기준입니다.",
+    hashtags: ["mtspace", "specialtycoffee"], source_ref: "product/sample-200",
+    media: [{ url: "https://example.test/storage/v1/object/public/product-assets/mcp/social/202610/a-abcdef012345.jpg" },
+            { url: "https://example.test/storage/v1/object/public/product-assets/mcp/social/202610/b-abcdef012345.jpg" }] }],
+  ["commerce_social_get_post", { slug: "ig-smoke" }],
+  ["commerce_social_list_posts", { status: "rejected" }],
 ];
 
 async function main() {

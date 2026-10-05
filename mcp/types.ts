@@ -151,14 +151,25 @@ export interface CoverFields {
   eyebrow?: string;
   notes?: string;
   variant?: "light" | "dark";
+  /** 소셜 템플릿 전용 — 헤드라인 아래 짧은 본문(캐러셀 카드). \n 줄바꿈 */
+  body?: string;
+  /** 소셜 캐러셀 전용 — 페이지 표기(예: 2/5). 생략하면 표시하지 않는다 */
+  page?: string;
 }
 
+/** 블로그 커버 템플릿 */
+export type CoverTemplate = "signature-cover";
+/** 인스타그램 템플릿 (D-135). feed-square 1080², feed-portrait·carousel-card 1080×1350 */
+export type SocialTemplate = "feed-square" | "feed-portrait" | "carousel-card";
+export type RenderTemplate = CoverTemplate | SocialTemplate;
+
 /**
- * 서버측 커버 렌더러. Next 런타임 결합(next/og)은 이 어댑터 뒤에 숨긴다 —
+ * 서버측 렌더러. Next 런타임 결합(next/og)은 이 어댑터 뒤에 숨긴다 —
  * 패키지 추출·스모크 하네스에서는 다른 구현(또는 부재)으로 갈아끼운다.
+ * 결과는 항상 PNG 다. JPEG 변환은 호출부(tools/assets.ts)가 purpose 에 따라 한다.
  */
 export type CoverRenderer = (spec: {
-  template: "signature-cover";
+  template: RenderTemplate;
   fields: CoverFields;
   tokens: Record<string, string>;
 }) => Promise<Buffer>;

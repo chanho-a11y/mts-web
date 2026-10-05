@@ -24,7 +24,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { COVERED_SYLLABLES } from "./fonts/coverage";
-import type { CoverFields } from "./types";
+import type { CoverFields, SocialTemplate } from "./types";
 
 const W = 1200;
 const H = 800;
@@ -283,6 +283,186 @@ export async function renderCover(fields: CoverFields, tokens: Record<string, st
   const res = new ImageResponse(root as unknown as React.ReactElement, {
     width: W,
     height: H,
+    fonts: await loadFonts(),
+  });
+  return Buffer.from(await res.arrayBuffer());
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 인스타그램 템플릿 (D-135)
+ *
+ *   feed-square    1080×1080  — 단일 피드. 헤드라인 중심
+ *   feed-portrait  1080×1350  — 단일 피드 4:5. 피드에서 가장 크게 보이는 규격
+ *   carousel-card  1080×1350  — 캐러셀 카드. 헤드라인 + 짧은 본문 + 페이지 표기
+ *
+ * 레이아웃만 다르고 색·폰트·아트·워드마크 규칙은 signature-cover 와 같은 토큰에서 온다.
+ * 결과는 PNG — JPEG 변환은 tools/assets.ts 가 purpose=instagram 일 때 한다.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+const SOCIAL_SIZE: Record<SocialTemplate, { w: number; h: number }> = {
+  "feed-square": { w: 1080, h: 1080 },
+  "feed-portrait": { w: 1080, h: 1350 },
+  "carousel-card": { w: 1080, h: 1350 },
+};
+
+/** 아트를 캔버스 크기에 맞춰 다시 뽑는다 — 기하는 1200×800 기준이라 스케일·이동으로 맞춘다. */
+function artSvgScaled(p: ArtPalette, w: number, h: number): string {
+  const inner = artSvg(p)
+    .replace(/^<svg[^>]*>/, "")
+    .replace(/<\/svg>\s*$/, "");
+  // 원본 아트의 중심(860,380)을 캔버스 우상단 쪽(0.72w, 0.34h)에 두고, 세로 기준으로 키운다.
+  const s = Math.max(w / W, h / H) * 0.78;
+  const tx = w * 0.72 - 860 * s;
+  const ty = h * 0.34 - 380 * s;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><g transform="translate(${tx.toFixed(1)},${ty.toFixed(1)}) scale(${s.toFixed(4)})">${inner}</g></svg>`;
+}
+
+export async function renderSocial(
+  template: SocialTemplate,
+  fields: CoverFields,
+  tokens: Record<string, string>,
+): Promise<Buffer> {
+  const { w, h: hh } = SOCIAL_SIZE[template];
+
+  const need = (key: string): string => {
+    const hex = pickHex(tokens[key]);
+    if (!hex) throw new Error(`브랜드 토큰 ${key} 이 없거나 색상값이 아닙니다. site_setting 을 확인하세요.`);
+    return hex;
+  };
+  const bg = need("brand.color.bg");
+  const surface = need("brand.color.surface");
+  const text = need("brand.color.text");
+  const textMuted = need("brand.color.text_muted");
+  const key = need("brand.color.key");
+  const keyDeep = pickHex(tokens["brand.color.key_deep"]) ?? mix(key, "#000000", 0.15);
+
+  const brandName = (tokens["brand.identity.name"] ?? "").trim();
+  if (!brandName) throw new Error("브랜드 토큰 brand.identity.name 이 없습니다. site_setting 을 확인하세요.");
+  const [wmBold, ...wmRest] = brandName.split(" ");
+  const wmLight = wmRest.join(" ");
+  const tagline = (tokens["brand.identity.tagline"] ?? "").trim();
+
+  const headline = fields.headline.trim();
+  const eyebrow = (fields.eyebrow ?? "").trim();
+  const notes = (fields.notes ?? "").trim().toUpperCase();
+  const body = (fields.body ?? "").trim();
+  const page = (fields.page ?? "").trim();
+  const variant = fields.variant ?? "light";
+
+  assertCovered("headline", headline);
+  assertCovered("eyebrow", eyebrow);
+  assertCovered("body", body);
+
+  if (template !== "carousel-card" && body) {
+    throw new Error("body 는 carousel-card 템플릿에서만 쓸 수 있습니다.");
+  }
+
+  const dark = variant === "dark";
+  const pal: ArtPalette = dark
+    ? {
+        ringA: rgba(surface, 0.16), ringB: rgba(surface, 0.13), ringC: rgba(surface, 0.07),
+        l1: rgba(bg, 0.55), f1: rgba(bg, 0.035),
+        l2: rgba(key, 0.8), f2: rgba(key, 0.1), l3: rgba(key, 0.6),
+        l4: rgba(surface, 0.55), f4: rgba(surface, 0.09),
+        dot: rgba(key, 0.95), path: rgba(surface, 0.22),
+      }
+    : {
+        ringA: rgba(text, 0.14), ringB: rgba(text, 0.11), ringC: rgba(text, 0.07),
+        l1: rgba(keyDeep, 0.55), f1: rgba(key, 0.05),
+        l2: rgba(keyDeep, 0.85), f2: rgba(key, 0.14), l3: rgba(key, 0.85),
+        l4: rgba(text, 0.42), f4: rgba(key, 0.12),
+        dot: key, path: rgba(text, 0.18),
+      };
+
+  const background = dark
+    ? `radial-gradient(circle at 72% 34%, ${mix(text, "#FFFFFF", 0.07)} 0%, ${text} 42%, ${mix(text, "#000000", 0.18)} 100%)`
+    : `radial-gradient(circle at 72% 34%, ${mix(bg, "#FFFFFF", 0.35)} 0%, ${bg} 45%, ${mix(bg, surface, 0.6)} 100%)`;
+
+  const cWm = dark ? bg : text;
+  const cTag = dark ? rgba(surface, 0.55) : textMuted;
+  const cEyebrow = dark ? rgba(surface, 0.78) : textMuted;
+  const cH1 = dark ? mix(bg, "#FFFFFF", 0.4) : text;
+  const cBody = dark ? rgba(bg, 0.82) : mix(text, bg, 0.15);
+  const cNotes = dark ? rgba(surface, 0.72) : textMuted;
+
+  const artUri = `data:image/svg+xml;base64,${Buffer.from(artSvgScaled(pal, w, hh), "utf8").toString("base64")}`;
+
+  // 피드는 모바일 화면에서 보이므로 커버보다 글자를 키운다.
+  const pad = 80;
+  const isCard = template === "carousel-card";
+  const h1Size = isCard ? 58 : template === "feed-square" ? 66 : 72;
+
+  const blockChildren: El[] = [
+    h("div", { width: 64, height: 5, backgroundColor: key, borderRadius: 3, marginBottom: 28 }),
+  ];
+  if (eyebrow) {
+    blockChildren.push(
+      h("div", { fontFamily: "Pretendard", fontWeight: 500, fontSize: 24, color: cEyebrow, marginBottom: 22 }, eyebrow),
+    );
+  }
+  blockChildren.push(
+    h(
+      "div",
+      {
+        fontFamily: "NotoSerifKR", fontWeight: 700, fontSize: h1Size, lineHeight: 1.28,
+        letterSpacing: "-0.8px", color: cH1, whiteSpace: "pre-wrap",
+      },
+      headline,
+    ),
+  );
+  if (body) {
+    blockChildren.push(
+      h(
+        "div",
+        { fontFamily: "Pretendard", fontWeight: 500, fontSize: 30, lineHeight: 1.55, color: cBody, marginTop: 30, whiteSpace: "pre-wrap" },
+        body,
+      ),
+    );
+  }
+  if (notes) {
+    blockChildren.push(
+      h("div", { fontFamily: "PlexMono", fontWeight: 400, fontSize: 17, letterSpacing: "3.6px", color: cNotes, marginTop: 34 }, notes),
+    );
+  }
+
+  const root = h(
+    "div",
+    { display: "flex", position: "relative", width: w, height: hh, backgroundImage: background },
+    [
+      h("img", { position: "absolute", top: 0, left: 0, width: w, height: hh }, undefined, { src: artUri, width: w, height: hh }),
+      h(
+        "div",
+        { display: "flex", flexDirection: "row", position: "absolute", left: pad, top: pad - 8, fontSize: 28, color: cWm },
+        [
+          h("div", { fontFamily: "Pretendard", fontWeight: 800 }, wmBold),
+          wmLight ? h("div", { fontFamily: "Pretendard", fontWeight: 200, marginLeft: 8 }, wmLight) : "",
+        ],
+      ),
+      page
+        ? h(
+            "div",
+            { position: "absolute", right: pad, top: pad - 4, fontFamily: "PlexMono", fontWeight: 400, fontSize: 20, letterSpacing: "2px", color: cTag },
+            page,
+          )
+        : tagline
+          ? h(
+              "div",
+              { position: "absolute", right: pad, top: pad - 2, fontFamily: "PlexMono", fontWeight: 400, fontSize: 14, letterSpacing: "5px", color: cTag },
+              tagline.toUpperCase(),
+            )
+          : h("div", { display: "flex" }),
+      h(
+        "div",
+        { display: "flex", flexDirection: "column", position: "absolute", left: pad, bottom: pad + 10, width: w - pad * 2, alignItems: "flex-start" },
+        blockChildren,
+      ),
+    ],
+  );
+
+  const res = new ImageResponse(root as unknown as React.ReactElement, {
+    width: w,
+    height: hh,
     fonts: await loadFonts(),
   });
   return Buffer.from(await res.arrayBuffer());

@@ -34,6 +34,15 @@ export async function deleteAssetAction(formData: FormData) {
     fail(`글이 참조 중이라 지울 수 없습니다: ${refs.map((r) => r.slug).join(", ")} — 블로그 관리에서 커버를 먼저 바꾸세요.`);
   }
 
+  // 인스타그램 초안 참조(D-135). media 는 jsonb 배열이라 PostgREST 필터로 못 거른다 — 행이 적으니 읽어서 본다.
+  const { data: socials } = await admin.from("social_post").select("slug,media");
+  const socialRefs = ((socials ?? []) as { slug: string; media: { url: string }[] }[])
+    .filter((sp) => (Array.isArray(sp.media) ? sp.media : []).some((m) => m?.url === base + path))
+    .map((sp) => sp.slug);
+  if (socialRefs.length > 0) {
+    fail(`인스타그램 초안이 참조 중이라 지울 수 없습니다: ${socialRefs.join(", ")} — /admin/social 에서 먼저 정리하세요.`);
+  }
+
   const { error: se } = await admin.storage.from("product-assets").remove([path]);
   if (se) fail(`스토리지 삭제 실패: ${se.message}`);
 

@@ -7,7 +7,8 @@ import {
   inspectImage,
   isAlreadyExists,
 } from "../image";
-import type { AssetPolicy, CoverFields, ToolContext } from "../types";
+import { pngToJpeg } from "../jpeg";
+import type { AssetPolicy, CoverFields, RenderTemplate, ToolContext } from "../types";
 
 /**
  * 자산 등록 — 이 서버가 바이너리를 받는 유일한 지점.
@@ -15,7 +16,7 @@ import type { AssetPolicy, CoverFields, ToolContext } from "../types";
  * 설계상 할 수 없는 것(금지가 아니라 부재다):
  *   - 덮어쓰기 : storage.objects 에 UPDATE 정책이 없다. upsert 도 쓰지 않는다.
  *   - 삭제     : DELETE 정책도 삭제 툴도 없다.
- *   - 본문 이미지: purpose 에 blog-cover 하나뿐이다. 본문 이미지는 관리자 화면에서 붙인다.
+ *   - 본문 이미지: purpose 는 blog-cover·instagram 둘뿐이다. 본문 이미지는 관리자 화면에서 붙인다.
  *   - 프리픽스 밖 쓰기: RLS 가 mcp/ 로 묶고, DB 함수가 경로를 한 번 더 검사한다.
  *
  * 순서가 중요하다 — 쿼터 → 중복조회 → 업로드 → 대장.
@@ -23,7 +24,13 @@ import type { AssetPolicy, CoverFields, ToolContext } from "../types";
  * 경로가 내용의 해시라서 성립하는 성질이다.
  */
 
-const PURPOSES = ["blog-cover"] as const;
+const PURPOSES = ["blog-cover", "instagram"] as const;
+
+/** purpose 별 허용 템플릿. 블로그 커버 템플릿을 인스타에 쓰면 규격(1200×800)이 안 맞으므로 교차를 막는다. */
+const TEMPLATES_BY_PURPOSE: Record<(typeof PURPOSES)[number], RenderTemplate[]> = {
+  "blog-cover": ["signature-cover"],
+  instagram: ["feed-square", "feed-portrait", "carousel-card"],
+};
 
 function policyFor(ctx: ToolContext, purpose: string): AssetPolicy {
   const p = ctx.config.assetPolicy?.[purpose];
@@ -39,15 +46,17 @@ function policyFor(ctx: ToolContext, purpose: string): AssetPolicy {
 export const createImage = {
   name: "commerce_create_image",
   config: {
-    title: "커버 이미지 등록",
+    title: "이미지 등록 (블로그 커버 · 인스타그램)",
     description:
-      "블로그 커버(썸네일) 이미지를 등록하고 공개 URL 을 돌려준다. 입력은 둘 중 하나다 — " +
+      "블로그 커버 또는 인스타그램 이미지를 등록하고 공개 URL 을 돌려준다. purpose 로 용도를 고른다 — " +
+      "blog-cover(1200×630 이상, template signature-cover) 또는 instagram(1080×1080 이상, template feed-square·feed-portrait·carousel-card, 결과는 JPEG). " +
+      "입력은 둘 중 하나다 — " +
       "① template + fields: 서버가 브랜드 토큰으로 커버를 직접 그린다(권장 — 토큰 비용 0, 전송 변형 없음). " +
       "② data_base64: 직접 만든 이미지를 올린다. " +
-      "돌려받은 url 을 commerce_draft_post 의 cover_image 인자에 그대로 넣으면 초안에 커버가 붙는다. " +
+      "돌려받은 url 을 commerce_draft_post 의 cover_image 인자(블로그) 또는 commerce_social_draft_post 의 media[].url(인스타그램)에 넣는다. " +
       "PNG·JPEG·WebP 만 받으며 형식은 선언값이 아니라 파일 내용으로 판별한다. " +
-      "가로 1200px·세로 630px 이상이어야 한다(공유 썸네일이 깨지지 않는 최소 규격). " +
-      "1MB 를 넘으면 거부하므로 그보다 크면 다시 인코딩하거나 관리자 화면에서 직접 올릴 것. " +
+      "블로그 커버는 가로 1200px·세로 630px 이상·1MB 이하, 인스타그램은 1080px 이상·가로세로비 4:5~1.91:1·8MB 이하다. " +
+      "인스타그램 캐러셀은 카드마다 이 툴을 한 번씩 부르고(fields.page 에 '1/5' 처럼 페이지 표기) url 을 순서대로 모은다. " +
       "본문 안에 넣을 이미지는 이 툴로 올리지 않는다 — 관리자 화면에서 첨부한다. " +
       "보내는 쪽에서 원본의 sha256 을 알면 sha256 인자에 함께 넘길 것 — 전송 중 변형되면 저장 전에 거부한다. " +
       "만들기 전에 commerce_get_brand_tokens 로 색·타이포·금지 사항을 먼저 확인할 것.",
@@ -55,22 +64,27 @@ export const createImage = {
       purpose: z
         .enum(PURPOSES)
         .default("blog-cover")
-        .describe("현재는 블로그 커버만 지원한다"),
+        .describe("blog-cover(블로그 썸네일) 또는 instagram(피드·캐러셀 이미지)"),
       data_base64: z
         .string()
         .max(1_400_000)
         .optional()
         .describe("이미지 바이트의 base64. template 와 동시에 줄 수 없다"),
       template: z
-        .enum(["signature-cover"])
+        .enum(["signature-cover", "feed-square", "feed-portrait", "carousel-card"])
         .optional()
-        .describe("서버측 렌더 템플릿. data_base64 와 동시에 줄 수 없다"),
+        .describe(
+          "서버측 렌더 템플릿. data_base64 와 동시에 줄 수 없다. " +
+            "blog-cover → signature-cover(1200×800). instagram → feed-square(1080²)·feed-portrait(1080×1350)·carousel-card(1080×1350, body·page 지원)",
+        ),
       fields: z
         .object({
           headline: z.string().min(4).max(60).describe("헤드라인. \\n 으로 줄바꿈"),
           eyebrow: z.string().max(40).optional().describe("헤드라인 위 작은 소개줄"),
           notes: z.string().max(80).optional().describe("하단 모노 라벨(예: 플레이버 노트). 대문자로 표시된다"),
           variant: z.enum(["light", "dark"]).default("light"),
+          body: z.string().max(160).optional().describe("carousel-card 전용. 헤드라인 아래 짧은 본문(2~3줄). \\n 줄바꿈"),
+          page: z.string().max(8).optional().describe("carousel-card 전용. 페이지 표기(예: 2/5). 우상단 모노"),
         })
         .optional()
         .describe("template 렌더에 쓸 텍스트"),
@@ -83,7 +97,7 @@ export const createImage = {
         .string()
         .max(200)
         .optional()
-        .describe("이 커버를 쓸 글의 슬러그. 미참조 자산 정리에 쓰인다"),
+        .describe("이 이미지를 쓸 글(블로그 slug) 또는 인스타 초안(slug). 미참조 자산 정리에 쓰인다"),
       name_hint: z.string().max(60).optional().describe("파일명 힌트. 생략하면 post_slug 를 쓴다"),
       sha256: z
         .string()
@@ -113,7 +127,7 @@ export const createImage = {
   handler: withTool<{
     purpose?: string;
     data_base64?: string;
-    template?: "signature-cover";
+    template?: RenderTemplate;
     fields?: CoverFields;
     alt: string;
     post_slug?: string;
@@ -123,8 +137,10 @@ export const createImage = {
     "commerce_create_image",
     "content:write",
     async (args, ctx: ToolContext) => {
-      const purpose = args.purpose ?? "blog-cover";
+      const purpose = (args.purpose ?? "blog-cover") as (typeof PURPOSES)[number];
       const policy = policyFor(ctx, purpose);
+      const isSocial = purpose === "instagram";
+      const adminHint = isSocial ? "/admin/social" : "/admin/blog";
 
       const alt = (args.alt ?? "").trim();
       if (alt.length < 5) {
@@ -143,6 +159,12 @@ export const createImage = {
 
       let buf: Buffer;
       if (hasTemplate) {
+        if (!TEMPLATES_BY_PURPOSE[purpose].includes(args.template!)) {
+          throw new Error(
+            `template ${args.template} 은 purpose ${purpose} 에 쓸 수 없습니다. ` +
+              `허용: ${TEMPLATES_BY_PURPOSE[purpose].join(" · ")}`,
+          );
+        }
         if (!ctx.render) {
           throw new Error("이 배포에는 커버 렌더러가 없습니다. data_base64 로 직접 올리거나 관리자에게 문의하세요.");
         }
@@ -167,16 +189,33 @@ export const createImage = {
         if (raw.length > policy.max_b64_len) {
           throw new Error(
             `이미지가 너무 큽니다(base64 ${raw.length.toLocaleString()}자, 상한 ${policy.max_b64_len.toLocaleString()}자). ` +
-              "가로 1200px · JPEG 품질 85 로 다시 인코딩하거나 /admin/blog 에서 직접 올리세요.",
+              `JPEG 품질 85 로 다시 인코딩하거나 ${adminHint} 에서 직접 올리세요.`,
           );
         }
         buf = decodeBase64(raw);
       }
 
+      // ── 인스타그램은 JPEG 로 통일한다 ──
+      //    Graph API 가 JPEG 만 확실히 받는다. 렌더 결과(PNG)든 base64 PNG 든 여기서 바꾼다.
+      //    sha256 대조는 변환 "전" 바이트로 해야 보내는 쪽 해시와 맞는다.
+      const expected = hasData ? (args.sha256 ?? "").toLowerCase() : "";
+      if (isSocial && expected) {
+        const pre = inspectImage(buf);
+        if (expected !== pre.sha256) {
+          throw new Error(
+            `전송된 바이트가 원본과 다릅니다(기대 ${expected.slice(0, 12)}… / 실제 ${pre.sha256.slice(0, 12)}…, ${buf.length}바이트). ` +
+              `base64 가 전송 중 변형됐습니다. 다시 보내거나 ${adminHint} 에서 직접 올리세요.`,
+          );
+        }
+      }
+      if (isSocial && buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50) {
+        buf = pngToJpeg(buf, 90);
+      }
+
       if (buf.length > policy.max_bytes) {
         throw new Error(
           `이미지가 ${Math.round(buf.length / 1024)}KB 로 상한(${Math.round(policy.max_bytes / 1024)}KB)을 넘습니다. ` +
-            "가로 1200px · JPEG 품질 85 로 다시 인코딩하거나 /admin/blog 에서 직접 올리세요.",
+            `JPEG 품질 85 로 다시 인코딩하거나 ${adminHint} 에서 직접 올리세요.`,
         );
       }
 
@@ -185,11 +224,10 @@ export const createImage = {
 
       // 종단 무결성. PNG·WebP 는 구조로 잡히지만 JPEG 에는 체크섬이 없어
       // 중간이 변형돼도 구조 검사만으로는 통과한다. 보내는 쪽이 해시를 알면 여기서 막는다.
-      const expected = hasData ? (args.sha256 ?? "").toLowerCase() : "";
-      if (expected && expected !== info.sha256) {
+      if (!isSocial && expected && expected !== info.sha256) {
         throw new Error(
           `전송된 바이트가 원본과 다릅니다(기대 ${expected.slice(0, 12)}… / 실제 ${info.sha256.slice(0, 12)}…, ${buf.length}바이트). ` +
-            "base64 가 전송 중 변형됐습니다. 다시 보내거나 /admin/blog 에서 직접 올리세요.",
+            `base64 가 전송 중 변형됐습니다. 다시 보내거나 ${adminHint} 에서 직접 올리세요.`,
         );
       }
 
@@ -200,14 +238,15 @@ export const createImage = {
       }
       if (info.width < policy.min_width || info.height < policy.min_height) {
         throw new Error(
-          `커버는 ${policy.min_width}×${policy.min_height} 이상이어야 합니다(현재 ${info.width}×${info.height}). ` +
-            "이보다 작으면 카카오톡·SNS 공유 썸네일이 깨집니다.",
+          `${isSocial ? "인스타그램 이미지" : "커버"}는 ${policy.min_width}×${policy.min_height} 이상이어야 합니다(현재 ${info.width}×${info.height}). ` +
+            (isSocial ? "작으면 피드에서 흐리게 보입니다." : "이보다 작으면 카카오톡·SNS 공유 썸네일이 깨집니다."),
         );
       }
       const aspect = info.width / info.height;
       if (aspect < policy.aspect_min || aspect > policy.aspect_max) {
         throw new Error(
-          `커버 가로세로비가 ${aspect.toFixed(2)} 입니다. ${policy.aspect_min}–${policy.aspect_max} 범위여야 합니다(권장 3:2).`,
+          `가로세로비가 ${aspect.toFixed(2)} 입니다. ${policy.aspect_min}–${policy.aspect_max} 범위여야 합니다` +
+            (isSocial ? "(인스타그램: 4:5 ~ 1.91:1)." : "(권장 3:2)."),
         );
       }
 
@@ -278,9 +317,12 @@ export const createImage = {
         height: info.height,
         mime: info.mime,
         duplicate,
-        next_step: duplicate
-          ? "같은 이미지가 이미 등록돼 있어 그 URL 을 돌려줍니다. 새 글이면 commerce_draft_post 의 cover_image, 기존 초안이면 commerce_attach_cover 에 넣으세요."
-          : "등록했습니다. 새 글이면 commerce_draft_post 의 cover_image 인자에, 이미 저장된 초안이면 commerce_attach_cover 에 이 url 을 넣으세요.",
+        next_step: isSocial
+          ? (duplicate ? "같은 이미지가 이미 등록돼 있어 그 URL 을 돌려줍니다. " : "등록했습니다. ") +
+            "commerce_social_draft_post 의 media[].url 에 이 url 을 넣으세요. 캐러셀이면 카드 순서대로 배열에 담습니다."
+          : duplicate
+            ? "같은 이미지가 이미 등록돼 있어 그 URL 을 돌려줍니다. 새 글이면 commerce_draft_post 의 cover_image, 기존 초안이면 commerce_attach_cover 에 넣으세요."
+            : "등록했습니다. 새 글이면 commerce_draft_post 의 cover_image 인자에, 이미 저장된 초안이면 commerce_attach_cover 에 이 url 을 넣으세요.",
       };
     },
     {

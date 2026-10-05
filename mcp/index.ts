@@ -25,6 +25,7 @@ import { searchOrders, getOrder } from "./tools/orders";
 import { searchCustomers, getCustomer } from "./tools/customers";
 import { getBrandTokens, searchContent, getPost, draftPost, attachCover } from "./tools/content";
 import { createImage } from "./tools/assets";
+import { socialDraftPost, socialGetPost, socialListPosts } from "./tools/social";
 import { runReport } from "./tools/reports";
 
 const TOOLS = [
@@ -55,6 +56,10 @@ const TOOLS = [
   createImage,
   // 블로그: 기존 초안에 커버만 부착. 본문을 건드리지 않는다(D-108 — draft_post 재저장은 본문을 바꾼다)
   attachCover,
+  // 인스타그램(D-135): 초안만 저장. 승인(scheduled)은 /admin/social 에서 사람이, 발행은 워커가(tools/social.ts 머리말)
+  socialDraftPost,
+  socialGetPost,
+  socialListPosts,
 ];
 
 export { McpSetupError, McpAuthError };
@@ -83,7 +88,8 @@ export async function createContext(req: Request): Promise<ToolContext> {
   // 스모크 하네스(가짜 렌더러 주입)와 패키지 추출이 next 없이 성립한다.
   const render: ToolContext["render"] = async (spec) => {
     const mod = await import("./render");
-    return mod.renderCover(spec.fields, spec.tokens);
+    if (spec.template === "signature-cover") return mod.renderCover(spec.fields, spec.tokens);
+    return mod.renderSocial(spec.template, spec.fields, spec.tokens);
   };
   return { config, identity, db, storage, render, audit: makeAudit(db, identity) };
 }

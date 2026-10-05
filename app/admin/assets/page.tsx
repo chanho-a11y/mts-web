@@ -51,6 +51,18 @@ export default async function AdminAssetsPage({
     refsByPath.set(path, list);
   }
 
+  // 인스타그램 초안(D-135)의 media[].url 도 참조다. 승인·예약된 초안의 이미지를 지우면 발행이 실패한다.
+  const { data: socials } = await admin.from("social_post").select("slug,status,media");
+  for (const sp of (socials ?? []) as { slug: string; status: string; media: { url: string }[] }[]) {
+    for (const m of Array.isArray(sp.media) ? sp.media : []) {
+      if (!m?.url?.startsWith(base)) continue;
+      const path = m.url.slice(base.length);
+      const list = refsByPath.get(path) ?? [];
+      list.push({ slug: `ig:${sp.slug}`, status: sp.status });
+      refsByPath.set(path, list);
+    }
+  }
+
   const rows = (assets ?? []) as AssetRow[];
 
   return (

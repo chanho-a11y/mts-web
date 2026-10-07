@@ -47,6 +47,7 @@ export async function runSocialWorker(opts: { maxPosts: number; budgetMs: number
   const igUserId = (process.env[`IG_USER_ID_${BRAND.toUpperCase()}`] ?? "").trim();
   if (!igUserId) return { ok: false, brand: BRAND, processed, error: `IG_USER_ID_${BRAND.toUpperCase()} 환경변수 없음` };
 
+  console.log(`[social] worker start brand=${BRAND}`);
   let token = await loadToken(db);
   if (!token) return { ok: false, brand: BRAND, processed, error: `IG_ACCESS_TOKEN_${BRAND.toUpperCase()} 환경변수 없음` };
 
@@ -64,7 +65,8 @@ export async function runSocialWorker(opts: { maxPosts: number; budgetMs: number
       if (Date.now() - started > opts.budgetMs) break;
       const post = await claimNext(db);
       if (!post) break;
-      const outcome = await processOne(db, post, igUserId, token.token);
+      const outcome = await processOne(db, post, igUserId, token.token, started + opts.budgetMs);
+      console.log(`[social] outcome slug=${outcome.slug} result=${outcome.result}${outcome.detail ? " " + outcome.detail : ""}`);
       processed.push(outcome);
       if (outcome.result === "quota") break;
     }

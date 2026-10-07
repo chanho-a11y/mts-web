@@ -18,9 +18,15 @@ export const BRAND = "mtspace" as const;
 const API_VERSION = process.env.IG_API_VERSION || "v21.0";
 const GRAPH = `https://graph.instagram.com/${API_VERSION}`;
 
-/** 컨테이너 처리 대기 상한. 이미지 기준 2분. */
-const CONTAINER_WAIT_MS = 120_000;
-const POLL_MS = 5_000;
+/** 컨테이너 처리 대기 상한. 실측 10초 안(2026-10-07). 함수 60초 상한 안에서 끊어야 하므로 35초. */
+const CONTAINER_WAIT_MS = 35_000;
+const POLL_MS = 4_000;
+/** Graph API 요청 1건 상한. 넘기면 일시 오류로 보고 재시도 큐로 보낸다. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+function log(step: string, started: number, extra = "") {
+  console.log(`[social] ${step} ${Date.now() - started}ms${extra ? " " + extra : ""}`);
+}
 /** 재시도 간격(분). 3회 뒤 failed. */
 const RETRY_MINUTES = [2, 8, 32];
 
@@ -126,8 +132,21 @@ async function graph<T>(path: string, token: string, init?: { method?: "GET" | "
   const params = new URLSearchParams({ ...(init?.params ?? {}), access_token: token });
   const method = init?.method ?? "GET";
   const url = method === "GET" ? `${GRAPH}${path}?${params}` : `${GRAPH}${path}`;
-  const res = await fetch(url, method === "GET" ? undefined : { method, body: params });
+  const t0 = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      body: method === "GET" ? undefined : params,
+      cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (e) {
+    log(`graph ${method} ${path.replace(/\d{6,}/g, "<id>")} aborted`, t0, (e as Error)?.name ?? "");
+    throw new GraphApiError(`Graph 요청 시간 초과(${REQUEST_TIMEOUT_MS / 1000}초): ${method} ${path.replace(/\d{6,}/g, "<id>")}`, undefined, 504);
+  }
   const body = (await res.json().catch(() => ({}))) as T & { error?: GraphError };
+  log(`graph ${method} ${path.replace(/\d{6,}/g, "<id>")}`, t0, `http=${res.status}`);
   if (!res.ok || body.error) {
     const e = body.error ?? {};
     const err = new GraphApiError(e.message ?? `http_${res.status}`, e.code, res.status);
@@ -151,8 +170,8 @@ export function buildCaption(caption: string, hashtags: string[]): string {
   return tags ? `${caption.trim()}\n\n${tags}` : caption.trim();
 }
 
-async function waitContainer(creationId: string, token: string): Promise<void> {
-  const deadline = Date.now() + CONTAINER_WAIT_MS;
+async function waitContainer(creationId: string, token: string, deadlineAt?: number): Promise<void> {
+  const deadline = Math.min(Date.now() + CONTAINER_WAIT_MS, deadlineAt ?? Number.POSITIVE_INFINITY);
   while (Date.now() < deadline) {
     const r = await graph<{ status_code?: string; status?: string }>(`/${creationId}`, token, { params: { fields: "status_code,status" } });
     const s = r.status_code ?? "";
@@ -160,7 +179,8 @@ async function waitContainer(creationId: string, token: string): Promise<void> {
     if (s === "ERROR" || s === "EXPIRED") throw new GraphApiError(`컨테이너 상태 ${s}: ${r.status ?? ""}`.trim(), undefined, 400);
     await new Promise((res) => setTimeout(res, POLL_MS));
   }
-  throw new GraphApiError("컨테이너 처리 시간 초과(2분)", undefined, 408);
+  // 408 은 isTransient 가 아니므로 504 로 올려 재시도 큐에 태운다. 컨테이너는 Meta 쪽에서 24시간 뒤 만료된다.
+  throw new GraphApiError("컨테이너 처리 대기 시간 초과", undefined, 504);
 }
 
 /** quota_usage 가 상한에 닿았으면 true */
@@ -185,8 +205,10 @@ export async function publishToInstagram(
   post: SocialPostRow,
   igUserId: string,
   token: string,
+  deadlineAt?: number,
 ): Promise<{ mediaId: string; permalink: string | null }> {
   const caption = buildCaption(post.caption, post.hashtags);
+  const t0 = Date.now();
   let creationId: string;
 
   if (post.kind === "carousel") {
@@ -198,7 +220,7 @@ export async function publishToInstagram(
       });
       children.push(c.id);
     }
-    for (const id of children) await waitContainer(id, token);
+    for (const id of children) await waitContainer(id, token, deadlineAt);
     const parent = await graph<{ id: string }>(`/${igUserId}/media`, token, {
       method: "POST",
       params: { media_type: "CAROUSEL", children: children.join(","), caption },
@@ -212,11 +234,14 @@ export async function publishToInstagram(
     creationId = c.id;
   }
 
-  await waitContainer(creationId, token);
+  log(`container created slug=${post.slug}`, t0);
+  await waitContainer(creationId, token, deadlineAt);
+  log(`container finished slug=${post.slug}`, t0);
   const pub = await graph<{ id: string }>(`/${igUserId}/media_publish`, token, {
     method: "POST",
     params: { creation_id: creationId },
   });
+  log(`published slug=${post.slug}`, t0);
 
   let permalink: string | null = null;
   try {
@@ -251,7 +276,14 @@ export async function claimNext(db: SupabaseClient): Promise<SocialPostRow | nul
   return null;
 }
 
-export async function processOne(db: SupabaseClient, post: SocialPostRow, igUserId: string, token: string): Promise<PublishOutcome> {
+export async function processOne(
+  db: SupabaseClient,
+  post: SocialPostRow,
+  igUserId: string,
+  token: string,
+  deadlineAt: number = Date.now() + 40_000,
+): Promise<PublishOutcome> {
+  const t0 = Date.now();
   // 멱등성
   if (post.ig_media_id) {
     await db.from("social_post").update({ status: "published", published_at: new Date().toISOString() }).eq("id", post.id);
@@ -266,13 +298,16 @@ export async function processOne(db: SupabaseClient, post: SocialPostRow, igUser
     await db.from("social_post").update({ last_attempt_at: null }).eq("id", post.id);
     return { slug: post.slug, result: "quota", detail: "24시간 발행 한도 도달, 다음 주기에 재시도" };
   }
+  log(`quota checked slug=${post.slug}`, t0);
 
   try {
-    const { mediaId, permalink } = await publishToInstagram(post, igUserId, token);
-    await db
+    const { mediaId, permalink } = await publishToInstagram(post, igUserId, token, deadlineAt);
+    const { error: upErr } = await db
       .from("social_post")
       .update({ status: "published", ig_media_id: mediaId, ig_permalink: permalink, published_at: new Date().toISOString(), failure_reason: null })
       .eq("id", post.id);
+    if (upErr) console.error(`[social] published but db update failed slug=${post.slug} media=${mediaId}: ${upErr.message}`);
+    log(`done slug=${post.slug}`, t0);
     return { slug: post.slug, result: "published", permalink: permalink ?? undefined };
   } catch (e) {
     const err = e as GraphApiError;

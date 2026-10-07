@@ -212,15 +212,18 @@ export async function publishToInstagram(
   let creationId: string;
 
   if (post.kind === "carousel") {
-    const children: string[] = [];
-    for (const m of post.media) {
-      const c = await graph<{ id: string }>(`/${igUserId}/media`, token, {
-        method: "POST",
-        params: { image_url: m.url, is_carousel_item: "true" },
-      });
-      children.push(c.id);
-    }
-    for (const id of children) await waitContainer(id, token, deadlineAt);
+    // 자식 컨테이너는 동시에 만든다. 장당 5초 안팎이라 5장을 차례로 만들면 함수 예산(50초)을 넘긴다. 순서는 배열 순서로 유지된다.
+    const created = await Promise.all(
+      post.media.map((m) =>
+        graph<{ id: string }>(`/${igUserId}/media`, token, {
+          method: "POST",
+          params: { image_url: m.url, is_carousel_item: "true" },
+        }),
+      ),
+    );
+    const children = created.map((c) => c.id);
+    log(`carousel children created n=${children.length} slug=${post.slug}`, t0);
+    await Promise.all(children.map((id) => waitContainer(id, token, deadlineAt)));
     const parent = await graph<{ id: string }>(`/${igUserId}/media`, token, {
       method: "POST",
       params: { media_type: "CAROUSEL", children: children.join(","), caption },

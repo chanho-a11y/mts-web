@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
-import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction } from "./actions";
+import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction, bulkImportAction, bulkApproveAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +94,16 @@ export default async function AdminSocialPage({
   const counts: Record<string, number> = {};
   for (const r of (countsRaw ?? []) as { status: string }[]) counts[r.status] = (counts[r.status] ?? 0) + 1;
 
+  // 일괄 승인 대상: 권장 시각이 미래인 draft
+  const { data: bulkRaw } = await admin
+    .from("social_post")
+    .select("suggested_time")
+    .eq("status", "draft")
+    .gt("suggested_time", new Date().toISOString())
+    .order("suggested_time", { ascending: true })
+    .limit(200);
+  const bulk = (bulkRaw ?? []) as { suggested_time: string }[];
+
   return (
     <div>
       <h1 className="text-xl font-bold">인스타그램</h1>
@@ -113,6 +123,41 @@ export default async function AdminSocialPage({
           service-role 키가 없는 환경이라 조회만 가능합니다.
         </p>
       )}
+
+      <details className="mt-4 rounded border bg-neutral-50 p-3 text-sm" open={bulk.length > 0}>
+        <summary className="cursor-pointer font-medium">일괄 등록과 전체 승인</summary>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <form action={bulkImportAction} className="rounded border bg-white p-3">
+            <p className="font-medium">1. 일괄 등록</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              이미지를 업로드 스크립트로 올린 뒤 그 폴더의 manifest.json 을 선택합니다. 전부 초안으로만 들어가고, 이미 있는 슬러그는 건너뜁니다.
+            </p>
+            <input type="file" name="manifest" accept="application/json,.json" required className="mt-2 block w-full text-xs" />
+            <button type="submit" disabled={!hasServiceRole} className="mt-2 rounded border border-neutral-900 px-3 py-1 text-xs font-medium disabled:opacity-30">
+              초안으로 등록
+            </button>
+          </form>
+          <form action={bulkApproveAction} className="rounded border bg-white p-3">
+            <p className="font-medium">2. 전체 승인</p>
+            {bulk.length > 0 ? (
+              <>
+                <p className="mt-1 text-xs text-neutral-500">
+                  권장 시각이 정해진 초안 {bulk.length}건을 각자 그 시각으로 예약합니다. 첫 발행 {kst(bulk[0].suggested_time)}, 마지막 발행{" "}
+                  {kst(bulk[bulk.length - 1].suggested_time)}. 예약한 뒤에도 건별로 예약 취소를 할 수 있습니다.
+                </p>
+                <label className="mt-2 flex items-center gap-2 text-xs">
+                  <input type="checkbox" name="confirm" required /> 초안 {bulk.length}건의 내용과 발행 시각을 확인했습니다
+                </label>
+                <button type="submit" disabled={!hasServiceRole} className="mt-2 rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-30">
+                  {bulk.length}건 전체 승인
+                </button>
+              </>
+            ) : (
+              <p className="mt-1 text-xs text-neutral-500">권장 시각이 정해진 초안이 없습니다.</p>
+            )}
+          </form>
+        </div>
+      </details>
 
       <div className="mt-4 flex flex-wrap gap-1 text-xs">
         <Link href="/admin/social" className={`rounded-full border px-3 py-1 ${!filter ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}>

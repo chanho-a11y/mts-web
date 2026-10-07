@@ -13,6 +13,8 @@ const nextConfig = {
     // fs.readFile 로 읽는 파일은 트레이싱이 자동으로 못 잡는다 — 빠지면 렌더가 배포에서만 죽는다.
     outputFileTracingIncludes: {
       "/api/mcp": ["./mcp/fonts/**"],
+      // D-139: 관리자 수정 화면의 단일 이미지 다시 그리기(/api/social/design)도 같은 폰트를 읽는다.
+      "/api/social/design": ["./mcp/fonts/**"],
     },
   },
   // 보안 응답 헤더 (H-3). CSP 는 초기 회귀 방지를 위해 Report-Only 로 시작 → 검증 후 enforce 전환.

@@ -31,7 +31,7 @@ const H = 800;
 
 /* ── 색 유틸 ── */
 
-function pickHex(raw: string | undefined): string | null {
+export function pickHex(raw: string | undefined): string | null {
   const m = /#[0-9a-fA-F]{6}/.exec(raw ?? "");
   return m ? m[0].toUpperCase() : null;
 }
@@ -44,13 +44,13 @@ function rgbOf(hex: string): [number, number, number] {
   ];
 }
 
-function rgba(hex: string, a: number): string {
+export function rgba(hex: string, a: number): string {
   const [r, g, b] = rgbOf(hex);
   return `rgba(${r},${g},${b},${a})`;
 }
 
 /** two hex 를 t(0..1) 비율로 섞는다. 파생색은 전부 여기서 나온다 — 상수를 새로 두지 않는다. */
-function mix(hexA: string, hexB: string, t: number): string {
+export function mix(hexA: string, hexB: string, t: number): string {
   const a = rgbOf(hexA);
   const b = rgbOf(hexB);
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
@@ -75,7 +75,7 @@ const FONT_SPECS: FontSpec[] = [
 
 let fontsPromise: Promise<{ name: string; data: ArrayBuffer; weight: FontSpec["weight"]; style: "normal" }[]> | null = null;
 
-function loadFonts() {
+export function loadFonts() {
   if (!fontsPromise) {
     const dir = join(process.cwd(), "mcp", "fonts");
     fontsPromise = Promise.all(
@@ -100,7 +100,7 @@ function loadFonts() {
 }
 
 /** 서브셋 밖 한글 음절을 렌더 전에 잡는다. 빈 글자로 그려 놓고 통과시키는 것이 최악이다. */
-function assertCovered(label: string, text: string): void {
+export function assertCovered(label: string, text: string): void {
   const missing = [...new Set(text)].filter(
     (ch) => ch >= "가" && ch <= "힣" && !COVERED_SYLLABLES.has(ch),
   );
@@ -157,9 +157,9 @@ function artSvg(p: ArtPalette): string {
 
 /* ── 엘리먼트 헬퍼 (JSX 없이 satori 트리를 만든다) ── */
 
-type El = { type: string; props: Record<string, unknown> };
+export type El = { type: string; props: Record<string, unknown> };
 
-function h(type: string, style: Record<string, unknown>, children?: unknown, extra?: Record<string, unknown>): El {
+export function h(type: string, style: Record<string, unknown>, children?: unknown, extra?: Record<string, unknown>): El {
   return { type, props: { ...extra, style, children } };
 }
 

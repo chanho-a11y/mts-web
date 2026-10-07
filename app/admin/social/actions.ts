@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-guard";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { runSocialWorker } from "@/lib/social/run";
+import { parsePhotoDesign } from "@/mcp/photo-design";
 
 /**
  * 인스타그램 초안 승인 게이트 (D-135).
@@ -149,7 +150,7 @@ const BUCKET = "product-assets";
 const ASSET_PATH = /^mcp\/social\/\d{6}\/[A-Za-z0-9._-]+\.jpg$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{2,118}$/;
 
-interface ManifestMedia { file?: string; path: string; sha256: string; bytes: number; alt?: string }
+interface ManifestMedia { file?: string; path: string; sha256: string; bytes: number; alt?: string; design?: unknown }
 interface ManifestPost {
   slug: string; title?: string; scheduled_at: string; caption: string; hashtags: string[];
   source_ref?: string; media: ManifestMedia[];
@@ -162,8 +163,10 @@ export async function bulkImportAction(formData: FormData) {
   let posts: ManifestPost[];
   const bundled = String(formData.get("bundled") || "");
   if (bundled) {
-    if (bundled !== "2026q4") fail("알 수 없는 세트입니다.");
-    posts = (await import("./import/2026q4.json")).default as ManifestPost[];
+    // 2026q4 = 카드뉴스 35건(D-138), 2026q4-single = 단일 이미지 23건(D-139)
+    if (bundled === "2026q4") posts = (await import("./import/2026q4.json")).default as ManifestPost[];
+    else if (bundled === "2026q4-single") posts = (await import("./import/2026q4-single.json")).default as ManifestPost[];
+    else fail("알 수 없는 세트입니다.");
   } else {
     const file = formData.get("manifest");
     if (!(file instanceof File) || file.size === 0) fail("manifest.json 파일을 선택하세요.");
@@ -194,6 +197,14 @@ export async function bulkImportAction(formData: FormData) {
     if (Number.isNaN(new Date(p.scheduled_at).getTime())) fail(`${p.slug}: 발행 시각을 해석하지 못했습니다.`);
     if (!Array.isArray(p.media) || p.media.length < 1 || p.media.length > 10) fail(`${p.slug}: 이미지는 1~10장이어야 합니다.`);
     for (const m of p.media) {
+      if (m.design !== undefined) {
+        if (p.media.length !== 1) fail(`${p.slug}: 디자인 데이터는 이미지 1장 게시물에만 붙일 수 있습니다.`);
+        try {
+          m.design = parsePhotoDesign(m.design);
+        } catch (e) {
+          fail(`${p.slug}: 디자인 데이터 오류. ${e instanceof Error ? e.message : ""}`);
+        }
+      }
       if (!ASSET_PATH.test(m.path ?? "")) fail(`${p.slug}: 허용되지 않는 이미지 경로 ${String(m.path).slice(0, 80)}`);
       if (!/^[a-f0-9]{64}$/.test(m.sha256 ?? "") || !Number.isInteger(m.bytes) || m.bytes <= 0 || m.bytes > 8_388_608) fail(`${p.slug}: 이미지 정보 오류 ${m.path}`);
       folders.add(m.path.slice(0, m.path.lastIndexOf("/")));
@@ -242,7 +253,8 @@ export async function bulkImportAction(formData: FormData) {
     kind: p.media.length === 1 ? "image" : "carousel",
     caption: p.caption,
     hashtags: p.hashtags,
-    media: p.media.map((m) => ({ url: baseUrl + m.path, alt: m.alt ?? null })),
+    // design 은 단일 이미지(사진 패널)의 디자인 데이터다. 있으면 수정 화면에서 글자와 사진을 바꿔 다시 그릴 수 있다(D-139).
+    media: p.media.map((m) => (m.design ? { url: baseUrl + m.path, alt: m.alt ?? null, design: m.design } : { url: baseUrl + m.path, alt: m.alt ?? null })),
     status: "draft",
     suggested_time: new Date(p.scheduled_at).toISOString(),
     source_ref: p.source_ref ?? null,

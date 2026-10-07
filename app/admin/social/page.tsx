@@ -108,8 +108,8 @@ export default async function AdminSocialPage({
     <div>
       <h1 className="text-xl font-bold">인스타그램</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        MCP(commerce_social_draft_post)가 만든 초안입니다. 승인하면 예약 시각에 서버가 발행합니다. MCP 는 발행하지 못하고
-        승인·발행된 초안을 수정하지 못합니다 — 수정은 반려한 뒤 다시 받습니다.
+        인스타그램 초안입니다. 초안은 수정 버튼으로 캡션, 해시태그, 발행 시각을 고칠 수 있고, 단일 이미지는 글자와 배경 사진도 바꿀 수 있습니다.
+        승인하면 예약 시각에 서버가 발행합니다. 예약된 건은 초안으로 되돌린 뒤 수정합니다.
       </p>
 
       {searchParams?.e && (
@@ -134,6 +134,12 @@ export default async function AdminSocialPage({
               <input type="hidden" name="bundled" value="2026q4" />
               <button type="submit" disabled={!hasServiceRole} className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-30">
                 2026 Q4 카드뉴스 35건 등록
+              </button>
+            </form>
+            <form action={bulkImportAction} className="mt-2">
+              <input type="hidden" name="bundled" value="2026q4-single" />
+              <button type="submit" disabled={!hasServiceRole} className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-30">
+                2026 Q4 단일 이미지 23건 등록
               </button>
             </form>
             <form action={bulkImportAction} className="mt-3 border-t pt-3">
@@ -330,6 +336,11 @@ export default async function AdminSocialPage({
                   )}
 
                   <div className="flex gap-2">
+                    {r.status === "draft" && (
+                      <Link href={`/admin/social/${r.id}/edit`} className="rounded border border-neutral-900 px-3 py-1 text-xs font-medium">
+                        수정
+                      </Link>
+                    )}
                     {(r.status === "scheduled" || r.status === "rejected" || r.status === "failed") && (
                       <form action={revertToDraftAction}>
                         <input type="hidden" name="id" value={r.id} />

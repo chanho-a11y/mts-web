@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-guard";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
+import { runSocialWorker } from "@/lib/social/run";
 
 /**
  * 인스타그램 초안 승인 게이트 (D-135).
@@ -120,4 +121,17 @@ export async function deleteSocialPostAction(formData: FormData) {
 
   revalidatePath(BACK);
   redirect(`${BACK}?ok=${encodeURIComponent(`${post.slug} 삭제`)}`);
+}
+
+/** 발행 워커 즉시 실행 (D-137). 크론을 기다리지 않고 due 건을 지금 처리한다. */
+export async function runWorkerNowAction() {
+  await requireAdmin();
+  if (!hasServiceRole) fail("service-role 키가 없어 실행할 수 없습니다.");
+  const r = await runSocialWorker({ maxPosts: 3, budgetMs: 50_000 });
+  revalidatePath(BACK);
+  if (!r.ok) fail(`워커 오류: ${r.error ?? "unknown"}`);
+  const summary = r.processed.length
+    ? r.processed.map((p) => `${p.slug}: ${p.result}${p.detail ? ` (${p.detail})` : ""}`).join(" · ")
+    : "처리할 예약 건이 없습니다.";
+  redirect(`${BACK}?ok=${encodeURIComponent(`워커 실행 — ${summary}`)}`);
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
-import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction } from "./actions";
+import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +132,16 @@ export default async function AdminSocialPage({
             slug: {focus} ✕
           </Link>
         )}
+        <form action={runWorkerNowAction} className="ml-auto">
+          <button
+            type="submit"
+            disabled={!hasServiceRole}
+            title="예약 시각이 지난 scheduled 건을 지금 발행합니다 (크론은 5분 간격)"
+            className="rounded-full border border-neutral-900 px-3 py-1 font-medium disabled:opacity-30"
+          >
+            워커 지금 실행
+          </button>
+        </form>
       </div>
 
       {rows.length === 0 && <p className="mt-10 text-center text-sm text-neutral-400">초안이 없습니다.</p>}

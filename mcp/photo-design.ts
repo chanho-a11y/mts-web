@@ -4,6 +4,9 @@
  * 렌더(render-photo.ts)와 달리 next/og 에 의존하지 않는다. 관리자 화면과 일괄 등록이
  * 렌더러를 끌어오지 않고 타입과 검증만 쓸 수 있게 따로 둔다.
  * 디자인 데이터는 social_post.media[0].design 에 그대로 저장된다.
+ *
+ * D-141: 글자 패널은 이미지 높이의 1/3 로 고정하고 반투명으로 얹는다.
+ * 투명도는 panel_opacity 로 조절한다. 검증을 거친 데이터에는 이 값이 항상 들어간다.
  */
 
 function pickHex(raw: string | undefined): string | null {
@@ -38,6 +41,8 @@ export interface PhotoPanelDesign {
   focus_y?: number;
   /** 패널 위치. 피사체가 아래쪽에 있으면 top 으로 올린다 */
   panel_pos?: "bottom" | "top";
+  /** 패널 불투명도(%). 낮을수록 뒤 사진이 더 비친다. 20~100, 기본 85 (D-141) */
+  panel_opacity?: number;
   /** 패널 우상단 모노 라벨(영문 대문자) */
   label?: string;
   eyebrow?: string;
@@ -54,6 +59,18 @@ export interface PhotoPanelDesign {
 
 export const PHOTO_W = 1080;
 export const PHOTO_H = 1350;
+/** 글자 패널 높이. 이미지 높이의 1/3 로 고정한다(D-141). */
+export const PANEL_H = Math.round(PHOTO_H / 3);
+export const PANEL_OPACITY_DEFAULT = 85;
+export const PANEL_OPACITY_MIN = 20;
+export const PANEL_OPACITY_MAX = 100;
+
+/** 저장된 값이 없거나 범위를 벗어나면 기본값과 한계로 맞춘다. 렌더와 검증이 같이 쓴다. */
+export function panelOpacityOf(v: unknown): number {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return PANEL_OPACITY_DEFAULT;
+  return Math.min(PANEL_OPACITY_MAX, Math.max(PANEL_OPACITY_MIN, Math.round(n)));
+}
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -104,6 +121,7 @@ export function parsePhotoDesign(input: unknown): PhotoPanelDesign {
     focus_x: clampNum(o.focus_x, 50),
     focus_y: clampNum(o.focus_y, 50),
     panel_pos: o.panel_pos === "top" ? "top" : "bottom",
+    panel_opacity: panelOpacityOf(o.panel_opacity),
     headline,
   };
   const label = str(o.label, 24, "우상단 라벨");

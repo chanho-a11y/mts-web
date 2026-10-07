@@ -1,8 +1,10 @@
 /**
  * 사진 패널 렌더 — 단일 이미지 게시물용 (D-139).
  *
- * 사진을 화면 가득 깔고 그 위에 paper 색 패널을 얹는다. 패널 안의 글자 배치는
- * feed-portrait 와 같은 순서(키 룰 → 소개줄 → 헤드라인 → 본문 → 모노 라벨)를 그대로 따른다.
+ * 사진을 화면 가득 깔고 그 위에 paper 색 패널을 얹는다.
+ * D-141: 패널 높이는 이미지 높이의 1/3 로 고정하고, 바탕은 반투명(panel_opacity)이다.
+ * 패널 안은 2단이다. 왼쪽에 소개줄, 큰 숫자, 헤드라인을 두고 오른쪽에 표 또는 본문을 둔다.
+ * 오른쪽에 둘 것이 없으면(현장 한 장) 한 단으로 쓴다. 칸을 많이 채워 넘치면 글자를 줄인다.
  * 숫자 한 장, 레시피 한 장, 용어 한 장, 컵 노트 한 장, 현장 한 장이 전부 이 템플릿 하나를 쓰고,
  * 어떤 칸을 채웠는지로만 모양이 갈린다. 그래서 관리자 수정 화면도 폼 하나로 끝난다.
  *
@@ -13,13 +15,35 @@
  * 경계 주의: render.ts 와 같이 next/og 에 결합된다.
  */
 import { ImageResponse } from "next/og";
-import { assertCovered, h, loadFonts, mix, pickHex, type El } from "./render";
-import { PHOTO_H, PHOTO_W, type PhotoPanelDesign } from "./photo-design";
+import { assertCovered, h, loadFonts, mix, pickHex, rgba, type El } from "./render";
+import { PANEL_H, PHOTO_H, PHOTO_W, panelOpacityOf, type PhotoPanelDesign } from "./photo-design";
 
 export {
+  PANEL_H, PANEL_OPACITY_DEFAULT, PANEL_OPACITY_MAX, PANEL_OPACITY_MIN, panelOpacityOf,
   PHOTO_H, PHOTO_SERIES, PHOTO_SERIES_LABEL, PHOTO_W, parsePhotoDesign, photoDesignTexts,
   type PhotoPanelDesign, type PhotoPanelRow, type PhotoSeries,
 } from "./photo-design";
+
+/* ── 글자 폭 어림 ── satori 에 맡기기 전에 줄 수와 글자 크기를 정하려고 쓴다. 단위는 em. */
+function emWidth(line: string): number {
+  let w = 0;
+  for (const ch of line) {
+    if (ch === " ") w += 0.3;
+    else if (ch >= "\u1100") w += 1; // 한글과 전각
+    else if (/[A-Z0-9]/.test(ch)) w += 0.64;
+    else if (/[a-z]/.test(ch)) w += 0.54;
+    else w += 0.34; // 쉼표, 마침표, 콜론 등
+  }
+  return w;
+}
+
+function wrapCount(line: string, fontSize: number, width: number): number {
+  return Math.max(1, Math.ceil((emWidth(line) * fontSize) / width - 0.02));
+}
+
+function lineCount(text: string, fontSize: number, width: number): number {
+  return text.split("\n").reduce((sum, line) => sum + wrapCount(line, fontSize, width), 0);
+}
 
 export interface PhotoSource {
   /** JPEG 또는 PNG 바이트 */
@@ -79,88 +103,171 @@ export async function renderPhotoPanel(
   const top = -Math.round((dh - PHOTO_H) * fy);
   const photoUri = `data:${photo.mime};base64,${photo.bytes.toString("base64")}`;
 
+  // ── 패널: 높이는 이미지의 1/3 로 고정, 바탕은 반투명 (D-141) ──
   const inset = 44;
-  const padX = 56;
-  const isScene = design.series === "scene";
-  const h1Size = big ? 40 : isScene ? 48 : headline.length > 22 ? 52 : 58;
+  const padX = 52;
+  const padY = 34;
+  const panelW = PHOTO_W - inset * 2;
+  const innerW = panelW - padX * 2;
+  const innerH = PANEL_H - padY * 2;
+  const opacity = panelOpacityOf(design.panel_opacity) / 100;
+
+  const HEAD_H = 26; // 머리줄(워드마크와 시리즈 라벨)
+  const RULE_MT = 20;
+  const RULE_MB = 22;
+  const RULE_H = 5;
+  const NOTES_H = notes ? 38 : 0; // 하단 모노 라벨과 그 위 여백
+  const mainH = innerH - HEAD_H - RULE_MT - RULE_H - RULE_MB - NOTES_H;
+
+  // 오른쪽 단에는 표가 먼저, 표가 없으면 본문이 들어간다. 둘 다 없으면 한 단으로 쓴다.
+  const rightKind: "rows" | "body" | null = rows.length ? "rows" : body ? "body" : null;
+  const leftBody = rows.length && body ? body : "";
+  const colGap = 40;
+  const colW = rightKind ? Math.floor((innerW - colGap) / 2) : innerW;
+
+  // 왼쪽 단: 소개줄 → 큰 숫자 → 헤드라인 (→ 표가 있을 때의 본문)
+  const headLines = headline.split("\n");
+  const headBase = big ? 32 : rightKind ? 46 : 52;
+  const headLongest = Math.max(...headLines.map(emWidth));
+  let headSize = Math.max(26, Math.min(headBase, Math.floor((colW * 0.96) / Math.max(headLongest, 1))));
+  let eyebrowSize = 24;
+  let bigSize = 96;
+  let leftBodySize = 21;
+  const leftHeight = () =>
+    (eyebrow ? eyebrowSize * 1.3 + 10 : 0) +
+    (big ? bigSize * 1.05 + 8 : 0) +
+    headLines.reduce((sum, line) => sum + wrapCount(line, headSize, colW), 0) * headSize * 1.28 +
+    (leftBody ? 12 + lineCount(leftBody, leftBodySize, colW) * leftBodySize * 1.5 : 0);
+  const leftNeed = leftHeight();
+  if (leftNeed > mainH) {
+    // 칸을 많이 채워 넘치면 왼쪽 단 글자를 같은 비율로 줄인다. 패널 높이는 바꾸지 않는다.
+    const f = Math.max(0.45, mainH / leftNeed);
+    headSize = Math.floor(headSize * f);
+    eyebrowSize = Math.floor(eyebrowSize * f);
+    bigSize = Math.floor(bigSize * f);
+    leftBodySize = Math.floor(leftBodySize * f);
+  }
+
+  // 오른쪽 단
+  // 본문은 적어 준 줄바꿈대로 보이도록, 줄이 넘어가지 않는 크기까지 줄인다(하한 20). 그래도 높이를 넘으면 더 줄인다.
+  let rightBodySize = 28;
+  if (rightKind === "body") {
+    const explicit = body.split("\n").length;
+    while (rightBodySize > 20 && lineCount(body, rightBodySize, colW) > explicit) rightBodySize -= 1;
+    while (rightBodySize > 16 && lineCount(body, rightBodySize, colW) * rightBodySize * 1.5 > mainH) rightBodySize -= 1;
+  }
+  const rowKeySize = 25;
+  const rowValSize = 27;
+  const rowPad = rows.length
+    ? Math.max(4, Math.min(14, Math.floor(((mainH - 2) / rows.length - rowValSize * 1.25 - 1) / 2)))
+    : 0;
+
+  const leftCol: El[] = [];
+  if (eyebrow) {
+    leftCol.push(
+      h("div", { fontFamily: "Pretendard", fontWeight: 500, fontSize: eyebrowSize, lineHeight: 1.3, color: textMuted, marginBottom: 10 }, eyebrow),
+    );
+  }
+  if (big) {
+    leftCol.push(
+      h(
+        "div",
+        { fontFamily: "NotoSerifKR", fontWeight: 700, fontSize: bigSize, lineHeight: 1.05, letterSpacing: "-2px", color: text, marginBottom: 8 },
+        big,
+      ),
+    );
+  }
+  leftCol.push(
+    h(
+      "div",
+      { fontFamily: "NotoSerifKR", fontWeight: 700, fontSize: headSize, lineHeight: 1.28, letterSpacing: "-0.6px", color: text, whiteSpace: "pre-wrap" },
+      headline,
+    ),
+  );
+  if (leftBody) {
+    leftCol.push(
+      h(
+        "div",
+        { fontFamily: "Pretendard", fontWeight: 500, fontSize: leftBodySize, lineHeight: 1.5, color: text, marginTop: 12, whiteSpace: "pre-wrap" },
+        leftBody,
+      ),
+    );
+  }
+
+  let rightCol: El | null = null;
+  if (rightKind === "rows") {
+    rightCol = h(
+      "div",
+      { display: "flex", flexDirection: "column", width: colW, borderBottom: `1px solid ${border}` },
+      rows.map((r) =>
+        h(
+          "div",
+          {
+            display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+            width: "100%", paddingTop: rowPad, paddingBottom: rowPad, borderTop: `1px solid ${border}`,
+          },
+          [
+            h("div", { fontFamily: "Pretendard", fontWeight: 500, fontSize: rowKeySize, color: textMuted }, r.k),
+            h("div", { fontFamily: "PlexMono, Pretendard", fontWeight: 400, fontSize: rowValSize, color: text }, r.v),
+          ],
+        ),
+      ),
+    );
+  } else if (rightKind === "body") {
+    rightCol = h(
+      "div",
+      {
+        display: "flex", width: colW, fontFamily: "Pretendard", fontWeight: 500, fontSize: rightBodySize, lineHeight: 1.5,
+        color: text, whiteSpace: "pre-wrap",
+      },
+      body,
+    );
+  }
 
   const block: El[] = [];
 
   // 머리줄: 워드마크(좌) + 시리즈 라벨(우)
   block.push(
-    h("div", { display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }, [
-      h("div", { display: "flex", flexDirection: "row", fontSize: 22, color: text }, [
+    h("div", { display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", height: HEAD_H }, [
+      h("div", { display: "flex", flexDirection: "row", fontSize: 21, color: text }, [
         h("div", { fontFamily: "Pretendard", fontWeight: 800 }, wmBold),
         wmLight ? h("div", { fontFamily: "Pretendard", fontWeight: 200, marginLeft: 6 }, wmLight) : h("div", { display: "flex" }),
       ]),
       label
-        ? h("div", { fontFamily: "PlexMono", fontWeight: 400, fontSize: 17, letterSpacing: "4px", color: textMuted }, label)
+        ? h("div", { fontFamily: "PlexMono", fontWeight: 400, fontSize: 16, letterSpacing: "4px", color: textMuted }, label)
         : h("div", { display: "flex" }),
     ]),
   );
 
   // 키 룰 + 포인트 컬러 점
   block.push(
-    h("div", { display: "flex", flexDirection: "row", alignItems: "center", marginTop: 34, marginBottom: 24 }, [
-      h("div", { width: 60, height: 5, backgroundColor: key, borderRadius: 3 }),
+    h("div", { display: "flex", flexDirection: "row", alignItems: "center", height: RULE_H, marginTop: RULE_MT, marginBottom: RULE_MB }, [
+      h("div", { width: 60, height: RULE_H, backgroundColor: key, borderRadius: 3 }),
       design.accent
         ? h("div", { width: 14, height: 14, borderRadius: 7, backgroundColor: design.accent, marginLeft: 14 })
         : h("div", { display: "flex" }),
     ]),
   );
 
-  if (eyebrow) {
-    block.push(h("div", { fontFamily: "Pretendard", fontWeight: 500, fontSize: 26, color: textMuted, marginBottom: 16 }, eyebrow));
-  }
-  if (big) {
-    block.push(
-      h(
-        "div",
-        { fontFamily: "NotoSerifKR", fontWeight: 700, fontSize: 150, lineHeight: 1.05, letterSpacing: "-3px", color: text, marginBottom: 14 },
-        big,
-      ),
-    );
-  }
+  // 본문 영역: 왼쪽 단과 오른쪽 단
   block.push(
     h(
       "div",
-      { fontFamily: "NotoSerifKR", fontWeight: 700, fontSize: h1Size, lineHeight: 1.3, letterSpacing: "-0.8px", color: text, whiteSpace: "pre-wrap" },
-      headline,
+      { display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", width: "100%", height: mainH, overflow: "hidden" },
+      [
+        h("div", { display: "flex", flexDirection: "column", alignItems: "flex-start", width: colW }, leftCol),
+        rightCol ?? h("div", { display: "flex" }),
+      ],
     ),
   );
-  if (body) {
-    block.push(
-      h(
-        "div",
-        { fontFamily: "Pretendard", fontWeight: 500, fontSize: 28, lineHeight: 1.55, color: mix(text, bg, 0.15), marginTop: 22, whiteSpace: "pre-wrap" },
-        body,
-      ),
-    );
-  }
-  if (rows.length) {
-    block.push(
-      h(
-        "div",
-        { display: "flex", flexDirection: "column", width: "100%", marginTop: 26, borderBottom: `1px solid ${border}` },
-        rows.map((r) =>
-          h(
-            "div",
-            {
-              display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-              width: "100%", paddingTop: 15, paddingBottom: 15, borderTop: `1px solid ${border}`,
-            },
-            [
-              h("div", { fontFamily: "Pretendard", fontWeight: 500, fontSize: 27, color: textMuted }, r.k),
-              h("div", { fontFamily: "PlexMono, Pretendard", fontWeight: 400, fontSize: 30, color: text }, r.v),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
   if (notes) {
     block.push(
-      h("div", { fontFamily: "PlexMono, Pretendard", fontWeight: 400, fontSize: 17, letterSpacing: "3.4px", color: textMuted, marginTop: 28 }, notes),
+      h(
+        "div",
+        { display: "flex", alignItems: "flex-end", height: NOTES_H, fontFamily: "PlexMono, Pretendard", fontWeight: 400, fontSize: 16, letterSpacing: "3.2px", color: textMuted },
+        notes,
+      ),
     );
   }
 
@@ -172,9 +279,9 @@ export async function renderPhotoPanel(
       "div",
       {
         display: "flex", flexDirection: "column", alignItems: "flex-start", position: "absolute",
-        left: inset, width: PHOTO_W - inset * 2, ...panelPos,
-        backgroundColor: paper, borderRadius: 4,
-        paddingTop: 44, paddingBottom: 48, paddingLeft: padX, paddingRight: padX,
+        left: inset, width: panelW, height: PANEL_H, ...panelPos,
+        backgroundColor: rgba(paper, opacity), borderRadius: 4, overflow: "hidden",
+        paddingTop: padY, paddingBottom: padY, paddingLeft: padX, paddingRight: padX,
       },
       block,
     ),

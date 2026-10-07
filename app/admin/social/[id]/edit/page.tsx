@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { assetBaseUrl, listLibraryPhotos, type LibraryPhoto } from "@/lib/social/design";
-import { PHOTO_SERIES_LABEL, type PhotoPanelDesign } from "@/mcp/photo-design";
+import {
+  PANEL_OPACITY_MAX, PANEL_OPACITY_MIN, PHOTO_SERIES_LABEL, panelOpacityOf, type PhotoPanelDesign,
+} from "@/mcp/photo-design";
 import { byPublishTime, kstParts, publishTime, type PublishTimed } from "@/lib/social/order";
 
 export const dynamic = "force-dynamic";
@@ -252,13 +254,25 @@ export default async function AdminSocialEditPage({
           {design && (
             <fieldset disabled={!editable} className="space-y-3 rounded border bg-white p-4">
               <legend className="px-1 text-sm font-semibold">배경 사진</legend>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-4">
                 <label className={label}>
                   글자 패널 위치
                   <select name="d_panel_pos" defaultValue={design.panel_pos ?? "bottom"} className={input}>
                     <option value="bottom">아래</option>
                     <option value="top">위</option>
                   </select>
+                </label>
+                <label className={label}>
+                  패널 불투명도 ({PANEL_OPACITY_MIN}~{PANEL_OPACITY_MAX}, 낮을수록 사진이 비침)
+                  <input
+                    type="number"
+                    name="d_panel_opacity"
+                    min={PANEL_OPACITY_MIN}
+                    max={PANEL_OPACITY_MAX}
+                    step={5}
+                    defaultValue={panelOpacityOf(design.panel_opacity)}
+                    className={input}
+                  />
                 </label>
                 <label className={label}>
                   사진 좌우 중심 (0 왼쪽 ~ 100 오른쪽)
@@ -270,6 +284,9 @@ export default async function AdminSocialEditPage({
                 </label>
               </div>
               {photoError && <p className="text-xs text-red-600">{photoError}</p>}
+              <p className="text-xs text-neutral-500">
+                글자 패널은 이미지 높이의 3분의 1로 고정됩니다. 불투명도를 너무 낮추면 어두운 사진 위에서 글자가 잘 안 보일 수 있습니다.
+              </p>
               <p className="text-xs text-neutral-500">
                 소셜 전용 사진 {photos.length}장 중에서 고릅니다. 사진을 추가하려면 photo for social 폴더에 넣은 뒤 올리기 스크립트를 실행합니다.
               </p>

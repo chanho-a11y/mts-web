@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
         focus_x: form.get("d_focus_x"),
         focus_y: form.get("d_focus_y"),
         panel_pos: form.get("d_panel_pos"),
+        panel_opacity: form.get("d_panel_opacity"),
         label: form.get("d_label"),
         eyebrow: form.get("d_eyebrow"),
         big: form.get("d_big"),

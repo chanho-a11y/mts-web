@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { assetBaseUrl, listLibraryPhotos, type LibraryPhoto } from "@/lib/social/design";
 import { PHOTO_SERIES_LABEL, type PhotoPanelDesign } from "@/mcp/photo-design";
+import { byPublishTime, kstParts, publishTime, type PublishTimed } from "@/lib/social/order";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
  * 단일 이미지(사진 패널)는 글자와 배경 사진까지 고치면 서버가 다시 그린다.
  * 카드뉴스처럼 완성본 이미지로 등록된 게시물은 이미지는 보기만 하고 캡션만 고친다.
  * 저장은 /api/social/design 이 받는다. 초안(draft)만 수정된다.
+ *
+ * 좌우 화살표는 초안끼리 발행일 순서로 이동한다(D-140). 수정할 수 있는 상태에서는 화살표가
+ * 저장 버튼을 겸해서, 지금 내용을 저장한 뒤 옆 초안으로 넘어간다. 저장이 막히면 이 화면에 남는다.
  */
 
 interface MediaItem {
@@ -29,6 +33,46 @@ function kstLocalInput(iso: string | null): string {
   return parts.replace(" ", "T");
 }
 
+interface Neighbor extends PublishTimed {
+  slug: string;
+}
+
+function when(n: Neighbor): string {
+  const t = publishTime(n);
+  if (!t) return "발행일 미정";
+  const { date, time } = kstParts(t);
+  return `${Number(date.slice(5, 7))}/${Number(date.slice(8))} ${time}`;
+}
+
+/** 이전 또는 다음 초안으로 가는 화살표. 수정 가능하면 저장 후 이동(폼 제출), 아니면 그냥 이동. */
+function Arrow({ target, dir, save }: { target: Neighbor | null; dir: "prev" | "next"; save: boolean }) {
+  const cls = "inline-flex items-center gap-2 rounded border border-neutral-900 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-100";
+  const body = (
+    <>
+      {dir === "prev" && <span aria-hidden>←</span>}
+      <span>
+        {dir === "prev" ? "이전" : "다음"}
+        {target && <span className="ml-1 font-normal text-neutral-500">{when(target)}</span>}
+      </span>
+      {dir === "next" && <span aria-hidden>→</span>}
+    </>
+  );
+  if (!target) return <span className={`${cls} cursor-default border-neutral-200 text-neutral-300 hover:bg-white`}>{body}</span>;
+  const title = `${save ? "저장하고 " : ""}${dir === "prev" ? "이전" : "다음"} 초안으로: ${target.slug}`;
+  if (save) {
+    return (
+      <button type="submit" name="go" value={target.id} title={title} className={cls}>
+        {body}
+      </button>
+    );
+  }
+  return (
+    <Link href={`/admin/social/${target.id}/edit`} title={title} className={cls}>
+      {body}
+    </Link>
+  );
+}
+
 const input = "mt-1 block w-full rounded border px-2 py-1.5 text-sm";
 const label = "block text-xs font-medium text-neutral-600";
 
@@ -43,7 +87,7 @@ export default async function AdminSocialEditPage({
   const admin = createAdminClient();
   const { data: post } = await admin
     .from("social_post")
-    .select("id,slug,kind,caption,hashtags,media,status,suggested_time,source_ref,rule_check")
+    .select("id,slug,kind,caption,hashtags,media,status,suggested_time,scheduled_at,published_at,created_at,source_ref,rule_check")
     .eq("id", params.id)
     .maybeSingle();
   if (!post) notFound();
@@ -52,6 +96,20 @@ export default async function AdminSocialEditPage({
   const design = media.length === 1 ? media[0].design : undefined;
   const editable = post.status === "draft" && hasServiceRole;
   const warnings = ((post.rule_check as { warnings?: string[] } | null)?.warnings ?? []) as string[];
+
+  // 이전과 다음 초안(발행일 빠른 순, 목록과 같은 기준). 지금 건이 초안이 아니면 발행일 기준으로 끼워 넣어 앞뒤를 찾는다.
+  const { data: draftRaw } = await admin
+    .from("social_post")
+    .select("id,slug,status,suggested_time,scheduled_at,published_at,created_at")
+    .eq("status", "draft")
+    .limit(1000);
+  const drafts = (draftRaw ?? []) as Neighbor[];
+  const isDraft = post.status === "draft";
+  const ordered = (isDraft && drafts.some((d) => d.id === post.id) ? drafts : [...drafts.filter((d) => d.id !== post.id), post as Neighbor]).sort(byPublishTime);
+  const at = ordered.findIndex((d) => d.id === post.id);
+  const prev = at > 0 ? ordered[at - 1] : null;
+  const next = at >= 0 && at < ordered.length - 1 ? ordered[at + 1] : null;
+  const position = isDraft ? `초안 ${at + 1} / ${ordered.length}` : `초안 ${drafts.length}건`;
 
   let photos: LibraryPhoto[] = [];
   let photoError = "";
@@ -96,6 +154,20 @@ export default async function AdminSocialEditPage({
 
       <form action="/api/social/design" method="post" className="mt-4 grid gap-6 md:grid-cols-[360px_1fr]">
         <input type="hidden" name="id" value={post.id} />
+
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-neutral-50 px-3 py-2 md:col-span-2">
+          {/* 입력칸에서 Enter 를 누르면 폼의 첫 제출 버튼이 눌린다. 화살표보다 앞에 저장 전용 버튼을 두어 Enter 는 저장만 하게 한다. */}
+          <button type="submit" disabled={!editable} tabIndex={-1} aria-hidden className="sr-only">
+            저장
+          </button>
+          <Arrow target={prev} dir="prev" save={editable} />
+          <p className="text-center text-xs text-neutral-500">
+            <span className="font-medium text-neutral-800">{position}</span>
+            <span className="ml-2">발행일 빠른 순</span>
+            {editable && <span className="ml-2">화살표를 누르면 저장한 뒤 이동합니다</span>}
+          </p>
+          <Arrow target={next} dir="next" save={editable} />
+        </div>
 
         {/* 현재 이미지 */}
         <div>
@@ -233,6 +305,10 @@ export default async function AdminSocialEditPage({
             <Link href={`/admin/social?slug=${encodeURIComponent(post.slug)}`} className="text-sm text-neutral-500 underline">
               목록에서 이 초안 보기
             </Link>
+            <span className="ml-auto flex gap-2">
+              <Arrow target={prev} dir="prev" save={editable} />
+              <Arrow target={next} dir="next" save={editable} />
+            </span>
           </div>
           <p className="text-xs text-neutral-500">
             저장해도 승인이나 예약은 되지 않습니다. 승인은 목록 화면에서 합니다. 지역명, 요일 표기, 제품 용량, 긴 줄표, 가운뎃점이 들어 있으면 저장되지 않습니다.

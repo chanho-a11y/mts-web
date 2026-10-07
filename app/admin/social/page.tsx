@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
+import { byPublishTime, normalizeMonth } from "@/lib/social/order";
+import { SocialCalendar, type CalItem } from "./calendar";
 import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction, bulkImportAction, bulkApproveAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +11,8 @@ export const dynamic = "force-dynamic";
  *
  * MCP(commerce_social_draft_post)가 만든 초안을 사람이 보고 승인·예약·반려한다.
  * 승인(scheduled)으로 옮기는 버튼은 이 화면에만 있다. 발행은 예약 시각에 발행 워커(별건)가 한다.
+ *
+ * 목록은 발행일 빠른 순이고, 상단 캘린더는 상태 필터와 무관하게 그 달의 전체 게시물을 보여준다(D-140).
  */
 
 type Status = "draft" | "scheduled" | "published" | "rejected" | "failed";
@@ -72,27 +76,33 @@ function kstLocalInput(iso: string | null): string {
 export default async function AdminSocialPage({
   searchParams,
 }: {
-  searchParams?: { status?: string; slug?: string; e?: string; ok?: string };
+  searchParams?: { status?: string; slug?: string; month?: string; e?: string; ok?: string };
 }) {
   const admin = createAdminClient();
   const filter = (searchParams?.status ?? "") as Status | "";
   const focus = searchParams?.slug ?? "";
+  const month = normalizeMonth(searchParams?.month);
 
   let q = admin
     .from("social_post")
     .select(
       "id,slug,kind,caption,hashtags,media,status,suggested_time,scheduled_at,source_ref,rule_check,rejection_reason,failure_reason,ig_permalink,published_at,insights,created_by,created_at",
     )
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(500);
   if (filter) q = q.eq("status", filter);
   if (focus) q = q.eq("slug", focus);
   const { data } = await q;
-  const rows = (data ?? []) as Row[];
+  // 발행일 빠른 순(D-140). 예약 시각이 있으면 예약 시각, 없으면 권장 시각. 두 열을 합친 기준이라 DB 가 아니라 여기서 정렬한다.
+  const rows = ((data ?? []) as Row[]).sort(byPublishTime);
 
-  const { data: countsRaw } = await admin.from("social_post").select("status");
+  // 상태별 건수와 캘린더는 필터와 무관하게 전체를 본다.
+  const { data: allRaw } = await admin
+    .from("social_post")
+    .select("id,slug,status,kind,suggested_time,scheduled_at,published_at,created_at")
+    .limit(2000);
+  const all = (allRaw ?? []) as CalItem[];
   const counts: Record<string, number> = {};
-  for (const r of (countsRaw ?? []) as { status: string }[]) counts[r.status] = (counts[r.status] ?? 0) + 1;
+  for (const r of all) counts[r.status] = (counts[r.status] ?? 0) + 1;
 
   // 일괄 승인 대상: 권장 시각이 미래인 draft
   const { data: bulkRaw } = await admin
@@ -172,24 +182,27 @@ export default async function AdminSocialPage({
         </div>
       </details>
 
-      <div className="mt-4 flex flex-wrap gap-1 text-xs">
-        <Link href="/admin/social" className={`rounded-full border px-3 py-1 ${!filter ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}>
+      <SocialCalendar items={all} month={month} filter={filter} statusLabel={STATUS_LABEL} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-1 text-xs">
+        <Link href={`/admin/social?month=${month}`} className={`rounded-full border px-3 py-1 ${!filter ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}>
           전체 {Object.values(counts).reduce((a, b) => a + b, 0)}
         </Link>
         {(Object.keys(STATUS_LABEL) as Status[]).map((s) => (
           <Link
             key={s}
-            href={`/admin/social?status=${s}`}
+            href={`/admin/social?status=${s}&month=${month}`}
             className={`rounded-full border px-3 py-1 ${filter === s ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}
           >
             {STATUS_LABEL[s]} {counts[s] ?? 0}
           </Link>
         ))}
         {focus && (
-          <Link href="/admin/social" className="rounded-full border px-3 py-1 text-neutral-500 hover:bg-neutral-100">
+          <Link href={`/admin/social?month=${month}`} className="rounded-full border px-3 py-1 text-neutral-500 hover:bg-neutral-100">
             slug: {focus} ✕
           </Link>
         )}
+        <span className="px-2 text-neutral-400">발행일 빠른 순</span>
         <form action={runWorkerNowAction} className="ml-auto">
           <button
             type="submit"

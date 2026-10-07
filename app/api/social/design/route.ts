@@ -139,5 +139,11 @@ export async function POST(req: NextRequest) {
   if (upErr) return back(req, id, "e", `저장 실패: ${upErr.message}`);
   if (!count) return back(req, id, "e", "저장하는 사이 상태가 바뀌었습니다. 목록에서 다시 확인하세요.");
 
+  // 수정 화면의 좌우 화살표(D-140)는 저장한 뒤 옆 초안으로 간다. 저장이 실패한 경우는 위에서 이미 이 화면으로 돌아갔다.
+  const go = String(form.get("go") || "");
+  if (/^[0-9a-f-]{36}$/i.test(go) && go !== id) {
+    return back(req, go, "ok", `${post.slug} 저장했습니다.${redrawn ? " 이미지를 새로 그렸습니다." : ""} 옆 초안으로 이동했습니다.`);
+  }
+
   return back(req, id, "ok", redrawn ? "저장했습니다. 이미지를 새로 그렸습니다." : "저장했습니다.");
 }

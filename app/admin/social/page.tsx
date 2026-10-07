@@ -124,19 +124,26 @@ export default async function AdminSocialPage({
         </p>
       )}
 
-      <details className="mt-4 rounded border bg-neutral-50 p-3 text-sm" open={bulk.length > 0}>
+      <details className="mt-4 rounded border bg-neutral-50 p-3 text-sm" open>
         <summary className="cursor-pointer font-medium">일괄 등록과 전체 승인</summary>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <form action={bulkImportAction} className="rounded border bg-white p-3">
+          <div className="rounded border bg-white p-3">
             <p className="font-medium">1. 일괄 등록</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              이미지를 업로드 스크립트로 올린 뒤 그 폴더의 manifest.json 을 선택합니다. 전부 초안으로만 들어가고, 이미 있는 슬러그는 건너뜁니다.
-            </p>
-            <input type="file" name="manifest" accept="application/json,.json" required className="mt-2 block w-full text-xs" />
-            <button type="submit" disabled={!hasServiceRole} className="mt-2 rounded border border-neutral-900 px-3 py-1 text-xs font-medium disabled:opacity-30">
-              초안으로 등록
-            </button>
-          </form>
+            <p className="mt-1 text-xs text-neutral-500">전부 초안으로만 들어가고, 이미 있는 슬러그는 건너뜁니다.</p>
+            <form action={bulkImportAction} className="mt-2">
+              <input type="hidden" name="bundled" value="2026q4" />
+              <button type="submit" disabled={!hasServiceRole} className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-30">
+                2026 Q4 카드뉴스 35건 등록
+              </button>
+            </form>
+            <form action={bulkImportAction} className="mt-3 border-t pt-3">
+              <p className="text-xs text-neutral-500">다른 세트는 업로드 스크립트로 이미지를 올린 뒤 그 폴더의 manifest.json 을 선택합니다.</p>
+              <input type="file" name="manifest" accept="application/json,.json" required className="mt-2 block w-full text-xs" />
+              <button type="submit" disabled={!hasServiceRole} className="mt-2 rounded border border-neutral-900 px-3 py-1 text-xs font-medium disabled:opacity-30">
+                파일로 등록
+              </button>
+            </form>
+          </div>
           <form action={bulkApproveAction} className="rounded border bg-white p-3">
             <p className="font-medium">2. 전체 승인</p>
             {bulk.length > 0 ? (

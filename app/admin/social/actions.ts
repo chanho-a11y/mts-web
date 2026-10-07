@@ -158,15 +158,21 @@ interface ManifestPost {
 export async function bulkImportAction(formData: FormData) {
   const user = await requireAdmin();
   if (!hasServiceRole) fail("service-role 키가 없어 등록할 수 없습니다.");
-  const file = formData.get("manifest");
-  if (!(file instanceof File) || file.size === 0) fail("manifest.json 파일을 선택하세요.");
-  if ((file as File).size > 900_000) fail("manifest.json 이 너무 큽니다(900KB 이하).");
-
+  // 저장소에 함께 배포된 세트(파일 선택 없이 등록) 또는 직접 고른 manifest.json
   let posts: ManifestPost[];
-  try {
-    posts = JSON.parse(await (file as File).text());
-  } catch {
-    fail("manifest.json 을 읽지 못했습니다(JSON 형식 오류).");
+  const bundled = String(formData.get("bundled") || "");
+  if (bundled) {
+    if (bundled !== "2026q4") fail("알 수 없는 세트입니다.");
+    posts = (await import("./import/2026q4.json")).default as ManifestPost[];
+  } else {
+    const file = formData.get("manifest");
+    if (!(file instanceof File) || file.size === 0) fail("manifest.json 파일을 선택하세요.");
+    if ((file as File).size > 900_000) fail("manifest.json 이 너무 큽니다(900KB 이하).");
+    try {
+      posts = JSON.parse(await (file as File).text());
+    } catch {
+      fail("manifest.json 을 읽지 못했습니다(JSON 형식 오류).");
+    }
   }
   if (!Array.isArray(posts!) || posts!.length === 0 || posts!.length > 100) fail("게시물은 1~100건이어야 합니다.");
 

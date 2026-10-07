@@ -19,7 +19,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/orders", label: "주문 관리" },
     { href: "/admin/products", label: "제품 관리" },
     { href: "/admin/blog", label: "블로그 관리", children: [
-      { href: "/admin/social", label: "인스타그램" },
       { href: "/admin/assets", label: "MCP 자산" },
     ] },
     { href: "/admin/customers", label: "고객 관리", children: [
@@ -27,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ] },
     { href: "/admin/marketing", label: "마케팅", children: [
       { href: "/admin/email", label: "이메일" },
+      { href: "/admin/social", label: "인스타그램" },
     ] },
     { href: "/admin/content", label: "사이트 관리자", children: [
       { href: "/admin/content/pages", label: "페이지 수정" },

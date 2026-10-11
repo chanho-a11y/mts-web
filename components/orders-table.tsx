@@ -36,6 +36,15 @@ export default function OrdersTable({ orders }: { orders: OrderRow[] }) {
       <div className="mb-3 flex gap-2">
         <button disabled={busy || sel.size === 0} onClick={() => bulk("confirm")} className="rounded border px-3 py-1.5 text-sm disabled:opacity-40">일괄 확인</button>
         <button disabled={busy || sel.size === 0} onClick={() => bulk("ship")} className="rounded bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40">일괄 출고</button>
+        {/* D-142 롯데 파일접수용 엑셀 (결제완료 이후 주문만 포함됨) */}
+        <a
+          href={sel.size ? `/admin/orders/lotte-upload?ids=${[...sel].join(",")}` : undefined}
+          aria-disabled={sel.size === 0}
+          className={`rounded border px-3 py-1.5 text-sm ${sel.size === 0 ? "pointer-events-none opacity-40" : "hover:bg-neutral-50"}`}
+          download
+        >
+          롯데 접수파일
+        </a>
         <span className="self-center text-xs text-neutral-400">{sel.size}건 선택</span>
       </div>
       <table className="w-full text-sm">

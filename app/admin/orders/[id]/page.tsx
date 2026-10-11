@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatKRW } from "@/lib/i18n";
 import { customerTypeLabel } from "@/lib/analytics";
 import OrderCancelPanel from "@/components/order-cancel-panel";
+import { lotteTrackingUrl } from "@/lib/lotte";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,10 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   const [{ data: items }, { data: pay }, { data: shp }] = await Promise.all([
     supabase.from("order_item").select("id,title_snapshot,option_snapshot,sku,unit_price,qty,cancelled_qty,line_total").eq("order_id", order.id).order("id"),
     supabase.from("payment").select("id,provider,status,amount,pg_tid,capture_id,approved_at").eq("order_id", order.id).maybeSingle(),
-    supabase.from("shipment").select("id").eq("order_id", order.id).maybeSingle(),
+    // D-142: 한 주문에 운송장(박스) 여러 행이 가능하므로 목록으로 조회
+    supabase.from("shipment").select("id,tracking_no,notified_at").eq("order_id", order.id).order("created_at"),
   ]);
+  const ships = (shp ?? []) as { id: string; tracking_no: string | null; notified_at: string | null }[];
 
   // 취소 이력(refund는 payment_id 기준)
   const { data: refundRows } = pay
@@ -100,7 +103,26 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
             {alreadyCancelled > 0 && <div className="flex justify-between text-red-600"><dt>취소액</dt><dd>-{money(alreadyCancelled, cur)}</dd></div>}
             <div className="flex justify-between border-t pt-1 font-bold"><dt>잔여</dt><dd>{money(remaining, cur)}</dd></div>
           </dl>
-          <p className="mt-2 text-xs text-neutral-400">출고 여부: {shp ? "출고됨(취소 시 재고 복원)" : "미출고"}</p>
+          <p className="mt-2 text-xs text-neutral-400">출고 여부: {ships.length ? "출고됨(취소 시 재고 복원)" : "미출고"}</p>
+          {ships.length > 0 && (
+            <div className="mt-3 border-t pt-2 text-xs">
+              <p className="mb-1 font-bold">운송장 (롯데택배)</p>
+              {ships.some((s) => s.tracking_no) ? (
+                <ul className="space-y-0.5">
+                  {ships.filter((s) => s.tracking_no).map((s) => (
+                    <li key={s.tracking_no!}>
+                      <a href={lotteTrackingUrl(s.tracking_no!)} target="_blank" rel="noreferrer" className="font-mono underline-offset-2 hover:underline">{s.tracking_no}</a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-neutral-400">미등록 (송장 등록 시 출고 메일 발송)</p>
+              )}
+              <p className="mt-1 text-neutral-400">
+                출고 메일: {ships.some((s) => s.notified_at) ? new Date(ships.find((s) => s.notified_at)!.notified_at!).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "미발송"}
+              </p>
+            </div>
+          )}
         </section>
       </div>
 

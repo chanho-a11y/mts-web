@@ -3,7 +3,6 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
-import { sendEmail, shipNotificationHtml } from "@/lib/email";
 import { inicisCancel, paypalRefund } from "@/lib/payments-refund";
 
 import { requireAdmin, getAdminUser } from "@/lib/auth-guard";
@@ -45,23 +44,16 @@ export async function bulkOrdersAction(ids: string[], action: "confirm" | "ship"
   revalidatePath("/admin/orders");
 }
 
-// 출고 처리: 송장 생성 + 출고 알림 (D-101 이후 재고 차감은 여기서 하지 않는다)
+// 출고 처리: shipment 기록만 남긴다 (D-101 이후 재고 차감은 여기서 하지 않는다)
 // 재고 차감은 결제완료(approveOrder) 시점으로 이동했다. 여기서 다시 차감하면 이중 차감이 된다.
-// 멱등: shipment 행이 이미 있으면 아무것도 하지 않는다(구버전은 상태를 '출고'로 다시 지정할 때마다
-//       재고를 중복 차감하고 출고 메일을 재발송했다).
+// D-142: 출고 메일은 여기서 보내지 않는다. 롯데 송장 등록(/admin/orders/tracking) 때 운송장번호와 함께 1회 발송.
+//        여기서 만든 행은 tracking_no, notified_at 이 비어 있어 송장 등록 시 채워지고 메일이 나간다.
+// 멱등: shipment 행이 이미 있으면 아무것도 하지 않는다(주문당 운송장 여러 행이 가능하므로 limit(1)).
 async function onShip(orderId: string) {
   const supabase = createClient();
-  const { data: existing } = await supabase.from("shipment").select("id").eq("order_id", orderId).maybeSingle();
-  if (existing) return;
-
-  const { data: order } = await supabase.from("orders").select("order_no,email,shipping_address").eq("id", orderId).maybeSingle();
+  const { data: existing } = await supabase.from("shipment").select("id").eq("order_id", orderId).limit(1);
+  if ((existing ?? []).length > 0) return;
   await supabase.from("shipment").insert({ order_id: orderId, carrier: "lotte", status: "shipped", shipped_at: new Date().toISOString() });
-
-  // 고객 출고 알림 이메일 (이메일 프로바이더 미설정 시 자동 생략)
-  if (order?.email) {
-    const name = (order.shipping_address as { name?: string } | null)?.name;
-    await sendEmail(order.email, `[MTSPACE COFFEE] 주문 ${order.order_no} 출고 안내`, shipNotificationHtml(order.order_no, name));
-  }
 }
 
 // ── 주문 취소/부분취소 (이니시스 카드) ──

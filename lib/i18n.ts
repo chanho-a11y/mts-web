@@ -116,6 +116,7 @@ const DICT = {
     // 계정 - 주문 상세
     orderPrefix: "주문", discountLabel: "할인", shippingFeeLabel: "배송비",
     requestTaxInvoice: "세금계산서 요청",
+    trackingTitle: "배송 조회", trackingCarrier: "롯데택배 운송장", trackingButton: "조회",
     // 재주문
     addingToCart: "담는 중…", reorder: "재주문 (장바구니에 담기)",
     // 비밀번호 변경
@@ -254,6 +255,7 @@ const DICT = {
     // Account - Order detail
     orderPrefix: "Order", discountLabel: "Discount", shippingFeeLabel: "Shipping",
     requestTaxInvoice: "Request tax invoice",
+    trackingTitle: "Shipment tracking", trackingCarrier: "Lotte Global Logistics", trackingButton: "Track",
     // Reorder
     addingToCart: "Adding…", reorder: "Reorder (add to cart)",
     // Change password

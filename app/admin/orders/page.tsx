@@ -79,9 +79,14 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     <main>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">주문 관리</h1>
+        <div className="flex flex-wrap gap-2">
+        <a href="/admin/orders/tracking" className="rounded-full border border-ink px-4 py-2 text-sm text-ink hover:bg-oat">
+          송장 등록 (롯데)
+        </a>
         <a href={exportHref} className="rounded-full bg-ink px-4 py-2 text-sm text-oat hover:opacity-90" download>
           주문 Export (CSV){view === "all" ? " · 미결제 포함" : " · 결제 완료분"}
         </a>
+        </div>
       </div>
 
       {/* 기간 조회 (최대 62일) */}
@@ -106,7 +111,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         {view === "paid" && hiddenUnpaid > 0 && <span className="text-neutral-400"> · 미결제 {hiddenUnpaid}건 숨김</span>}
       </p>
       <OrdersTable orders={orders ?? []} />
-      <p className="mt-4 text-xs text-neutral-400">출고 처리 시 재고 차감·송장 생성·고객 출고 알림 이메일이 발송됩니다(이메일 프로바이더 env 설정 시).</p>
+      <p className="mt-4 text-xs text-neutral-400">출고 처리 시 상태만 출고로 바뀌고 메일은 나가지 않습니다. 출고 메일은 &apos;송장 등록&apos;에서 롯데 상세 파일을 올릴 때 운송장번호와 배송조회 링크를 담아 주문당 한 번 발송됩니다. 롯데 접수파일은 주문을 선택한 뒤 내려받으세요.</p>
     </main>
   );
 }

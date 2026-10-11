@@ -1,6 +1,7 @@
 // 이메일 발송 추상화 — 프로바이더는 환경변수로 결정(키 없으면 no-op).
 // 지원: Resend(RESEND_API_KEY) · 범용 웹훅(EMAIL_WEBHOOK_URL) · (그 외 미설정 시 발송 생략)
 // Gmail은 SMTP 릴레이를 웹훅으로 두거나 Resend로 보내는 것을 권장.
+import { lotteTrackingUrl } from "@/lib/lotte";
 
 export interface SendResult {
   sent: boolean;
@@ -125,13 +126,27 @@ export function orderAdminNotifyHtml(o: AdminNotifyOrder): string {
   );
 }
 
-// 템플릿: 출고 알림
-export function shipNotificationHtml(orderNo: string, name?: string): string {
+// 템플릿: 출고 알림 (D-142: 롯데 송장 등록 시점에 1회 발송, 운송장번호와 배송조회 링크 포함)
+const escHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+export function shipNotificationHtml(orderNo: string, name?: string, trackings: string[] = []): string {
+  const rows = trackings.map((no) => `<tr>
+      <td style="padding:10px 0;border-bottom:1px solid #E3DAC8;font-family:'IBM Plex Mono',Menlo,monospace;font-size:15px;letter-spacing:1px">${escHtml(no)}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #E3DAC8;text-align:right"><a href="${lotteTrackingUrl(no)}" style="display:inline-block;border:1px solid #1a1a1a;color:#1a1a1a;text-decoration:none;padding:6px 14px;border-radius:999px;font-size:13px">배송 조회</a></td>
+    </tr>`).join("");
+  const box = trackings.length
+    ? `<div style="margin:18px 0;padding:14px 18px;background:#F6F1E7;border-radius:8px">
+         <p style="margin:0 0 4px;font-size:13px;color:#3C352C">롯데택배 운송장번호${trackings.length > 1 ? ` (${trackings.length}박스)` : ""}</p>
+         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">${rows}</table>
+       </div>`
+    : "";
   return emailLayout(
-    "주문이 출고되었습니다 🚚",
-    `<p>${name ? name + "님, " : ""}주문하신 상품(<b>${orderNo}</b>)이 출고되었습니다.</p>
-     <p>가평 로스터리에서 갓 로스팅한 신선한 원두가 배송 중입니다. 받으신 후 밀폐 보관하시고 2~3주 내 즐겨주세요.</p>
-     <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
+    "주문하신 원두가 출고되었습니다",
+    `<p>${name ? escHtml(name) + "님, " : ""}주문하신 상품(<b>${escHtml(orderNo)}</b>)을 롯데택배로 보내드렸습니다.</p>
+     ${box}
+     <p>가평 로스터리에서 갓 로스팅한 원두입니다. 받으신 후 밀폐 보관하시고 2~3주 안에 즐겨 주세요.</p>
+     <p style="font-size:13px;color:#888">배송 조회는 택배사 집하 처리 후 반영되어, 출고 당일에는 조회되지 않을 수 있습니다.</p>
+     <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders/${encodeURIComponent(orderNo)}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
   );
 }
 

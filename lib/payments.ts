@@ -124,7 +124,8 @@ export const inicis: PaymentAdapter = {
       buyertel: p.buyerTel || "",
       buyeremail: p.buyerEmail || "",
       gopaymethod: "Card:DirectBank:VBank",
-      acceptmethod: "below1000",
+      // centerCd(Y): 인증결과에 idc_name 수신 → 승인 URL 화이트리스트 판정(D-143, lib/inicis-idc.ts). 옵션 구분자는 ":".
+      acceptmethod: "below1000:centerCd(Y)",
       use_chkfake: "Y",
       signature,
       verification,

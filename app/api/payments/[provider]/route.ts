@@ -5,6 +5,7 @@ import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { approveOrder } from "@/lib/payments-approve";
 import { paypalToken, paypalCapture } from "@/lib/payments";
 import { logPaymentEvent } from "@/lib/payment-events";
+import { resolveInicisApproveUrl } from "@/lib/inicis-idc";
 
 export const dynamic = "force-dynamic";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -61,12 +62,12 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
       const reqUrl = String(body.P_REQ_URL || "");
       const authTid = String(body.P_TID || "");
       if (!reqUrl || !authTid) return { ok: false, reason: "inicis_m_no_requrl", orderNo };
-      // 보안: 승인요청 URL 은 이니시스 도메인만 허용
-      let mHost = "";
-      try { mHost = new URL(reqUrl).host; } catch { return { ok: false, reason: "inicis_m_bad_requrl", orderNo }; }
-      if (!/(^|\.)inicis\.com$/.test(mHost)) return { ok: false, reason: "inicis_m_bad_requrl", orderNo };
+      // 보안(D-143): 승인요청은 idc_name 으로 고른 화이트리스트 URL 로만 보낸다(P_REQ_URL 은 대조용).
+      const mIdc = resolveInicisApproveUrl("mobile", body.idc_name, reqUrl);
+      if (!mIdc.ok) return { ok: false, reason: `inicis_m_idc_${mIdc.reason}`, orderNo };
+      if (!mIdc.receivedMatches) console.warn(`[inicis-idc-url-diff] mobile order=${orderNo} idc=${mIdc.idc} received=${reqUrl}`);
 
-      const apRes = await fetch(reqUrl, {
+      const apRes = await fetch(mIdc.url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ P_MID: mid, P_TID: authTid }).toString(),
@@ -88,15 +89,15 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     const authToken = String(body.authToken || "");
     const authUrl = String(body.authUrl || "");
     if (resultCode !== "0000" || !authToken || !authUrl) return { ok: false, reason: "inicis_auth_failed", orderNo };
-    // 보안: authUrl 은 이니시스 도메인만 허용
-    let host = "";
-    try { host = new URL(authUrl).host; } catch { return { ok: false, reason: "inicis_bad_authurl", orderNo }; }
-    if (!/(^|\.)inicis\.com$/.test(host)) return { ok: false, reason: "inicis_bad_authurl", orderNo };
+    // 보안(D-143): 승인요청은 idc_name 으로 고른 화이트리스트 URL 로만 보낸다(authUrl 은 대조용).
+    const pIdc = resolveInicisApproveUrl("pc", body.idc_name, authUrl);
+    if (!pIdc.ok) return { ok: false, reason: `inicis_idc_${pIdc.reason}`, orderNo };
+    if (!pIdc.receivedMatches) console.warn(`[inicis-idc-url-diff] pc order=${orderNo} idc=${pIdc.idc} received=${authUrl}`);
     const timestamp = Date.now().toString();
     const signature = sha256(`authToken=${authToken}&timestamp=${timestamp}`);
     const verification = sha256(`authToken=${authToken}&signKey=${signKey}&timestamp=${timestamp}`);
     const form = new URLSearchParams({ mid, authToken, timestamp, signature, verification, charset: "UTF-8", format: "JSON" });
-    const res = await fetch(authUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() });
+    const res = await fetch(pIdc.url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() });
     const raw = await res.json().catch(() => null);
     if (!raw || String(raw.resultCode) !== "0000") return { ok: false, reason: "inicis_approve_failed", orderNo };
     // H-2: 이니시스 승인응답 TotPrice(KRW) 대조

@@ -23,6 +23,14 @@ const CONTAINER_WAIT_MS = 35_000;
 const POLL_MS = 4_000;
 /** Graph API 요청 1건 상한. 넘기면 일시 오류로 보고 재시도 큐로 보낸다. */
 const REQUEST_TIMEOUT_MS = 15_000;
+/**
+ * media_publish 가 "Media ID is not available"(code 9007, subcode 2207027)로 거절될 때의 재시도 간격(ms).
+ * 캐러셀 부모 컨테이너는 생성 직후 status_code 가 곧바로 FINISHED 로 나오지만 실제로는 아직 발행 준비가
+ * 안 된 경우가 있다(2026-10-15 실측: 부모 생성 112ms 뒤 FINISHED, 곧바로 publish 400). Meta 권장대로 잠시 기다렸다 다시 부른다.
+ */
+const PUBLISH_RETRY_MS = [3_000, 5_000, 8_000];
+/** 캐러셀 부모 컨테이너 생성 뒤 첫 상태 조회 전 최소 대기 */
+const PARENT_SETTLE_MS = 3_000;
 
 function log(step: string, started: number, extra = "") {
   console.log(`[social] ${step} ${Date.now() - started}ms${extra ? " " + extra : ""}`);
@@ -149,20 +157,22 @@ async function graph<T>(path: string, token: string, init?: { method?: "GET" | "
   log(`graph ${method} ${path.replace(/\d{6,}/g, "<id>")}`, t0, `http=${res.status}`);
   if (!res.ok || body.error) {
     const e = body.error ?? {};
-    const err = new GraphApiError(e.message ?? `http_${res.status}`, e.code, res.status);
+    const err = new GraphApiError(e.message ?? `http_${res.status}`, e.code, res.status, e.error_subcode);
     throw err;
   }
   return body;
 }
 
 export class GraphApiError extends Error {
-  constructor(msg: string, readonly code?: number, readonly http?: number) {
+  constructor(msg: string, readonly code?: number, readonly http?: number, readonly subcode?: number) {
     super(msg);
     this.name = "GraphApiError";
   }
-  /** 190 = 토큰 무효. 4 = 앱 호출 한도, 17/32 = 사용자 호출 한도. 5xx = 일시 장애 */
+  /** 190 = 토큰 무효. 4 = 앱 호출 한도, 17/32 = 사용자 호출 한도. 5xx = 일시 장애. 9007 = 미디어 아직 준비 안 됨 */
   get isTokenError() { return this.code === 190; }
-  get isTransient() { return (this.http ?? 0) >= 500 || this.code === 4 || this.code === 17 || this.code === 32; }
+  /** media_publish 시점에 컨테이너가 아직 발행 준비가 안 됨(9007 / 2207027) */
+  get isMediaNotReady() { return this.code === 9007 || this.subcode === 2207027 || /media id is not available/i.test(this.message); }
+  get isTransient() { return (this.http ?? 0) >= 500 || this.code === 4 || this.code === 17 || this.code === 32 || this.isMediaNotReady; }
 }
 
 export function buildCaption(caption: string, hashtags: string[]): string {
@@ -181,6 +191,44 @@ async function waitContainer(creationId: string, token: string, deadlineAt?: num
   }
   // 408 은 isTransient 가 아니므로 504 로 올려 재시도 큐에 태운다. 컨테이너는 Meta 쪽에서 24시간 뒤 만료된다.
   throw new GraphApiError("컨테이너 처리 대기 시간 초과", undefined, 504);
+}
+
+function sleepWithin(ms: number, deadlineAt?: number): Promise<void> {
+  const left = (deadlineAt ?? Number.POSITIVE_INFINITY) - Date.now();
+  const wait = Math.max(0, Math.min(ms, left));
+  return new Promise((res) => setTimeout(res, wait));
+}
+
+/**
+ * media_publish 를 부르고, 9007(미디어 준비 안 됨)이면 간격을 두고 다시 부른다.
+ * 함수 예산(deadlineAt)을 넘길 것 같으면 마지막 오류를 그대로 던져 큐 재시도(isTransient)로 넘긴다.
+ */
+async function publishWithRetry(
+  igUserId: string,
+  creationId: string,
+  token: string,
+  slug: string,
+  deadlineAt?: number,
+): Promise<{ id: string }> {
+  const t0 = Date.now();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await graph<{ id: string }>(`/${igUserId}/media_publish`, token, {
+        method: "POST",
+        params: { creation_id: creationId },
+      });
+    } catch (e) {
+      const err = e as GraphApiError;
+      const delay = PUBLISH_RETRY_MS[attempt];
+      const deadline = deadlineAt ?? Number.POSITIVE_INFINITY;
+      // 다음 시도 + 요청 1건 여유가 예산 안에 들어올 때만 재시도
+      if (!(err instanceof GraphApiError) || !err.isMediaNotReady || delay === undefined || Date.now() + delay + 2_000 > deadline) {
+        throw err;
+      }
+      log(`media not ready, retry ${attempt + 1} in ${delay}ms slug=${slug}`, t0);
+      await sleepWithin(delay, deadlineAt);
+    }
+  }
 }
 
 /** quota_usage 가 상한에 닿았으면 true */
@@ -229,6 +277,8 @@ export async function publishToInstagram(
       params: { media_type: "CAROUSEL", children: children.join(","), caption },
     });
     creationId = parent.id;
+    // 부모 컨테이너는 생성 직후 FINISHED 로 보고되지만 실제 준비가 늦다. 최소 대기 후 상태를 본다.
+    await sleepWithin(PARENT_SETTLE_MS, deadlineAt);
   } else {
     const c = await graph<{ id: string }>(`/${igUserId}/media`, token, {
       method: "POST",
@@ -240,10 +290,7 @@ export async function publishToInstagram(
   log(`container created slug=${post.slug}`, t0);
   await waitContainer(creationId, token, deadlineAt);
   log(`container finished slug=${post.slug}`, t0);
-  const pub = await graph<{ id: string }>(`/${igUserId}/media_publish`, token, {
-    method: "POST",
-    params: { creation_id: creationId },
-  });
+  const pub = await publishWithRetry(igUserId, creationId, token, post.slug, deadlineAt);
   log(`published slug=${post.slug}`, t0);
 
   let permalink: string | null = null;

@@ -54,6 +54,8 @@ export interface SocialPostRow {
   scheduled_at: string | null;
   ig_media_id: string | null;
   retry_count: number;
+  /** 공동 작업자 인스타그램 사용자명(@ 없이, 최대 3). D-145 */
+  collaborators?: string[] | null;
 }
 
 export interface PublishOutcome {
@@ -175,6 +177,47 @@ export class GraphApiError extends Error {
   get isTransient() { return (this.http ?? 0) >= 500 || this.code === 4 || this.code === 17 || this.code === 32 || this.isMediaNotReady; }
 }
 
+/** 공동 작업자 목록 정리. @ 제거, 형식 검사, 중복 제거, 최대 3. D-145 */
+export function cleanCollaborators(list: string[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const raw of list ?? []) {
+    const u = String(raw ?? "").trim().replace(/^@/, "");
+    if (/^[A-Za-z0-9._]{1,30}$/.test(u) && !out.includes(u)) out.push(u);
+  }
+  return out.slice(0, 3);
+}
+
+/**
+ * 공동 작업자를 붙여 컨테이너(단일 이미지 또는 캐러셀 부모)를 만든다.
+ * 공동 작업자 파라미터 때문에 거절되면 글 자체가 실패하지 않도록, 일시 오류와 토큰 오류가 아닌 경우에 한해
+ * 공동 작업자 없이 한 번 더 만든다. 그때 dropped 에 사유를 돌려준다(발행 뒤 failure_reason 에 메모로 남긴다).
+ */
+async function createContainer(
+  igUserId: string,
+  token: string,
+  params: Record<string, string>,
+  collaborators: string[],
+  slug: string,
+): Promise<{ id: string; dropped: string | null }> {
+  if (collaborators.length === 0) {
+    const c = await graph<{ id: string }>(`/${igUserId}/media`, token, { method: "POST", params });
+    return { id: c.id, dropped: null };
+  }
+  try {
+    const c = await graph<{ id: string }>(`/${igUserId}/media`, token, {
+      method: "POST",
+      params: { ...params, collaborators: JSON.stringify(collaborators) },
+    });
+    return { id: c.id, dropped: null };
+  } catch (e) {
+    const err = e as GraphApiError;
+    if (!(err instanceof GraphApiError) || err.isTokenError || err.isTransient) throw err;
+    console.warn(`[social] collaborators rejected, retry without slug=${slug}: ${scrub(err.message)}`);
+    const c = await graph<{ id: string }>(`/${igUserId}/media`, token, { method: "POST", params });
+    return { id: c.id, dropped: scrub(err.message) };
+  }
+}
+
 export function buildCaption(caption: string, hashtags: string[]): string {
   const tags = (hashtags ?? []).map((h) => `#${h.replace(/^#/, "")}`).join(" ");
   return tags ? `${caption.trim()}\n\n${tags}` : caption.trim();
@@ -254,10 +297,12 @@ export async function publishToInstagram(
   igUserId: string,
   token: string,
   deadlineAt?: number,
-): Promise<{ mediaId: string; permalink: string | null }> {
+): Promise<{ mediaId: string; permalink: string | null; collabDropped: string | null }> {
   const caption = buildCaption(post.caption, post.hashtags);
+  const collaborators = cleanCollaborators(post.collaborators);
   const t0 = Date.now();
   let creationId: string;
+  let collabDropped: string | null = null;
 
   if (post.kind === "carousel") {
     // 자식 컨테이너는 동시에 만든다. 장당 5초 안팎이라 5장을 차례로 만들면 함수 예산(50초)을 넘긴다. 순서는 배열 순서로 유지된다.
@@ -272,19 +317,21 @@ export async function publishToInstagram(
     const children = created.map((c) => c.id);
     log(`carousel children created n=${children.length} slug=${post.slug}`, t0);
     await Promise.all(children.map((id) => waitContainer(id, token, deadlineAt)));
-    const parent = await graph<{ id: string }>(`/${igUserId}/media`, token, {
-      method: "POST",
-      params: { media_type: "CAROUSEL", children: children.join(","), caption },
-    });
+    const parent = await createContainer(
+      igUserId,
+      token,
+      { media_type: "CAROUSEL", children: children.join(","), caption },
+      collaborators,
+      post.slug,
+    );
     creationId = parent.id;
+    collabDropped = parent.dropped;
     // 부모 컨테이너는 생성 직후 FINISHED 로 보고되지만 실제 준비가 늦다. 최소 대기 후 상태를 본다.
     await sleepWithin(PARENT_SETTLE_MS, deadlineAt);
   } else {
-    const c = await graph<{ id: string }>(`/${igUserId}/media`, token, {
-      method: "POST",
-      params: { image_url: post.media[0].url, caption },
-    });
+    const c = await createContainer(igUserId, token, { image_url: post.media[0].url, caption }, collaborators, post.slug);
     creationId = c.id;
+    collabDropped = c.dropped;
   }
 
   log(`container created slug=${post.slug}`, t0);
@@ -300,7 +347,7 @@ export async function publishToInstagram(
   } catch {
     /* permalink 는 부가 정보 */
   }
-  return { mediaId: pub.id, permalink };
+  return { mediaId: pub.id, permalink, collabDropped };
 }
 
 /* ── 큐 처리 ───────────────────────────────────────────────────────── */
@@ -310,7 +357,7 @@ export async function claimNext(db: SupabaseClient): Promise<SocialPostRow | nul
   const nowIso = new Date().toISOString();
   const { data: cands } = await db
     .from("social_post")
-    .select("id,slug,kind,caption,hashtags,media,status,scheduled_at,ig_media_id,retry_count,last_attempt_at")
+    .select("id,slug,kind,caption,hashtags,media,status,scheduled_at,ig_media_id,retry_count,last_attempt_at,collaborators")
     .eq("status", "scheduled")
     .lte("scheduled_at", nowIso)
     .order("scheduled_at", { ascending: true })
@@ -351,10 +398,12 @@ export async function processOne(
   log(`quota checked slug=${post.slug}`, t0);
 
   try {
-    const { mediaId, permalink } = await publishToInstagram(post, igUserId, token, deadlineAt);
+    const { mediaId, permalink, collabDropped } = await publishToInstagram(post, igUserId, token, deadlineAt);
+    // 공동 작업자가 거절돼 태그 없이 나간 경우 failure_reason 에 메모로 남긴다(상태는 published). D-145
+    const note = collabDropped ? `공동 작업자 태그 실패, 태그 없이 발행: ${collabDropped}`.slice(0, 500) : null;
     const { error: upErr } = await db
       .from("social_post")
-      .update({ status: "published", ig_media_id: mediaId, ig_permalink: permalink, published_at: new Date().toISOString(), failure_reason: null })
+      .update({ status: "published", ig_media_id: mediaId, ig_permalink: permalink, published_at: new Date().toISOString(), failure_reason: note })
       .eq("id", post.id);
     if (upErr) console.error(`[social] published but db update failed slug=${post.slug} media=${mediaId}: ${upErr.message}`);
     log(`done slug=${post.slug}`, t0);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { byPublishTime, normalizeMonth } from "@/lib/social/order";
 import { SocialCalendar, type CalItem } from "./calendar";
-import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction, bulkImportAction, bulkApproveAction } from "./actions";
+import { approveAction, rejectAction, revertToDraftAction, deleteSocialPostAction, runWorkerNowAction, bulkImportAction, bulkApproveAction, bulkCollaboratorsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,7 @@ interface Row {
   suggested_time: string | null;
   scheduled_at: string | null;
   source_ref: string | null;
+  collaborators: string[] | null;
   rule_check: { errors?: string[]; warnings?: string[] } | null;
   rejection_reason: string | null;
   failure_reason: string | null;
@@ -86,7 +87,7 @@ export default async function AdminSocialPage({
   let q = admin
     .from("social_post")
     .select(
-      "id,slug,kind,caption,hashtags,media,status,suggested_time,scheduled_at,source_ref,rule_check,rejection_reason,failure_reason,ig_permalink,published_at,insights,created_by,created_at",
+      "id,slug,kind,caption,hashtags,media,status,suggested_time,scheduled_at,source_ref,collaborators,rule_check,rejection_reason,failure_reason,ig_permalink,published_at,insights,created_by,created_at",
     )
     .limit(500);
   if (filter) q = q.eq("status", filter);
@@ -179,6 +180,18 @@ export default async function AdminSocialPage({
               <p className="mt-1 text-xs text-neutral-500">권장 시각이 정해진 초안이 없습니다.</p>
             )}
           </form>
+          <form action={bulkCollaboratorsAction} className="rounded border bg-white p-3 md:col-span-2">
+            <p className="font-medium">3. 공동 작업자</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              초안과 예약 대기 전부에 같은 공동 작업자를 붙입니다(@ 없이, 최대 3명, 쉼표로 구분). 비워서 저장하면 지웁니다. 상대 계정이 초대를 수락해야 게시물에 함께 표시됩니다.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input name="collaborators" placeholder="chanhohong" className="w-64 rounded border px-2 py-1 text-xs" />
+              <button type="submit" disabled={!hasServiceRole} className="rounded border border-neutral-900 px-3 py-1 text-xs font-medium disabled:opacity-30">
+                초안과 예약 전체에 적용
+              </button>
+            </div>
+          </form>
         </div>
       </details>
 
@@ -230,6 +243,9 @@ export default async function AdminSocialPage({
                 <span className="text-neutral-400">· {r.kind === "carousel" ? `캐러셀 ${media.length}장` : "이미지 1장"}</span>
                 <span className="text-neutral-400">· {r.created_by === "mcp" ? "MCP" : "관리자"} · {kst(r.created_at)}</span>
                 {r.source_ref && <span className="rounded bg-neutral-50 px-1.5 py-0.5 font-mono text-neutral-500">근거 {r.source_ref}</span>}
+                {(r.collaborators?.length ?? 0) > 0 && (
+                  <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">공동 작업자 {r.collaborators!.map((u) => "@" + u).join(", ")}</span>
+                )}
               </div>
 
               <div className="mt-3 grid gap-4 md:grid-cols-[320px_1fr]">

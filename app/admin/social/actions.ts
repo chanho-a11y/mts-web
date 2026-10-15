@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { runSocialWorker } from "@/lib/social/run";
 import { parsePhotoDesign } from "@/mcp/photo-design";
+import { cleanCollaborators } from "@/lib/social/publisher";
 
 /**
  * 인스타그램 초안 승인 게이트 (D-135).
@@ -154,6 +155,8 @@ interface ManifestMedia { file?: string; path: string; sha256: string; bytes: nu
 interface ManifestPost {
   slug: string; title?: string; scheduled_at: string; caption: string; hashtags: string[];
   source_ref?: string; media: ManifestMedia[];
+  /** 공동 작업자 인스타그램 사용자명(@ 없이, 최대 3). D-145 */
+  collaborators?: string[];
 }
 
 export async function bulkImportAction(formData: FormData) {
@@ -195,6 +198,8 @@ export async function bulkImportAction(formData: FormData) {
     if (/#\S/.test(p.caption)) fail(`${p.slug}: 캡션 본문에 # 가 있습니다. 해시태그는 hashtags 배열로만 넣습니다.`);
     if (!Array.isArray(p.hashtags) || p.hashtags.length > 30 || p.hashtags.some((h) => /\s|^#/.test(h))) fail(`${p.slug}: 해시태그 형식 오류.`);
     if (Number.isNaN(new Date(p.scheduled_at).getTime())) fail(`${p.slug}: 발행 시각을 해석하지 못했습니다.`);
+    if (p.collaborators !== undefined && (!Array.isArray(p.collaborators) || cleanCollaborators(p.collaborators).length !== p.collaborators.length))
+      fail(`${p.slug}: 공동 작업자 형식 오류(@ 없는 사용자명, 최대 3명).`);
     if (!Array.isArray(p.media) || p.media.length < 1 || p.media.length > 10) fail(`${p.slug}: 이미지는 1~10장이어야 합니다.`);
     for (const m of p.media) {
       if (m.design !== undefined) {
@@ -258,6 +263,7 @@ export async function bulkImportAction(formData: FormData) {
     status: "draft",
     suggested_time: new Date(p.scheduled_at).toISOString(),
     source_ref: p.source_ref ?? null,
+    collaborators: cleanCollaborators(p.collaborators),
     rule_check: { errors: [], warnings: [] },
     created_by: "admin",
     profile_id: user.id,
@@ -307,4 +313,26 @@ export async function bulkApproveAction(formData: FormData) {
   revalidatePath(BACK);
   const tail = skipped.length ? ` 건너뜀 ${skipped.length}건: ${skipped.slice(0, 5).join(", ")}` : "";
   redirect(`${BACK}?status=scheduled&ok=${encodeURIComponent(`전체 승인 ${ok}건. 각자 권장 시각에 발행됩니다.${tail}`)}`);
+}
+
+/**
+ * 초안과 예약 대기 전부의 공동 작업자를 한 번에 바꾼다(D-145). 발행된 글은 바꾸지 않는다(인스타 쪽은 이미 나갔다).
+ * 비워서 저장하면 공동 작업자를 지운다. 상태는 바꾸지 않는다.
+ */
+export async function bulkCollaboratorsAction(formData: FormData) {
+  await requireAdmin();
+  if (!hasServiceRole) fail("service-role 키가 없어 변경할 수 없습니다.");
+  const raw = String(formData.get("collaborators") || "");
+  const parts = raw.split(/[\s,]+/).filter(Boolean);
+  const list = cleanCollaborators(parts);
+  if (list.length !== parts.length) fail("공동 작업자는 영문, 숫자, 마침표, 밑줄로 된 사용자명 최대 3명입니다.");
+  const admin = createAdminClient();
+  const { error, count } = await admin
+    .from("social_post")
+    .update({ collaborators: list }, { count: "exact" })
+    .in("status", ["draft", "scheduled"]);
+  if (error) fail(`공동 작업자 변경 실패: ${error.message}`);
+  revalidatePath(BACK);
+  const who = list.length ? list.map((u) => "@" + u).join(", ") : "없음";
+  redirect(`${BACK}?ok=${encodeURIComponent(`초안과 예약 ${count ?? 0}건의 공동 작업자를 ${who}(으)로 바꿨습니다.`)}`);
 }

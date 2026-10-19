@@ -13,14 +13,14 @@ const COPY = {
   ko: {
     tag: "FOR CAFES & BUSINESSES",
     h: "매장에서 이 커피를 쓰고 싶으신가요?",
-    p: "매주 월, 화 로스팅하고 화, 수 출고합니다. 납품 조건과 샘플은 문의로, 도매가 확인은 사업자 가입 후 승인으로 진행됩니다.",
+    p: "납품 조건과 샘플은 문의로, 도매가 확인은 사업자 가입 후 승인으로 진행됩니다.",
     inquiry: "납품 문의하기",
     signup: "사업자 회원 가입",
   },
   en: {
     tag: "FOR CAFES & BUSINESSES",
     h: "Want to serve this coffee at your venue?",
-    p: "Roasted every Monday and Tuesday, shipped Tuesday and Wednesday. Ask us about supply terms and samples, or register as a business to see wholesale pricing after approval.",
+    p: "Ask us about supply terms and samples, or register as a business to see wholesale pricing after approval.",
     inquiry: "Wholesale inquiry",
     signup: "Register as a business",
   },

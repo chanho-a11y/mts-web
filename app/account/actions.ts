@@ -167,7 +167,8 @@ export async function signUpAction(formData: FormData) {
 
   // 즉시 로그인 — 위에서 이메일 확인을 완료했으므로 성공한다.
   await supabase.auth.signInWithPassword({ email, password });
-  redirect("/account");
+  // D-146: GA4 sign_up 전환 계측. 계정 페이지의 GaSignupEvent 가 이 표시를 읽어 한 번만 전송하고 주소에서 지운다.
+  redirect(`/account?signup=${role}`);
 }
 
 export async function signInAction(formData: FormData) {

@@ -6,10 +6,11 @@ import type { AddressRow } from "@/lib/address";
 import OrderHistory, { type HistoryItem } from "@/components/order-history";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
+import GaSignupEvent from "@/components/ga-signup-event";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
+export default async function AccountPage({ searchParams }: { searchParams: { saved?: string; error?: string; signup?: string } }) {
   const { locale } = await getStorefrontContext();
   const tt = t(locale);
   const ROLE_LABEL: Record<string, string> = {
@@ -44,6 +45,9 @@ export default async function AccountPage({ searchParams }: { searchParams: { sa
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
+      {(searchParams?.signup === "business" || searchParams?.signup === "individual") && (
+        <GaSignupEvent customerType={searchParams.signup} />
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{tt.myPage}</h1>
         <form action={signOutAction}>

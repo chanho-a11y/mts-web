@@ -1,3 +1,53 @@
+// D-146: 구 Shopify 주소 301. 한글 경로는 원문과 encodeURI 형태를 둘 다 등록해야 실제 요청과 매칭된다.
+const legacy = (from, to) => {
+  const rules = [{ source: from, destination: to, permanent: true }];
+  const enc = encodeURI(from);
+  if (enc !== from) rules.push({ source: enc, destination: to, permanent: true });
+  return rules;
+};
+const W = '/collections/wholesale', B = '/collections/blends', S = '/collections/single-origins', ALL = '/collections/all';
+// [구 주소, 새 주소]. Search Console 404 목록(2026-10-19) 기준. Shopify 내부 엔드포인트(/cart/add, /cdn 등)는 404 유지.
+const LEGACY_404 = [
+  // 블렌드(소포장)
+  ['/products/spotlight-125g', B], ['/products/ezpz-125g', B], ['/products/allrounder-125g', B],
+  ['/products/ah-a-blend-125g', B], ['/products/damn-good', B], ['/products/aha-125', B],
+  ['/products/ezpz', B], ['/products/allrounder', B], ['/products/blend-normcore-standard', B],
+  ['/products/블렌드-스팟라이트-spotlight', B], ['/products/블렌드-아아-블렌드-ah-a-blend-125g', B],
+  // 사업자 전용(1kg, 도매)
+  ['/products/classic-blend-1kg-wholesale', W], ['/products/spotlight-1kg-wholesale', W],
+  ['/products/ethiopia-yirgacheffe-decaf-1kg-wholesale', W], ['/products/house-blend-200g-wholesale', W],
+  ['/products/allrounder-1kg-wholesale', W], ['/products/ah-a-blend-1kg-wholesale', W],
+  ['/products/house-blend-1kg-wholesale', W], ['/products/ezpz-1kg-wholesale', W],
+  ['/products/블렌드-클래식-블렌드-200g-사업자-전용', W], ['/products/블렌드-댐굳-damn-good-사업자-전용', W],
+  ['/products/블렌드-스팟라이트-spotlight-1kg-사업자-전용', W], ['/products/블렌드-클래식-블렌드-1kg-사업자-전용', W],
+  ['/products/블렌드-아아-블렌드-ah-a-blend-1kg-사업자-전용', W], ['/products/블렌드-하우스-블렌드-200g-사업자-전용', W],
+  ['/products/블렌드-올라운더-allrounder-1kg-사업자-전용', W], ['/products/블렌드-하우스-블렌드-1kg-사업자-전용', W],
+  ['/products/싱글-오리진-에티오피아-예가체프-디카페인-ethiopia-yirgacheffe-decaffeinated-1kg', W],
+  // 싱글 오리진
+  ['/products/ethiopia-bekele-125', S], ['/products/ethiopia-bekele-kachara-anaerobic-natural-125g', S],
+  ['/products/ethiopia-genet-125', S], ['/products/colombia-tablon-125', S],
+  ['/products/ethiopia-aricha-amy-washed', S], ['/products/ethiopia-guji-hambela-genet-washed-125g', S],
+  ['/products/ethiopia-yirgacheffe-decaffeinated', S], ['/products/panama-auromar-pacamara-washed-125g', S],
+  ['/products/yirga-decaf-125', S], ['/products/peru-tiringes-125', S], ['/products/guatemala-vaja-verapaz-washed', S],
+  ['/products/싱글-오리진-과테말라-비스타-에르모사-guatemala-vista-hermosa-125g', S],
+  ['/products/싱글-오리진-온두라스-모나르카-honduras-monarca-washed-125g', S],
+  ['/products/싱글-오리진-파나마-핀카-하트만-게이샤-워시드-panama-finca-hartmann-geisha-washed-125g', S],
+  ['/products/싱글-오리진-콜롬비아-엘-타블론-워시드-colombia-el-tablon-washed-125g', S],
+  ['/products/싱글-오리진-페루-라스-티링게스-티피카-무산소-워시드-125g', S],
+  ['/products/싱글-오리진-에티오피아-구지-함벨라-게넷-워시드-ethiopia-guji-hambela-genet-washed-125g', S],
+  ['/products/싱글-오리진-파나마-아우로마르-파카마라-panama-finca-auromar-pacamara-washed-125g', S],
+  ['/products/싱글-오리진-에티오피아-베켈레-카차라-무산소-내추럴-ethiopia-bekele-kachara-anaerobic-natural-125g', S],
+  ['/products/싱글-오리진-콜롬비아-라-레이나-벨렌-게이샤-colombia-la-reina-belen-geisha-washed-125g', S],
+  // 컬렉션과 피드
+  ['/collections/normcore-coffee', ALL], ['/collections/사업자-전용', W],
+  ['/collections/single-origins.atom', S], ['/collections/blends.atom', B],
+  ['/collections/wholesale.atom', W], ['/collections/normcore-coffee.atom', ALL],
+  // Shopify 페이지
+  ['/pages/avada-sitemap', '/'], ['/pages/avada-sitemap-pages', '/'],
+  ['/pages/avada-sitemap-products', ALL], ['/pages/avada-sitemap-collections', ALL],
+  ['/pages/policy-정책', '/policies/terms-of-service'],
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -80,8 +130,12 @@ const nextConfig = {
       { source: '/pages/contact', destination: '/contact', permanent: true },
       { source: '/pages/faq', destination: '/faq', permanent: true },
       // Coffeelog 블로그 handle 변경 (현행: coffeelog-커피로그 → 신규: coffeelog)
-      { source: '/blogs/coffeelog-커피로그', destination: '/blogs/coffeelog', permanent: true },
-      { source: '/blogs/coffeelog-커피로그/:slug*', destination: '/blogs/coffeelog/:slug*', permanent: true },
+      // D-146: 한글 원문 source 는 실제 요청(퍼센트 인코딩 경로)과 매칭되지 않아 404 가 나고 있었다.
+      // legacy() 가 원문과 encodeURI 형태를 함께 등록한다. 구체 규칙(faq)이 일반 규칙보다 먼저 와야 한다.
+      ...legacy('/blogs/coffeelog-커피로그/자주-묻는-질문', '/faq'),
+      ...legacy('/blogs/coffeelog-커피로그/faq', '/faq'),
+      ...legacy('/blogs/coffeelog-커피로그', '/blogs/coffeelog'),
+      ...legacy('/blogs/coffeelog-커피로그/:slug*', '/blogs/coffeelog/:slug*'),
       // 용량별 별도 제품 재정규화(D-059) — 슬러그 변경분 구→신 301. (classic-200·house-200 은 살아있는 제품이라 리다이렉트 없음)
       { source: '/products/damn-good-125g', destination: '/products/damn-good-125', permanent: true },
       { source: '/products/damn-good-1kg-wholesale', destination: '/products/damn-good-1000', permanent: true },
@@ -92,6 +146,8 @@ const nextConfig = {
       { source: '/products/yirga-decaf-1kg', destination: '/products/yirga-decaf-1000', permanent: true },
       { source: '/products/classic-1kg', destination: '/products/classic-1000', permanent: true },
       { source: '/products/house-1kg', destination: '/products/house-1000', permanent: true },
+      // D-146: Search Console 404 정리(2026-10-19). 단종, 구 Shopify 상품은 컬렉션으로(대표 결정).
+      ...LEGACY_404.flatMap(([from, to]) => legacy(from, to)),
     ];
   },
 };

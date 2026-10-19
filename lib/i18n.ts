@@ -41,7 +41,7 @@ const DICT = {
     // 주문 완료
     orderCompleteTitle: "주문 완료", paidTitle: "결제가 완료되었습니다 ✓",
     orderReceivedTitle: "주문이 접수되었습니다", orderNoLabel: "주문번호",
-    paidBody: "결제가 정상 승인되었습니다. 가평 로스터리에서 신선하게 준비해 출고해 드립니다. 출고 시 이메일로 안내드립니다.",
+    paidBody: "결제가 정상 승인되었습니다. 로스터리에서 신선하게 준비해 출고해 드립니다. 출고 시 이메일로 안내드립니다.",
     pendingPayBody: "결제가 완료되지 않았습니다. 마이페이지에서 다시 결제하거나 장바구니에서 재시도해 주세요.",
     receivedBody: "주문이 접수되었습니다. 주문 내역은 마이페이지에서 확인하실 수 있습니다.",
     orderHistory: "주문 내역", continueShopping: "쇼핑 계속",
@@ -180,7 +180,7 @@ const DICT = {
     // Order complete
     orderCompleteTitle: "Order Complete", paidTitle: "Payment complete ✓",
     orderReceivedTitle: "Your order has been received", orderNoLabel: "Order no.",
-    paidBody: "Your payment has been approved. We'll prepare your order fresh at our Gapyeong roastery and ship it out. We'll email you when it ships.",
+    paidBody: "Your payment has been approved. We'll prepare your order fresh at our roastery and ship it out. We'll email you when it ships.",
     pendingPayBody: "Payment was not completed. Please pay again from My Page or retry from your cart.",
     receivedBody: "Your order has been received. You can review it any time on My Page.",
     orderHistory: "Order history", continueShopping: "Continue shopping",

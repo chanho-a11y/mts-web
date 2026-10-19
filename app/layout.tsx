@@ -38,20 +38,20 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(base),
     ...verification,
-    title: { default: `${brand.name} — everyday excellence`, template: `%s · ${brand.name}` },
+    title: { default: `${brand.name} | everyday excellence`, template: `%s | ${brand.name}` },
     description: brand.philosophy.ko,
     // canonical 은 여기서 주지 않는다. layout 값은 자체 canonical 이 없는 모든 하위 페이지에 상속되어
     // 상품·정책·About 등이 홈을 원본으로 가리키게 된다(D-134). 각 페이지가 자기 경로를 지정한다.
     openGraph: {
       type: "website",
       siteName: brand.name,
-      title: `${brand.name} — everyday excellence`,
+      title: `${brand.name} | everyday excellence`,
       description: brand.philosophy.ko,
       locale: "ko_KR",
       url: base,
       images: [DEFAULT_OG_IMAGE],
     },
-    twitter: { card: "summary_large_image", title: `${brand.name} — everyday excellence`, description: brand.philosophy.ko, images: [DEFAULT_OG_IMAGE] },
+    twitter: { card: "summary_large_image", title: `${brand.name} | everyday excellence`, description: brand.philosophy.ko, images: [DEFAULT_OG_IMAGE] },
     ...(favicon ? { icons: { icon: favicon } } : {}),
   };
 }

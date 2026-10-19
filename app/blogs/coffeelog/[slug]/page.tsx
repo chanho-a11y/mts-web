@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { DEFAULT_OG_IMAGE, FOUNDER_PERSON } from "@/lib/seo";
+import { fitTitle, seoText, seoTitle } from "@/lib/seo-text";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +25,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", slug).maybeSingle();
   // seo_title 끝에 이미 브랜드명이 붙어 있으면 떼어 낸다. layout 의 title 템플릿이 한 번 더 붙여
   // "… - MTSPACE COFFEE · MTSPACE COFFEE" 가 되던 문제(D-134).
-  const title = (data?.seo_title || data?.title || "Coffeelog").replace(/\s*[|\-–—·]\s*MTSPACE COFFEE\s*$/i, "").trim();
-  const description = data?.seo_description || data?.excerpt || undefined;
+  const rawTitle = (data?.seo_title || data?.title || "Coffeelog").replace(/\s*[|\-–—·]\s*MTSPACE COFFEE\s*$/i, "").trim();
+  // 제목, 설명의 긴 줄표와 가운뎃점 정리, 60자 초과 시 브랜드 접미사 생략(D-147)
+  const title = seoTitle(rawTitle);
+  const rawDesc = data?.seo_description || data?.excerpt || undefined;
+  const description = rawDesc ? seoText(rawDesc) : undefined;
   const images = [data?.cover_image || DEFAULT_OG_IMAGE];
   const path = `/blogs/coffeelog/${encodeURIComponent(slug)}`;
   return {
-    title,
+    title: fitTitle(rawTitle),
     description,
     alternates: { canonical: path },
     openGraph: { title, description, type: "article", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images },
@@ -50,13 +54,25 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
   // E-E-A-T 저자(실명 홍찬호 + 약력) — 발행 페이지 공통 정본
   const AUTHOR = {
     name: "홍찬호",
-    role: "MTSPACE COFFEE 대표 · 경쟁 바리스타",
-    bio: "한·호주 스페셜티 커피 경쟁 바리스타(입상 14회). 그린빈 QA·로스팅·카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
+    role: "MTSPACE COFFEE 대표, 경쟁 바리스타",
+    bio: "한국과 호주의 스페셜티 커피 경쟁 바리스타(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
     url: "https://mtspace.coffee/about",
   };
   const authorName = post.author && post.author !== "통합 스튜디오" ? post.author : AUTHOR.name;
   const pageUrl = `https://mtspace.coffee/blogs/coffeelog/${encodeURIComponent(slug)}`;
-  const dateModified = post.published_at; // 갱신 시 dateModified 관리(P2)
+  const dateModified = post.published_at; // 갱신 시 dateModified 관리(P2). content_post 에 수정일 컬럼이 없다(D-147, DB 별건)
+
+  // 다른 글(D-147): 발행일 기준 앞뒤 글을 연결해 모든 글이 목록 외 내부 링크를 갖게 한다.
+  let others: { slug: string; title: string }[] = [];
+  if (post.published_at) {
+    try {
+      const [newer, older] = await Promise.all([
+        supabase.from("content_post").select("slug,title").eq("status", "published").gt("published_at", post.published_at).order("published_at", { ascending: true }).limit(1),
+        supabase.from("content_post").select("slug,title").eq("status", "published").lt("published_at", post.published_at).order("published_at", { ascending: false }).limit(2),
+      ]);
+      others = [...(newer.data ?? []), ...(older.data ?? [])].filter((o) => o.slug !== slug);
+    } catch {}
+  }
 
   // 본문에서 FAQ(Q./답변) 추출 → FAQPage 스키마(AIEO 인용 대상)
   const strip = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -80,7 +96,9 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
         // 저자가 브랜드명으로 저장된 구형 글은 사람이 아니라 조직으로 표기한다(D-134).
         author: authorName === "MTSPACE COFFEE"
           ? { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" }
-          : { "@type": "Person", name: authorName, jobTitle: "대표 · 경쟁 바리스타", worksFor: { "@type": "Organization", name: "MTSPACE COFFEE" }, url: AUTHOR.url },
+          : authorName === FOUNDER_PERSON.name
+            ? { ...FOUNDER_PERSON, worksFor: { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" } }
+            : { "@type": "Person", name: authorName, worksFor: { "@type": "Organization", name: "MTSPACE COFFEE" } },
         datePublished: post.published_at,
         dateModified,
         publisher: { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee", logo: { "@type": "ImageObject", url: "https://mtspace.coffee/images/mtspace-logo.png" } },
@@ -113,6 +131,18 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
         <div className="mt-8 flex flex-wrap gap-2">
           {post.tags.map((t: string) => <span key={t} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">#{t}</span>)}
         </div>
+      )}
+      {others.length > 0 && (
+        <nav aria-label="다른 글" className="mt-10 border-t border-neutral-200 pt-6">
+          <h2 className="text-sm font-semibold text-neutral-700">다른 글</h2>
+          <ul className="mt-3 space-y-2">
+            {others.map((o) => (
+              <li key={o.slug}>
+                <Link href={`/blogs/coffeelog/${encodeURIComponent(o.slug)}`} className="text-sm text-neutral-600 hover:underline">{o.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       )}
       <B2bCta locale="ko" source="blog" />
     </main>

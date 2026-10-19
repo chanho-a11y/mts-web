@@ -19,11 +19,21 @@ export function absoluteUrl(path = "/"): string {
   return path.startsWith("http") ? path : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
+// 대표(저자) 엔티티. 블로그 저자, 교육자료 저자, Organization.founder 가 같은 사람을 가리키게 한다(D-147).
+export const FOUNDER_PERSON = {
+  "@type": "Person",
+  name: "홍찬호",
+  alternateName: "Chanho Hong",
+  jobTitle: "MTSPACE COFFEE 대표, 경쟁 바리스타",
+  url: "https://mtspace.coffee/about",
+  sameAs: ["https://chanhohong.com", "https://instagram.com/chanhohong"],
+} as const;
+
 // 브랜드 공식 채널 (sameAs)
 function brandSameAs(brand: Brand): string[] {
   const ig = `https://instagram.com/${brand.instagram.replace(/^@/, "")}`;
   const links = [ig];
-  if (brand.code === "mtspace") links.push("https://www.youtube.com/channel/UCfe0miBdbyEJrk0lklp8pjg");
+  if (brand.code === "mtspace") links.push("https://www.youtube.com/channel/UCfe0miBdbyEJrk0lklp8pjg", "https://blog.naver.com/mtspace-coffee");
   return links;
 }
 
@@ -38,8 +48,10 @@ export function organizationJsonLd(brand: Brand, locale: "ko" | "en") {
     url: base,
     logo: absoluteUrl("/images/mtspace-logo.png"),
     description: locale === "en" ? brand.philosophy.en : brand.philosophy.ko,
-    email: "chanho@mtspace.coffee",
-    founder: { "@type": "Person", name: "Chanho Hong (홍찬호)" },
+    // 공개 연락처는 푸터, 연락처 정보와 같은 값으로 맞춘다(D-147).
+    email: "hello@mtspace.coffee",
+    telephone: "+82-10-4972-2312",
+    founder: FOUNDER_PERSON,
     address: {
       "@type": "PostalAddress",
       addressCountry: "KR",

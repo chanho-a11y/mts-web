@@ -31,13 +31,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {}
 
   // 교육 자료 — 언어별 URL 을 모두 색인시킨다(hreflang 은 각 페이지 metadata.alternates 가 담당).
+  // 사이트맵에도 언어 짝을 적는다(D-147). 페이지 hreflang 과 같은 값.
+  const eduAlt = (ko: string, en: string) => ({ languages: { ko: `${base}${ko}`, en: `${base}${en}` } });
   const education = CHAPTERS.flatMap((c) => [
-    { url: `${base}/education/${c.slug}`, changeFrequency: "monthly" as const, priority: 0.7 },
-    { url: `${base}/en/education/${c.slug}`, changeFrequency: "monthly" as const, priority: 0.6 },
+    { url: `${base}/education/${c.slug}`, changeFrequency: "monthly" as const, priority: 0.7, alternates: eduAlt(`/education/${c.slug}`, `/en/education/${c.slug}`) },
+    { url: `${base}/en/education/${c.slug}`, changeFrequency: "monthly" as const, priority: 0.6, alternates: eduAlt(`/education/${c.slug}`, `/en/education/${c.slug}`) },
   ]);
 
   return [
-    ...statics.map((p) => ({ url: `${base}${p}`, changeFrequency: "weekly" as const, priority: p === "" ? 1 : 0.6 })),
+    ...statics.map((p) => ({
+      url: `${base}${p}`,
+      changeFrequency: "weekly" as const,
+      priority: p === "" ? 1 : 0.6,
+      ...(p === "/education" || p === "/en/education" ? { alternates: eduAlt("/education", "/en/education") } : {}),
+    })),
     ...categories.filter((c) => (c.products?.length ?? 0) > 0).map((c) => ({ url: `${base}/collections/${c.slug}`, changeFrequency: "weekly" as const, priority: 0.7 })),
     ...products.map((p) => ({ url: `${base}/products/${p.slug}`, changeFrequency: "weekly" as const, priority: 0.8 })),
     ...education,

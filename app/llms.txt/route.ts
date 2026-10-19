@@ -4,6 +4,7 @@ import { getStorefrontContext } from "@/lib/storefront";
 import { getStorefrontProducts } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import { CHAPTERS, COPY_KO } from "@/app/education/_content/meta";
+import { seoText, seoTitle } from "@/lib/seo-text";
 
 export const dynamic = "force-dynamic";
 
@@ -25,27 +26,31 @@ export async function GET() {
   const lines = [
     `# ${brand.name}`,
     ``,
-    `> ${brand.philosophy.ko}`,
+    `> ${seoText(brand.philosophy.ko)}`,
     ``,
-    `${brand.about.ko}`,
+    `${seoText(brand.about.ko)}`,
     ``,
     `- 운영사: (주)엠티에스솔루션스 (대표 홍찬호)`,
-    `- 로스터리: 경기도 가평군 청평면 · 매주 월·화 로스팅, 화·수 출고(신선 배송)`,
-    `- 결제: 이니시스·페이팔(해외 USD) · 통화 KRW`,
+    `- 로스팅: 자체 로스터리에서 직접 로스팅, 주문 순서대로 출고`,
+    `- 결제: 이니시스, 페이팔(해외 USD), 통화 KRW`,
     `- 국제배송: 커피 원두에 한해 EMS 프리미엄`,
     ``,
     `## 제품 (${products.length})`,
-    ...products.map((p) => `- [${p.title_ko}](${base}/products/${p.slug})` +
-      (p.flavor_notes.length ? ` — 풍미: ${p.flavor_notes.join(", ")}` : "") +
-      (p.roast_level ? ` · 로스팅: ${p.roast_level}` : "") +
-      (p.minPrice ? ` · ₩${p.minPrice.toLocaleString()}` : "")),
+    ...products.map((p) => {
+      const bits = [
+        p.flavor_notes.length ? `풍미 ${p.flavor_notes.join(", ")}` : "",
+        p.roast_level ? `로스팅 ${p.roast_level}` : "",
+        p.minPrice ? `₩${p.minPrice.toLocaleString()}` : "",
+      ].filter(Boolean);
+      return `- [${seoText(p.title_ko)}](${base}/products/${p.slug})` + (bits.length ? `: ${bits.join("; ")}` : "");
+    }),
     ``,
     `## 교육자료 The Basic of Coffee (${CHAPTERS.length}개 챕터, 한국어와 영어)`,
     `- [커피 교육 자료 목차](${base}/education) / [English](${base}/en/education)`,
-    ...CHAPTERS.map((c) => `- [${COPY_KO[c.slug]?.title ?? c.slug}](${base}/education/${c.slug})` + (COPY_KO[c.slug]?.tagline ? `: ${COPY_KO[c.slug].tagline}` : "")),
+    ...CHAPTERS.map((c) => `- [${seoTitle(COPY_KO[c.slug]?.title ?? c.slug)}](${base}/education/${c.slug})` + (COPY_KO[c.slug]?.tagline ? `: ${seoText(COPY_KO[c.slug].tagline)}` : "")),
     ``,
     `## 블로그 Coffeelog (${posts.length})`,
-    ...posts.map((p) => `- [${p.title}](${base}/blogs/coffeelog/${encodeURIComponent(p.slug)})` + (p.excerpt ? `: ${p.excerpt}` : "")),
+    ...posts.map((p) => `- [${seoTitle(p.title)}](${base}/blogs/coffeelog/${encodeURIComponent(p.slug)})` + (p.excerpt ? `: ${seoText(p.excerpt)}` : "")),
     ``,
     `## 카페 납품과 컨설팅`,
     `- 컨설팅과 파트너십(브랜드 전략, 데이터와 POS 분석, 운영 SOP, 계약 로스팅, 바리스타 교육): ${base}/consulting`,

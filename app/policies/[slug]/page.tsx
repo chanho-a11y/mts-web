@@ -1,19 +1,20 @@
 import { notFound } from "next/navigation";
+import { seoText } from "@/lib/seo-text";
 
 export const dynamic = "force-dynamic";
 
 const POLICIES: Record<string, { title: string; body: string }> = {
   "refund-policy": {
     title: "환불 정책",
-    body: "신선식품(원두) 특성상, 미개봉·원두 상태가 훼손되지 않은 경우에 한해 수령 후 7일 이내 교환·환불이 가능합니다. 단순 변심에 의한 환불 시 왕복 배송비가 부과될 수 있으며, 개봉·분쇄된 제품은 환불이 제한됩니다.",
+    body: "신선식품(원두) 특성상, 미개봉이고 원두 상태가 훼손되지 않은 경우에 한해 수령 후 7일 이내 교환과 환불이 가능합니다. 단순 변심에 의한 환불 시 왕복 배송비가 부과될 수 있으며, 개봉·분쇄된 제품은 환불이 제한됩니다.",
   },
   "shipping-policy": {
     title: "배송 정책",
-    body: "MTSPACE COFFEE는 경기도 가평 자체 로스터리에서 매주 월·화 로스팅하며, 신선도를 위해 화·수에 순차 출고합니다(가장 신선한 배치, 최대 7일 이내 발송). 국내는 롯데택배로 출고 후 1~2일 소요됩니다. 해외는 커피 원두에 한해 EMS 프리미엄으로 배송합니다.",
+    body: "MTSPACE COFFEE는 자체 로스터리에서 로스팅한 원두를 주문 순서대로 출고합니다(가장 신선한 배치, 최대 7일 이내 발송). 국내는 롯데택배로 출고 후 1~2일 소요됩니다. 해외는 커피 원두에 한해 EMS 프리미엄으로 배송합니다.",
   },
   "privacy-policy": {
     title: "개인정보처리방침",
-    body: "(주)엠티에스솔루션스는 관련 법령에 따라 최소한의 개인정보만 수집·이용하며, 수집 목적 달성 후 지체 없이 파기합니다. 개인정보관리책임자: 홍찬호. 자세한 사항은 고객센터로 문의해주세요.",
+    body: "(주)엠티에스솔루션스는 관련 법령에 따라 최소한의 개인정보만 수집, 이용하며, 수집 목적 달성 후 지체 없이 파기합니다. 개인정보관리책임자: 홍찬호. 자세한 사항은 고객센터로 문의해주세요.",
   },
   "terms-of-service": {
     title: "서비스 약관",
@@ -33,14 +34,14 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   const policy = POLICIES[params.slug];
   if (!policy) return { title: "정책" };
   // 정책마다 고유한 설명문과 자기 경로 canonical 을 준다(D-134).
-  const flat = policy.body.replace(/\s+/g, " ").trim();
+  const flat = seoText(policy.body.replace(/\s+/g, " "));
   const description = flat.length > 150 ? `${flat.slice(0, 149)}…` : flat;
   const path = `/policies/${params.slug}`;
   return {
     title: policy.title,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${policy.title} · MTSPACE COFFEE`, description, type: "website", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+    openGraph: { title: `${policy.title} | MTSPACE COFFEE`, description, type: "website", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
   };
 }
 

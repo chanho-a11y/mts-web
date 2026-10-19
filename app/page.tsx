@@ -8,7 +8,11 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 // 홈의 canonical. layout 기본값으로 두면 모든 하위 페이지가 상속한다(D-134).
-export const metadata = { alternates: { canonical: "/" } };
+// 홈 설명문(D-147): layout 기본값(브랜드 철학 한 줄, 63자)은 짧아서 홈 전용 설명을 둔다.
+const HOME_DESC = "MTSPACE COFFEE는 호주 시드니 Normcore Coffee에서 출발한 한국 스페셜티 커피 로스터리입니다. 시그니쳐 블렌드와 싱글 오리진, 카페 납품과 사업자 도매, 커피 교육 자료를 제공합니다.";
+export function generateMetadata() {
+  return { description: HOME_DESC, alternates: { canonical: "/" }, openGraph: { type: "website", siteName: "MTSPACE COFFEE", title: "MTSPACE COFFEE | everyday excellence", description: HOME_DESC, url: "/", locale: "ko_KR", images: ["/images/og-default.png"] } };
+}
 
 // 역할별 카테고리 노출 순서
 const CONSUMER_ORDER = ["blends", "single-origins", "decaf", "normcore", "merch"];

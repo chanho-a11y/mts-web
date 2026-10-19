@@ -14,6 +14,9 @@ import { resolveTheme } from "@/lib/point-color";
 import ProductGallery from "@/components/product-gallery";
 import { recipeDisplay, type RecipeData } from "@/lib/recipe";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { seoText } from "@/lib/seo-text";
+import { computeShipping } from "@/lib/shipping";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -27,18 +30,19 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     `${nameKo}: ${p.flavor_notes.length ? `${p.flavor_notes.join(", ")} 노트의 ` : ""}${p.roast_level ? `${p.roast_level} 로스트 ` : ""}${kind}.`,
     p.one_liner ? `${p.one_liner.replace(/[.。]\s*$/, "")}.` : "",
     p.is_b2b_only ? "사업자 전용 상품입니다." : "",
-    "MTSPACE COFFEE가 매주 월, 화에 로스팅해 화, 수에 출고합니다.",
+    "MTSPACE COFFEE가 자체 로스터리에서 직접 로스팅합니다.",
   ].filter(Boolean).join(" ");
+  const description = seoText(desc);
   // 국문명과 영문명을 이어 붙이면 60자를 크게 넘는 상품이 있다. 합쳐서 45자를 넘으면 국문명만 쓴다.
   const both = `${nameKo} ${p.title_en ?? ""}`.trim();
   const title = both.length <= 45 ? both : nameKo;
   const images = p.image ? [p.image] : [DEFAULT_OG_IMAGE];
   return {
     title,
-    description: desc,
+    description,
     alternates: { canonical: `/products/${p.slug}` },
-    openGraph: { title: nameKo, description: desc, images, type: "website", url: `/products/${p.slug}`, siteName: "MTSPACE COFFEE", locale: "ko_KR" },
-    twitter: { card: "summary_large_image", title: nameKo, description: desc, images },
+    openGraph: { title: nameKo, description, images, type: "website", url: `/products/${p.slug}`, siteName: "MTSPACE COFFEE", locale: "ko_KR" },
+    twitter: { card: "summary_large_image", title: nameKo, description, images },
   };
 }
 
@@ -245,16 +249,41 @@ export default async function ProductPage({ params }: { params: { slug: string }
           ? "Single origins express their origin character most clearly through filter (pour-over) and espresso."
           : "Blends are built for daily menus and perform reliably across espresso, americano, and latte." },
         { q: "What is MTSPACE COFFEE's roasting style?", a: roastingAen },
-        { q: "When is it roasted and shipped, and how does aging work?", a: "We roast every Monday and Tuesday and ship on Tuesday and Wednesday. Beans settle into their fullest flavour after a short resting (aging) period — see the recommended drinking window under more information below." },
+        { q: "When will my order ship, and how does aging work?", a: "We roast in our own roastery and ship orders in sequence after roasting. Beans settle into their fullest flavour after a short resting (aging) period; see the recommended drinking window under more information below." },
       ]
     : [
         { q: "어떤 추출에 잘 어울리나요?", a: isSingleOrigin
           ? "싱글 오리진은 필터 커피(핸드드립)와 에스프레소에서 산지 본연의 개성이 가장 또렷하게 드러납니다."
-          : "블렌드는 에스프레소 · 아메리카노 · 라떼 등 데일리 메뉴에 안정적으로 어울립니다." },
+          : "블렌드는 에스프레소, 아메리카노, 라떼 등 데일리 메뉴에 안정적으로 어울립니다." },
         { q: "MTSPACE COFFEE의 로스팅 스타일은 어떤가요?", a: roastingAko },
-        { q: "언제 로스팅·출고되며 에이징은 어떻게 하나요?", a: "매주 월·화요일 로스팅해 화·수요일에 출고합니다. 원두는 로스팅 후 짧은 에이징(숙성)을 거치면 풍미가 안정되며, 권장 음용 시점은 아래 more information을 참고해 주세요." },
+        { q: "주문하면 언제 출고되며 에이징은 어떻게 하나요?", a: "자체 로스터리에서 로스팅한 원두를 주문 순서대로 출고합니다. 원두는 로스팅 후 짧은 에이징(숙성)을 거치면 풍미가 안정되며, 권장 음용 시점은 아래 more information을 참고해 주세요." },
       ];
 
+  // 판매자 목록 권장 필드(D-147): 배송비는 결제와 같은 계산(computeShipping, 국내 1개 기준), 반품은 환불 정책(수령 후 7일, 미개봉)과 일치.
+  const ldVariant = [...priceBase].sort((a, b) => a.base_price - b.base_price)[0];
+  let ldShipFee: number | null = null;
+  try {
+    const q = await computeShipping(supabase, "KR", ldVariant?.weight_g ?? p.weight_g ?? 0);
+    ldShipFee = q.hasRate ? q.feeKRW : null;
+  } catch {}
+  const shippingDetails = ldShipFee == null ? undefined : {
+    "@type": "OfferShippingDetails",
+    shippingRate: { "@type": "MonetaryAmount", value: ldShipFee, currency: "KRW" },
+    shippingDestination: { "@type": "DefinedRegion", addressCountry: "KR" },
+    deliveryTime: {
+      "@type": "ShippingDeliveryTime",
+      handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 7, unitCode: "DAY" },
+      transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+    },
+  };
+  const returnPolicy = {
+    "@type": "MerchantReturnPolicy",
+    applicableCountry: "KR",
+    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+    merchantReturnDays: 7,
+    returnMethod: "https://schema.org/ReturnByMail",
+    returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+  };
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -263,10 +292,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
         description: oneLiner ?? flavorArr.join(", "),
         brand: { "@type": "Brand", name: pBrand.name },
         url: `https://mtspace.coffee/products/${p.slug}`,
+        sku: p.slug, // 쇼핑 피드(app/feed/shopping.xml) g:id 와 같은 값
         additionalProperty: infoRows.map(([k, v]) => ({ "@type": "PropertyValue", name: k, value: v })),
         offers: {
           "@type": "Offer", priceCurrency: "KRW", price: p.minPrice, availability: "https://schema.org/InStock",
           url: `https://mtspace.coffee/products/${p.slug}`,
+          ...(shippingDetails ? { shippingDetails } : {}),
+          hasMerchantReturnPolicy: returnPolicy,
           ...(p.is_b2b_only ? { eligibleCustomerType: "https://schema.org/Business" } : {}),
         },
         ...(revCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating.toFixed(1), reviewCount: revCount } } : {}),
@@ -280,6 +312,23 @@ export default async function ProductPage({ params }: { params: { slug: string }
     ],
   };
 
+  // 관련 글(D-147): 이 상품을 링크한 블로그 글, 또는 제목에 상품명이 들어간 글을 최대 3편 연결한다.
+  const fam = p.slug.replace(/-\d+$/, "");
+  const baseName = p.title_ko.replace(/\[.*?\]\s*/g, "").replace(/\s*\d+(\.\d+)?\s*(g|kg)\s*$/i, "").trim();
+  let relatedPosts: { slug: string; title: string }[] = [];
+  try {
+    const [byLink, byTitle] = await Promise.all([
+      supabase.from("content_post").select("slug,title,published_at").eq("status", "published").ilike("body_html", `%/products/${fam}%`).order("published_at", { ascending: false }).limit(3),
+      baseName.length >= 2
+        ? supabase.from("content_post").select("slug,title,published_at").eq("status", "published").ilike("title", `%${baseName}%`).order("published_at", { ascending: false }).limit(3)
+        : Promise.resolve({ data: [] as { slug: string; title: string; published_at: string | null }[] }),
+    ]);
+    const seen = new Set<string>();
+    relatedPosts = [...(byTitle.data ?? []), ...(byLink.data ?? [])]
+      .filter((x) => (seen.has(x.slug) ? false : (seen.add(x.slug), true)))
+      .slice(0, 3)
+      .map((x) => ({ slug: x.slug, title: x.title }));
+  } catch {}
   const pointVars = { ["--point" as string]: theme.point, ["--point-text" as string]: theme.pointText, ["--check" as string]: theme.check };
   const crumbCat = p.is_b2b_only ? "Wholesale" : "Coffee";
 
@@ -433,7 +482,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
               ))}
             </section>
 
-            {/* more information — 전 제품 공통 구매·신선도·정책 안내 (정본: 월·화 로스팅 / 화·수 출고) */}
+            {/* more information: 전 제품 공통 구매, 정책 안내. 로스팅, 출고 요일은 표기하지 않는다(D-147) */}
             <section className="sec" style={{ paddingBottom: 8 }}>
               <h2 className="head">{locale === "en" ? "more information" : "more information · 구매 안내"}</h2>
               {locale === "en" ? (
@@ -441,8 +490,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                   <li>MTSPACE COFFEE is at its best when enjoyed <b>14–28 days after roasting</b>, on average.</li>
                   <li>That said, we design our coffees so their character comes through beautifully before and after that window too, depending on your brew method.</li>
                   <li>Apart from our blends (dark · medium · light), we do not roast single origins separately for espresso and filter. We prefer to express the coffee's inherent flavour rather than flavour developed through sugar browning during the roast.</li>
-                  <li>We roast <b>every Monday & Tuesday</b>.</li>
-                  <li>Online orders ship <b>every Tuesday & Wednesday</b>.</li>
+                  <li>Online orders ship <b>in sequence on our roasting schedule</b>.</li>
                   <li>If an item is out of stock, it is roasted fresh on the next roast day before shipping.</li>
                   <li>In that case, please allow roughly <b>3–5 additional business days</b>.</li>
                   <li>Orders are filled with the earliest-roasted coffee first (up to 7 days after roasting). If you'd prefer a fresher batch, please leave a note with your order.</li>
@@ -455,8 +503,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                   <li>엠티스페이스 커피 제품은 평균적으로 <b>로스팅 후 14–28일</b> 구간에 사용하는 것이 가장 이상적입니다.</li>
                   <li>하지만 그 전이나 후에도 추출 방법에 따라 본연의 맛이 잘 나올 수 있게끔 디자인했습니다.</li>
                   <li>블렌드(다크·미디엄·라이트)를 제외한 싱글 오리진은 에스프레소와 필터를 별도로 로스팅하지 않습니다. 이는 엠티스페이스 커피가 추구하는 방향이 커피 고유의 향미를 표현하는 것이 로스팅 중 sugar browning에 의한 향미 표현보다 저희 취향에 더 잘 맞기 때문입니다.</li>
-                  <li>엠티스페이스 커피는 <b>매주 월·화요일에 로스팅</b>합니다.</li>
-                  <li>온라인 주문은 <b>매주 화·수요일에 출고</b>됩니다.</li>
+                  <li>온라인 주문은 <b>로스팅 일정에 맞춰 순차 출고</b>됩니다.</li>
                   <li>재고가 없을 시 다음 로스팅일에 새로 로스팅되어 출고됩니다.</li>
                   <li>이 경우 영업일 기준 약 <b>3–5일</b> 정도 추가 소요될 수 있습니다.</li>
                   <li>주문 후 가장 먼저 로스팅된 커피(최장 로스팅 후 7일)가 발송되며, 더 신선한 제품을 원하시면 별도의 요청사항을 남겨주세요.</li>
@@ -486,6 +533,16 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 <button style={{ background: "var(--ink)", color: "var(--oat)", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 12, width: "fit-content" }}>{tt.submitReview}</button>
               </form>
             </section>
+            {relatedPosts.length > 0 && (
+              <section className="sec" style={{ paddingBottom: 8 }}>
+                <h2 className="head">{locale === "en" ? "Related reading" : "관련 글"}</h2>
+                <ul className="more">
+                  {relatedPosts.map((rp) => (
+                    <li key={rp.slug}><Link href={`/blogs/coffeelog/${encodeURIComponent(rp.slug)}`}>{rp.title}</Link></li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <div style={{ padding: "0 0 24px" }}><B2bCta locale={locale} source="product" /></div>
           </main>
         </div>

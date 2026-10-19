@@ -4,19 +4,22 @@ import { getStorefrontContext } from "@/lib/storefront";
 import { getPageSettings } from "@/lib/page-content";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "Consulting & Partnership — MTSPACE COFFEE 브랜드·운영·로스팅 파트너",
+const CONSULTING_DESC = "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅과 파트너십. 브랜드 전략, 데이터와 POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 검증된 노하우를 전수합니다.";
+export function generateMetadata() {
+  return {
+  title: "Consulting & Partnership: 브랜드, 운영, 로스팅 파트너",
   description:
-    "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅·파트너십. 브랜드 전략, 데이터·POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 — 검증된 노하우를 전수합니다.",
+    CONSULTING_DESC,
   alternates: { canonical: "/consulting" },
-  openGraph: { title: "Consulting & Partnership · MTSPACE COFFEE", description: "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅·파트너십. 브랜드 전략, 데이터·POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 — 검증된 노하우를 전수합니다.", type: "website", url: "/consulting", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
-};
+  openGraph: { title: "Consulting & Partnership | MTSPACE COFFEE", description: CONSULTING_DESC, type: "website", url: "/consulting", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+  };
+}
 
 const C = {
   ko: {
     tagline: "everyday excellence", h1: "Consulting & Partnership",
     sub: "시드니에서 시작해 검증한 노하우를, 그대로 전수합니다",
-    intro1: "MTSPACE COFFEE는 호주 시드니에서 시작된 Normcore Coffee에서 출발했습니다. 시드니 스페셜티 커피 씬과 경쟁 무대에서 검증된 기술을 한국으로 가져와, 경기도 가평 청평의 자체 로스터리를 토대로 시그니쳐 블렌드·싱글 오리진·사업자 도매·컨설팅까지 아우르는 브랜드로 성장했습니다.",
+    intro1: "MTSPACE COFFEE는 호주 시드니에서 시작된 Normcore Coffee에서 출발했습니다. 시드니 스페셜티 커피 씬과 경쟁 무대에서 검증된 기술을 한국으로 가져와, 자체 로스터리를 토대로 시그니쳐 블렌드·싱글 오리진·사업자 도매·컨설팅까지 아우르는 브랜드로 성장했습니다.",
     intro2: "우리는 그 성장 과정에서 쌓은 브랜드·운영·로스팅·추출의 노하우를 파트너에게 그대로 전수합니다. 한 잔의 맛부터 매장의 숫자까지, 데이터로 설계하고 검증된 방식으로 함께 성장하는 것 — 그것이 MTSPACE의 컨설팅입니다.",
     svcH: "컨설팅 — 3대 서비스", partH: "파트너십",
     partSub: "단발성 자문이 아니라, 로스팅·공급·운영을 함께 책임지는 장기 파트너십을 지향합니다.",
@@ -32,7 +35,7 @@ const C = {
       { no: "03", title: "운영 · SOP", img: "/images/consulting-ops.jpg", desc: "추출 레시피 표준화, 바 세팅, 위생·품질 관리 SOP를 정립해 매장 어디서나 균일한 한 잔이 나오도록 시스템화합니다." },
     ],
     partnerships: [
-      { title: "계약 로스팅 (OEM/ODM)", desc: "브랜드 전용 블렌드를 함께 개발하고, 가평 로스터리에서 매주 월·화 로스팅해 화·수 출고로 안정 공급합니다. 프로파일 설계·컵 프로파일 검증·라벨 표기까지 일괄 지원합니다." },
+      { title: "계약 로스팅 (OEM/ODM)", desc: "브랜드 전용 블렌드를 함께 개발하고, 자체 로스터리에서 로스팅해 정해진 주기로 안정 공급합니다. 프로파일 설계·컵 프로파일 검증·라벨 표기까지 일괄 지원합니다." },
       { title: "매장 운영 대행", desc: "입지·컨셉 진단, 바 설계와 장비 세팅, 오픈 준비부터 인력 교육·SOP 정립까지. 오픈 이후에도 데이터 기반으로 메뉴·가격·발주를 함께 운영합니다." },
       { title: "공동 브랜드 개발", desc: "MTSPACE의 로스팅·기술 토대 위에 파트너의 자산을 결합해 새로운 커피 브랜드를 설계합니다. 브랜드 전략·제품 라인업·패키지·출시 로드맵을 함께 만듭니다." },
       { title: "해외 브랜드 한국 진출", desc: "해외 커피 브랜드의 한국 시장 진입을 로스팅·유통·운영·마케팅으로 지원합니다. 시드니에서 한국으로 브랜드를 안착시킨 경험을 그대로 적용합니다." },
@@ -41,7 +44,7 @@ const C = {
   en: {
     tagline: "everyday excellence", h1: "Consulting & Partnership",
     sub: "The know-how we proved in Sydney, passed on to you",
-    intro1: "MTSPACE COFFEE began with Normcore Coffee in Sydney. We brought techniques proven on Sydney's specialty scene and competition stages to Korea, and grew — on the foundation of our own roastery in Cheongpyeong, Gapyeong — into a brand spanning signature blends, single origins, wholesale, and consulting.",
+    intro1: "MTSPACE COFFEE began with Normcore Coffee in Sydney. We brought techniques proven on Sydney's specialty scene and competition stages to Korea, and grew, on the foundation of our own roastery, into a brand spanning signature blends, single origins, wholesale, and consulting.",
     intro2: "We pass on the brand, operations, roasting, and extraction know-how we built along the way. From the taste in the cup to the numbers on the floor — designing with data and growing through proven methods. That is MTSPACE consulting.",
     svcH: "Consulting — 3 Core Services", partH: "Partnership",
     partSub: "Not one-off advice, but a long-term partnership that shares responsibility for roasting, supply, and operations.",
@@ -57,7 +60,7 @@ const C = {
       { no: "03", title: "Operations · SOP", img: "/images/consulting-ops.jpg", desc: "We standardize brew recipes, bar setup, and hygiene/quality SOPs so every location pulls a consistent cup." },
     ],
     partnerships: [
-      { title: "Contract Roasting (OEM/ODM)", desc: "We co-develop brand-exclusive blends and supply reliably — roasted Mon/Tue at our Gapyeong roastery, shipped Tue/Wed. Profile design, cup verification, and labeling included." },
+      { title: "Contract Roasting (OEM/ODM)", desc: "We co-develop brand-exclusive blends and supply reliably, roasted in our own roastery and shipped on a regular cycle. Profile design, cup verification, and labeling included." },
       { title: "Store Operations", desc: "Location and concept diagnosis, bar design and equipment setup, opening preparation through staff training and SOPs — and data-driven menu, pricing, and ordering after opening." },
       { title: "Co-Brand Development", desc: "We design new coffee brands by combining a partner's assets with MTSPACE's roasting and technical foundation — brand strategy, lineup, packaging, and launch roadmap together." },
       { title: "Overseas Brand Entry to Korea", desc: "We support overseas coffee brands entering Korea through roasting, distribution, operations, and marketing — applying our experience settling a brand from Sydney into Korea." },

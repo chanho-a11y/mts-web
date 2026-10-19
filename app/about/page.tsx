@@ -5,12 +5,15 @@ import { getStorefrontContext } from "@/lib/storefront";
 import { getPageSettings } from "@/lib/page-content";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "About MTSPACE COFFEE — 시드니에서 시작된 한국 스페셜티 커피",
-  description: "경쟁 바리스타 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매 — Everyday Excellence.",
+const ABOUT_DESC = "경쟁 바리스타 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매. Everyday Excellence.";
+export function generateMetadata() {
+  return {
+  title: "About MTSPACE COFFEE: 시드니에서 시작된 한국 스페셜티 커피",
+  description: ABOUT_DESC,
   alternates: { canonical: "/about" },
-  openGraph: { title: "About MTSPACE COFFEE", description: "경쟁 바리스타 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매 — Everyday Excellence.", type: "website", url: "/about", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
-};
+  openGraph: { title: "About MTSPACE COFFEE", description: ABOUT_DESC, type: "website", url: "/about", siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+  };
+}
 
 // 대표 수상내역(Barista Awards) — 정본 풀리스트 (D-032, 2026-07-02 대표 제공)
 const AWARDS = [
@@ -124,7 +127,7 @@ const C = {
     tagline: "everyday excellence", h1: "About MTSPACE COFFEE", sub: "매일의 탁월함",
     brandH: "브랜드 소개",
     brandP1: "MTSPACE COFFEE는 2016년 호주 시드니에서 시작된 Normcore Coffee의 뿌리에서 출발한 한국 스페셜티 커피 브랜드입니다. 경쟁 바리스타인 홍찬호(Chanho Hong) 대표는 시드니에서 쌓은 로스팅·바리스타 경험을 바탕으로 2022년 한국에 진출했고, 한국 시장에 맞춰 브랜드를 새롭게 설계하며 MTSPACE COFFEE로 리브랜딩했습니다. 한국 소비자의 취향에 맞춘 시그니쳐 블렌드와 세계 각지에서 선별한 싱글 오리진을 매주 로스팅합니다.",
-    brandP2ck: ["자체 로스터리에서 ", "매주 월·화요일", "에 로스팅하고, 주문은 ", "화·수요일", "에 출고되어 최상의 신선도로 배송됩니다."],
+    brandP2ck: ["자체 로스터리에서 ", "직접 로스팅", "하고, 주문은 ", "순서대로 출고", "되어 신선한 상태로 배송됩니다."],
     pursuitH: "우리가 추구하는 것",
     pursuitP1: "특별한 날의 특별한 한 잔이 아닌, 매일 마시는 커피가 탁월해야 한다고 믿습니다. 원두 선정부터 로스팅 프로파일 설계, 추출 레시피 안내까지 — 일관되고 품질 높은 경험이 되도록 설계합니다. 그것이 우리가 말하는 Everyday Excellence입니다.",
     pursuitP2: "MTSPACE COFFEE는 ‘비어 있음’ 속에서 무한한 가능성을 찾고, 고객과 함께 그 공간을 채워나가고자 합니다. 커피 한 잔이 단순한 음료를 넘어 새로운 가능성을 열어주는 시작점이 되기를 바랍니다.",
@@ -142,7 +145,7 @@ const C = {
     tagline: "everyday excellence", h1: "About MTSPACE COFFEE", sub: "everyday excellence",
     brandH: "Our Brand",
     brandP1: "MTSPACE COFFEE is a Korean specialty coffee brand rooted in Normcore Coffee, founded in Sydney in 2016. Competition barista Chanho Hong brought his Sydney roasting and barista experience to Korea in 2022, redesigning the brand for the Korean market and rebranding it as MTSPACE COFFEE. We roast signature blends tuned to Korean tastes and single origins sourced from around the world every week.",
-    brandP2ck: ["From our own roastery, we roast ", "every Monday & Tuesday", " and ship orders on ", "Tuesday & Wednesday", " for maximum freshness."],
+    brandP2ck: ["From our own roastery, we ", "roast in house", " and ship orders ", "in sequence", " so they arrive fresh."],
     pursuitH: "What We Pursue",
     pursuitP1: "We believe the coffee you drink every day — not just on special occasions — should be excellent. From bean selection to roast profiling and brew guidance, we design a consistent, high-quality experience. That is what we call Everyday Excellence.",
     pursuitP2: "MTSPACE COFFEE seeks infinite possibility within emptiness, filling that space together with our customers — so that a cup of coffee becomes a starting point for something new.",

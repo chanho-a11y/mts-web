@@ -23,12 +23,12 @@ export const BRANDS: Record<BrandCode, Brand> = {
     domain: "mtspace.coffee",
     instagram: "@mtspacecoffee",
     philosophy: {
-      ko: "Everyday Excellence — 특별한 날의 한 잔이 아닌, 매일 마시는 커피가 탁월해야 한다고 믿습니다.",
-      en: "Everyday Excellence — we believe the coffee you drink every day should be exceptional, not just on special occasions.",
+      ko: "Everyday Excellence. 특별한 날의 한 잔이 아닌, 매일 마시는 커피가 탁월해야 한다고 믿습니다.",
+      en: "Everyday Excellence. We believe the coffee you drink every day should be exceptional, not just on special occasions.",
     },
     about: {
-      ko: "MTSPACE COFFEE는 2016년 호주 시드니에서 시작된 Normcore Coffee의 뿌리에서 출발한 한국 스페셜티 커피 브랜드입니다. 경쟁 바리스타 홍찬호 대표가 시드니의 로스팅·바리스타 경험을 바탕으로 2022년 한국에 진출하며 한국 시장에 맞춰 MTSPACE COFFEE로 리브랜딩했습니다. 시그니쳐 블렌드와 세계 각지 싱글 오리진을 매주 월·화 로스팅하고 화·수 출고합니다.",
-      en: "MTSPACE COFFEE is a Korean specialty coffee brand rooted in Normcore Coffee, founded in Sydney in 2016. Founder and competition barista Chanho Hong brought his Sydney roasting and barista experience to Korea in 2022, rebranding for the Korean market as MTSPACE COFFEE. We roast signature blends and single origins every Mon–Tue and ship Tue–Wed.",
+      ko: "MTSPACE COFFEE는 2016년 호주 시드니에서 시작된 Normcore Coffee의 뿌리에서 출발한 한국 스페셜티 커피 브랜드입니다. 경쟁 바리스타 홍찬호 대표가 시드니의 로스팅과 바리스타 경험을 바탕으로 2022년 한국에 진출하며 한국 시장에 맞춰 MTSPACE COFFEE로 리브랜딩했습니다. 시그니쳐 블렌드와 세계 각지 싱글 오리진을 자체 로스터리에서 직접 로스팅합니다.",
+      en: "MTSPACE COFFEE is a Korean specialty coffee brand rooted in Normcore Coffee, founded in Sydney in 2016. Founder and competition barista Chanho Hong brought his Sydney roasting and barista experience to Korea in 2022, rebranding for the Korean market as MTSPACE COFFEE. We roast our signature blends and single origins in our own roastery.",
     },
   },
   normcore: {

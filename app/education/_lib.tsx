@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/json-ld";
-import { absoluteUrl, siteBaseUrl, breadcrumbJsonLd, faqJsonLd, DEFAULT_OG_IMAGE } from "@/lib/seo";
+import { absoluteUrl, siteBaseUrl, breadcrumbJsonLd, faqJsonLd, DEFAULT_OG_IMAGE, FOUNDER_PERSON } from "@/lib/seo";
+import { fitTitle, seoText, seoTitle } from "@/lib/seo-text";
 import { CHAPTERS, COPY_KO, LEVEL_LABEL, type ChapterCopy, type ChapterMeta, type Level } from "./_content/meta";
 import { COPY_EN } from "./_content/meta.en";
 import contentKo from "./_content/content.ko.json";
@@ -83,12 +84,13 @@ export function neighbours(slug: string) {
 
 /* ------------------------------ metadata ------------------------------- */
 
+// 검색 결과 표기 규칙(D-147): 긴 줄표, 가운뎃점 정리와 60자 제목 맞춤
 export function indexMetadata(l: EduLocale): Metadata {
   const u = UI[l];
   const path = basePath(l);
   const desc =
     l === "ko"
-      ? "생두·추출 이론·센서리·브루잉·에스프레소·밀크·로스팅·품질관리·로스터리 셋업·WBC·WBrC까지 13개 챕터로 정리한 스페셜티 커피 교육 자료. 홍찬호 저술, MTSPACE COFFEE 발행."
+      ? "생두, 추출 이론, 센서리, 브루잉, 에스프레소, 밀크, 로스팅, 품질관리, 로스터리 셋업, WBC, WBrC까지 13개 챕터로 정리한 스페셜티 커피 교육 자료. 홍찬호 저술, MTSPACE COFFEE 발행."
       : "A thirteen-chapter specialty coffee education manual covering green coffee, extraction theory, sensory, brewing, espresso, milk, roasting, quality control, roastery setup, WBC and WBrC. Written by Chanho Hong for MTSPACE COFFEE.";
   return {
     title: u.title,
@@ -121,12 +123,13 @@ export function chapterMetadata(l: EduLocale, slug: string): Metadata {
   const copy = chapterCopy(l, slug);
   if (!meta || !copy) return {};
   const path = chapterPath(l, slug);
-  const description = clip(copy.description);
+  const description = clip(seoText(copy.description));
+  const ogTitle = seoTitle(copy.title);
   return {
-    title: copy.title,
+    title: fitTitle(copy.title),
     description,
     keywords: copy.keywords,
-    authors: [{ name: "Chanho Hong" }],
+    authors: [{ name: "Chanho Hong", url: "https://mtspace.coffee/about" }],
     alternates: {
       canonical: path,
       languages: {
@@ -137,13 +140,13 @@ export function chapterMetadata(l: EduLocale, slug: string): Metadata {
     },
     openGraph: {
       type: "article",
-      title: copy.title,
+      title: ogTitle,
       description,
       url: absoluteUrl(path),
       locale: l === "ko" ? "ko_KR" : "en_US",
       images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE) }],
     },
-    twitter: { card: "summary_large_image", title: copy.title, description, images: [absoluteUrl(DEFAULT_OG_IMAGE)] },
+    twitter: { card: "summary_large_image", title: ogTitle, description, images: [absoluteUrl(DEFAULT_OG_IMAGE)] },
   };
 }
 
@@ -161,7 +164,7 @@ function courseJsonLd(l: EduLocale) {
     url: absoluteUrl(basePath(l)),
     inLanguage: l === "ko" ? "ko-KR" : "en",
     provider: { "@type": "Organization", name: "MTSPACE COFFEE", url: siteBaseUrl() },
-    author: { "@type": "Person", name: "Chanho Hong" },
+    author: FOUNDER_PERSON, // 블로그, Organization.founder 와 같은 저자 엔티티(D-147)
     isAccessibleForFree: true,
     hasCourseInstance: CHAPTERS.map((c) => ({
       "@type": "CourseInstance",
@@ -185,7 +188,7 @@ function learningResourceJsonLd(l: EduLocale, meta: ChapterMeta, copy: ChapterCo
     educationalLevel: LEVEL_LABEL[meta.level][l],
     keywords: copy.keywords.join(", "),
     isAccessibleForFree: true,
-    author: { "@type": "Person", name: "Chanho Hong" },
+    author: FOUNDER_PERSON, // 블로그, Organization.founder 와 같은 저자 엔티티(D-147)
     publisher: {
       "@type": "Organization",
       name: "MTSPACE COFFEE",

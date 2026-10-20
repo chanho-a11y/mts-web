@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth-guard";
 export async function createPromotionAction(formData: FormData) {
   await requireAdmin();
-  const placements = ["banner", "popup", "main", "shop"].filter((p) => formData.get(`pl_${p}`) === "on");
+  const placements = ["banner", "main", "shop"] /* 팝업은 공지 팝업 메뉴로 이관(D-148) */.filter((p) => formData.get(`pl_${p}`) === "on");
   const supabase = createClient();
   await supabase.from("promotion").insert({
     title: String(formData.get("title") || ""),

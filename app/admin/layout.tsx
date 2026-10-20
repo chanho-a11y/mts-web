@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       { href: "/admin/business", label: "사업자 승인" },
     ] },
     { href: "/admin/marketing", label: "마케팅", children: [
+      { href: "/admin/marketing/popups", label: "공지 팝업" },
       { href: "/admin/email", label: "이메일" },
       { href: "/admin/social", label: "인스타그램" },
     ] },

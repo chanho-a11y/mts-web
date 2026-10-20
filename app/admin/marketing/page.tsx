@@ -38,10 +38,10 @@ export default async function AdminMarketingPage() {
           <div className="flex flex-wrap gap-4 text-sm">
             <span className="text-neutral-500">노출 위치:</span>
             <label className="flex items-center gap-1"><input type="checkbox" name="pl_banner" /> 상단 배너</label>
-            <label className="flex items-center gap-1"><input type="checkbox" name="pl_popup" /> 팝업</label>
             <label className="flex items-center gap-1"><input type="checkbox" name="pl_main" /> 메인</label>
             <label className="flex items-center gap-1"><input type="checkbox" name="pl_shop" /> 쇼핑 섹션</label>
           </div>
+          <p className="text-xs text-neutral-400">홈 팝업 공지는 <a href="/admin/marketing/popups" className="underline">공지 팝업</a> 메뉴에서 관리합니다(D-148).</p>
           <button className="rounded-full bg-black px-5 py-2 text-sm text-white">생성</button>
         </form>
       </section>

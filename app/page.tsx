@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import ProductCard from "@/components/product-card";
 import HeroSlideshow from "@/components/hero-slideshow";
 import { t } from "@/lib/i18n";
+import SitePopup from "@/components/site-popup";
+import { getHomePopups } from "@/lib/site-popup";
 
 export const dynamic = "force-dynamic";
 // 홈의 canonical. layout 기본값으로 두면 모든 하위 페이지가 상속한다(D-134).
@@ -23,12 +25,13 @@ export default async function Home() {
   const tt = t(locale);
 
   // storefront 확인 후 독립적인 조회를 병렬 실행(순차 → 동시).
-  const [categories, role, settingsMap, bestsellers, newArrivals] = await Promise.all([
+  const [categories, role, settingsMap, bestsellers, newArrivals, popups] = await Promise.all([
     getCategories(storefrontId),
     fetchRole(),
     fetchSiteSettings(brand.code),
     getBestsellers(storefrontId, 4),
     getNewArrivals(storefrontId, 4),
+    getHomePopups(brand.code, locale), // 공지 팝업(D-148) — 홈 전용
   ]);
   const isBusiness = role === "business" || role === "admin"; // 관리자도 사업자전용 노출
 
@@ -135,6 +138,9 @@ export default async function Home() {
           </Link>
         ))}
       </section>
+
+      {/* 공지 팝업(D-148): 특별 → 상시 순차 표시 */}
+      {popups.length > 0 && <SitePopup popups={popups} locale={locale} />}
     </main>
   );
 }

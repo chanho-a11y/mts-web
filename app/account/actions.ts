@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { MAX_ADDRESSES } from "@/lib/address";
+import { recordSignupAttribution } from "@/lib/attribution-server";
 import {
   clientIp, ipRateExceeded, logSignupAttempt, normalizedEmailTaken, verifyFormToken,
 } from "@/lib/signup-guard";
@@ -164,6 +165,9 @@ export async function signUpAction(formData: FormData) {
       // 업로드 실패해도 가입 자체는 유지 — 관리자 승인 단계에서 재요청 가능
     }
   }
+
+  // D-154: 가입 시점의 유입 경로 저장(실패해도 가입은 유지).
+  if (newUserId) await recordSignupAttribution(newUserId, "email");
 
   // 즉시 로그인 — 위에서 이메일 확인을 완료했으므로 성공한다.
   await supabase.auth.signInWithPassword({ email, password });

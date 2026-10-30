@@ -5,6 +5,7 @@ import { formatKRW } from "@/lib/i18n";
 import { customerTypeLabel } from "@/lib/analytics";
 import OrderCancelPanel from "@/components/order-cancel-panel";
 import { lotteTrackingUrl } from "@/lib/lotte";
+import AdminAttributionCard from "@/components/admin-attribution-card";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
     // D-142: 한 주문에 운송장(박스) 여러 행이 가능하므로 목록으로 조회
     supabase.from("shipment").select("id,tracking_no,notified_at").eq("order_id", order.id).order("created_at"),
   ]);
+  // D-154: 유입 경로는 별도 조회한다. 컬럼이 아직 없거나 조회가 실패해도 주문 화면은 그대로 뜬다.
+  const { data: acq } = await supabase.from("orders").select("acq_channel,acq_first,acq_last").eq("id", order.id).maybeSingle();
   const ships = (shp ?? []) as { id: string; tracking_no: string | null; notified_at: string | null }[];
 
   // 취소 이력(refund는 payment_id 기준)
@@ -125,6 +128,16 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
           )}
         </section>
       </div>
+
+      {/* 유입 경로 (D-154) */}
+      <AdminAttributionCard
+        title="유입 경로"
+        channel={(acq as any)?.acq_channel}
+        first={(acq as any)?.acq_first}
+        last={(acq as any)?.acq_last}
+        lastLabel="마지막 유입 (주문 기준 30일 내)"
+        note="채널 배지는 주문 시점의 마지막 비직접 유입 기준입니다. 30일 내 외부 유입이 없으면 직접 방문으로 기록됩니다."
+      />
 
       {/* 품목 */}
       <section className="rounded-card border border-line p-4">

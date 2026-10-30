@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { brandForHost } from "@/lib/brands";
+import { FT_COOKIE, LT_COOKIE, FT_MAX_AGE, LT_MAX_AGE, extractTouch, directTouch, serializeTouch } from "@/lib/attribution";
 
 // Multi-storefront + locale + Supabase session refresh.
 export async function middleware(req: NextRequest) {
@@ -44,6 +45,28 @@ export async function middleware(req: NextRequest) {
 
   // 경로로 강제된 로케일은 쿠키에 쓰지 않는다(사용자의 언어 선택을 덮어쓰지 않도록).
   if (!cookieLocale && !pathLocale) res.cookies.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+
+  // 유입 경로 계측(D-154). 문서 요청(GET)만 본다. Next 의 RSC 이동, prefetch 는 내부 이동이라 건너뛴다.
+  // 실패해도 페이지 응답에는 영향이 없도록 전부 try 로 감싼다.
+  try {
+    const isPrefetch =
+      req.headers.get("rsc") === "1" ||
+      req.headers.has("next-router-prefetch") ||
+      req.headers.get("purpose") === "prefetch" ||
+      req.headers.has("x-middleware-prefetch");
+    if (req.method === "GET" && !isPrefetch) {
+      const selfHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+      const touch = extractTouch(req.nextUrl, req.headers.get("referer"), selfHost);
+      const hasFt = !!req.cookies.get(FT_COOKIE)?.value;
+      const opts = { path: "/", httpOnly: true, sameSite: "lax" as const, secure: req.nextUrl.protocol === "https:" };
+      if (touch) {
+        res.cookies.set(LT_COOKIE, serializeTouch(touch), { ...opts, maxAge: LT_MAX_AGE });
+        if (!hasFt) res.cookies.set(FT_COOKIE, serializeTouch(touch), { ...opts, maxAge: FT_MAX_AGE });
+      } else if (!hasFt) {
+        res.cookies.set(FT_COOKIE, serializeTouch(directTouch(req.nextUrl)), { ...opts, maxAge: FT_MAX_AGE });
+      }
+    }
+  } catch {}
   return res;
 }
 

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { deleteCustomerPriceAction } from "@/app/admin/customers/actions";
 import { formatKRW } from "@/lib/i18n";
 import CustomerDiscountForm from "@/components/customer-discount-form";
+import AdminAttributionCard from "@/components/admin-attribution-card";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,11 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
     tierPrices = (vp ?? []) as TierRow[];
   }
 
+  // D-154: 가입 유입 경로. 테이블이 아직 없거나 조회가 실패해도 화면은 그대로 뜬다.
+  const { data: acq } = await supabase
+    .from("profile_attribution").select("first_channel,signup_channel,first_touch,signup_touch,method,created_at")
+    .eq("profile_id", params.id).maybeSingle();
+
   const products = (productList ?? []).map((p: { slug: string; title_ko: string }) => ({ slug: p.slug, title: p.title_ko }));
   const categories = (cats ?? []).map((c: { slug: string; name_ko: string }) => ({ slug: c.slug, name: c.name_ko }));
   const indivCount = prices?.length ?? 0;
@@ -62,6 +68,15 @@ export default async function AdminCustomerDetail({ params }: { params: { id: st
         </p>
         <p className="mt-1 text-xs text-neutral-500">적용 할인 품목 <b>{indivCount + tierCount}</b>건 (개별가 {indivCount} · 등급가 {tierCount})</p>
       </div>
+
+      <AdminAttributionCard
+        title="가입 유입 경로"
+        channel={(acq as any)?.signup_channel}
+        first={(acq as any)?.first_touch}
+        last={(acq as any)?.signup_touch}
+        lastLabel="가입 직전 유입 (30일 내)"
+        note={(acq as any)?.method === "oauth" ? "카카오 로그인으로 가입" : (acq as any) ? "이메일로 가입" : undefined}
+      />
 
       <section className="rounded-xl border p-5">
         <h2 className="mb-3 font-bold">기업 고객 할인 설정</h2>

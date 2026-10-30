@@ -7,6 +7,7 @@ import { computeShipping } from "@/lib/shipping";
 import { getKrwPerUsd } from "@/lib/fx";
 import { getStorefrontContext } from "@/lib/storefront";
 import { MAX_ADDRESSES, addressKey } from "@/lib/address";
+import { recordOrderAttribution } from "@/lib/attribution-server";
 
 export interface CheckoutItem { variantId: string; qty: number }
 export interface CheckoutPayload {
@@ -196,6 +197,9 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
     .select("id")
     .single();
   if (oErr || !order) return { ok: false, message: `주문 생성 실패: ${oErr?.message}` };
+
+  // D-154: 주문 시점 유입 경로 저장(service-role 별도 UPDATE, 실패해도 주문은 진행).
+  await recordOrderAttribution(order.id);
 
   await db.from("order_item").insert(
     lines.map((l) => ({ order_id: order.id, variant_id: l.variant_id, sku: l.sku, title_snapshot: l.title, option_snapshot: l.option, unit_price: l.unit, price_source: l.source, qty: l.qty, line_total: l.unit * l.qty })),

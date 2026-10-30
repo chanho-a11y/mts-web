@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { recordSignupAttribution } from "@/lib/attribution-server";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,13 @@ export async function GET(req: NextRequest) {
 
   if (code) {
     const supabase = createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: exch, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // D-154: 소셜 로그인으로 방금 가입한 회원만 유입 경로를 저장한다(기존 회원의 로그인은 제외).
+      const u = exch?.user;
+      if (u?.id && u.created_at && Date.now() - Date.parse(u.created_at) < 15 * 60 * 1000) {
+        await recordSignupAttribution(u.id, "oauth");
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
     return NextResponse.redirect(`${origin}/account/login?error=${encodeURIComponent(error.message)}`);

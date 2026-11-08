@@ -24,7 +24,7 @@ export const FOUNDER_PERSON = {
   "@type": "Person",
   name: "홍찬호",
   alternateName: "Chanho Hong",
-  jobTitle: "MTSPACE COFFEE 대표, 경쟁 바리스타",
+  jobTitle: "MTSPACE COFFEE 대표, 바리스타 컴페티터",
   url: "https://mtspace.coffee/about",
   sameAs: ["https://chanhohong.com", "https://instagram.com/chanhohong"],
 } as const;

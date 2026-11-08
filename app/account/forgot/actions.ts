@@ -147,9 +147,21 @@ export async function resetPasswordAction(formData: FormData) {
     await admin.from("password_reset_codes").update({ consumed_at: nowIso }).eq("id", row.id);
     toReset(email, "인증 시도 횟수를 초과했습니다. 인증코드를 다시 발급받아 주세요.");
   }
+  // S1(D-160): 시도 횟수를 비교보다 먼저, 조건부(CAS)로 1 올린다. 동시에 수백 건을 보내도 같은 attempts 값을
+  // 읽은 요청 중 하나만 이기므로 코드 하나당 비교는 최대 MAX_ATTEMPTS 회로 묶인다(이전엔 읽기, 비교, 저장이 분리돼 우회 가능).
+  const { data: claimed, error: claimErr } = await admin
+    .from("password_reset_codes")
+    .update({ attempts: attempts + 1 })
+    .eq("id", row.id)
+    .eq("attempts", attempts)
+    .is("consumed_at", null)
+    .select("id");
+  if (claimErr) toReset(email, "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+  if (!claimed || claimed.length === 0) {
+    toReset(email, "요청이 동시에 처리되었습니다. 새 비밀번호로 로그인해 보시고, 안 되면 다시 시도해 주세요.");
+  }
   if (!sameHash(hashCode(code), String(row.code_hash))) {
     const left = MAX_ATTEMPTS - (attempts + 1);
-    await admin.from("password_reset_codes").update({ attempts: attempts + 1 }).eq("id", row.id);
     if (left <= 0) {
       await admin.from("password_reset_codes").update({ consumed_at: nowIso }).eq("id", row.id);
       toReset(email, "인증 시도 횟수를 초과했습니다. 인증코드를 다시 발급받아 주세요.");

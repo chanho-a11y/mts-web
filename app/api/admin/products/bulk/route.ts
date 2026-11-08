@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/auth-guard";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,9 @@ const CAT_TYPE: Record<string, string> = {
 
 // 제품 일괄 작업 — 발행/초안(setstatus)·보관/복원·삭제·유형변경. 관리자 전용.
 export async function POST(req: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (prof?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const g = await adminApi();
+  if ("deny" in g) return g.deny;
+  const { supabase, user } = g;
 
   let p: { action?: string; slugs?: string[]; category?: string; status?: string } = {};
   try { p = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }

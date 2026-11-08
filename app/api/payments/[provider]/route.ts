@@ -81,7 +81,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
       }
       // H-2: 승인금액(P_AMT) 대조는 approveOrder 가 수행(불일치 시 결제완료 전이 차단)
       const mPaid = ap.P_AMT != null ? Math.round(Number(ap.P_AMT)) : null;
-      const mr = await approveOrder(db(), orderId, { provider, tid: String(ap.P_TID || authTid), raw: ap, paidAmount: mPaid });
+      const mr = await approveOrder(db(), orderId, { provider, tid: String(ap.P_TID || authTid), raw: ap, paidAmount: mPaid, pgOrderNo: ap.P_OID ?? null });
       return { ...mr, orderNo: mr.orderNo || orderNo };
     }
 
@@ -103,7 +103,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     // H-2: 이니시스 승인응답 TotPrice(KRW) 대조
     const totPrice = (raw as { TotPrice?: string | number }).TotPrice;
     const paidAmount = totPrice != null ? Math.round(Number(totPrice)) : null;
-    const r = await approveOrder(db(), orderId, { provider, tid: String(raw.tid ?? ""), raw, paidAmount });
+    const r = await approveOrder(db(), orderId, { provider, tid: String(raw.tid ?? ""), raw, paidAmount, pgOrderNo: (raw as { MOID?: string }).MOID ?? null });
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 

@@ -5,7 +5,11 @@ export const dynamic = "force-dynamic";
 
 const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const FONT = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff/Pretendard-Bold.woff";
+// O2(D-160): 폰트를 저장소 안 파일로 번들한다. 이전 jsDelivr 주소는 404 본문("Couldn't find...")을 돌려줘
+// 모든 OG 이미지가 0바이트로 나가고 있었다(Unsupported OpenType signature Coul). 외부 의존도 없앤다.
+// 800 은 라틴 서브셋(16KB)이라 한글은 500(완성형 2350자 포함)으로 받친다. 커버 렌더(mcp/render)와 같은 폰트 세트.
+const FONT = new URL("../../../../../mcp/fonts/Pretendard-800.woff", import.meta.url);
+const FONT_KO = new URL("../../../../../mcp/fonts/Pretendard-500.woff", import.meta.url);
 
 export async function GET(req: Request, { params }: { params: { type: string; slug: string } }) {
   try {
@@ -34,7 +38,7 @@ export async function GET(req: Request, { params }: { params: { type: string; sl
     const isCard = params.type === "cardnews";
     const W = 1080, H = isCard ? 1350 : 1080;
 
-    const fontData = await fetch(FONT).then((r) => r.arrayBuffer());
+    const [fontData, fontKo] = await Promise.all([FONT, FONT_KO].map((u) => fetch(u).then((r) => r.arrayBuffer())));
 
     return new ImageResponse(
       (
@@ -54,7 +58,10 @@ export async function GET(req: Request, { params }: { params: { type: string; sl
           </div>
         </div>
       ),
-      { width: W, height: H, fonts: [{ name: "Pretendard", data: fontData, weight: 700, style: "normal" }] },
+      { width: W, height: H, fonts: [
+        { name: "Pretendard", data: fontData, weight: 800, style: "normal" },
+        { name: "Pretendard", data: fontKo, weight: 500, style: "normal" },
+      ] },
     );
   } catch {
     // 폴백: SVG 자산

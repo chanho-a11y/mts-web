@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronAuthed } from "@/lib/cron-auth";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { sendEmail, emailLayout } from "@/lib/email";
 
@@ -18,16 +19,9 @@ const custKey = (email: string) => email.trim().toLowerCase();
 const EXPIRE_HOURS = Number(process.env.ORDER_EXPIRE_HOURS) > 0 ? Number(process.env.ORDER_EXPIRE_HOURS) : 24;
 
 // 이메일 자동화 + 미결제 주문 정리 (Vercel Cron 매시 실행).
-// 인증: ?key=CRON_SECRET 또는 Authorization: Bearer CRON_SECRET
+// 인증: Authorization: Bearer CRON_SECRET (lib/cron-auth.ts)
 // 규칙: 신규 제품 안내(판매개시 12h 후) · 중단 결제 리마인드(5h 후) · 미결제 주문 만료(24h 후)
-function authed(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const url = new URL(req.url);
-  if (url.searchParams.get("key") === secret) return true;
-  const h = req.headers.get("authorization") || "";
-  return h === `Bearer ${secret}`;
-}
+const authed = cronAuthed;
 
 export async function GET(req: Request) {
   if (!authed(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

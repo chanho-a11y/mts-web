@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +27,9 @@ function cleanTerm(term: string): string {
 }
 
 export async function GET() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (prof?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const g = await adminApi();
+  if ("deny" in g) return g.deny;
+  const { supabase, user } = g;
 
   const { data: kb } = await supabase.from("kb_entry").select("term").limit(400);
   const kbKeywords = (kb ?? []).map((r: any) => cleanTerm(String(r.term || ""))).filter((s) => s && s.length <= 24);

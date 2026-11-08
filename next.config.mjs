@@ -52,8 +52,6 @@ const LEGACY_404 = [
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'apiskyivlvebpvvxfejq.supabase.co' },
-      { protocol: 'https', hostname: 'cdn.shopify.com' },
       { protocol: 'https', hostname: '*.supabase.co' },
     ],
   },
@@ -117,6 +115,9 @@ const nextConfig = {
       //    결제 완료 페이지(/checkout/complete)는 항상 최상위 창으로만 열리므로 DENY 유지.
       { source: "/api/payments/:path*", headers: pgFrameHeaders },
       { source: "/checkout/pg-close", headers: pgFrameHeaders },
+      // O3(D-160): 관리자 통합 스튜디오가 /tools/*.html 을 같은 도메인 iframe 으로 띄운다. 전역 DENY 에 막혀 빈 화면이었다.
+      // 같은 도메인만 허용하고(외부 프레이밍은 계속 차단), 내부 도구라 검색 색인에서 뺀다.
+      { source: "/tools/:path*", headers: [...pgFrameHeaders, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
   },
   // 현행(Shopify) → 신규 자사몰 301 매핑 (SEO 보존, D-009).

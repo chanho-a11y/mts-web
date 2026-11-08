@@ -23,7 +23,7 @@ export default function AddToCart({
           {variants.map((x) => <option key={x.id} value={x.id}>{x.option ?? tt.optionDefault} · {formatKRW(x.base_price)}</option>)}
         </select>
       )}
-      <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, +e.target.value))}
+      <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Math.floor(+e.target.value) || 1))}
         className="w-16 rounded-card border border-line bg-paper px-2 py-2 text-sm" />
       <button
         onClick={() => {

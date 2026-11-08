@@ -54,8 +54,8 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
   // E-E-A-T 저자(실명 홍찬호 + 약력) — 발행 페이지 공통 정본
   const AUTHOR = {
     name: "홍찬호",
-    role: "MTSPACE COFFEE 대표, 경쟁 바리스타",
-    bio: "한국과 호주의 스페셜티 커피 경쟁 바리스타(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
+    role: "MTSPACE COFFEE 대표, 바리스타 컴페티터",
+    bio: "한국과 호주의 스페셜티 커피 바리스타 컴페티터(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
     url: "https://mtspace.coffee/about",
   };
   const authorName = post.author && post.author !== "통합 스튜디오" ? post.author : AUTHOR.name;

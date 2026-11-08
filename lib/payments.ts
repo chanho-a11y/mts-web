@@ -38,7 +38,6 @@ export interface PaymentAdapter {
 const TEST = process.env.PAYMENTS_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 const SITE = () => process.env.NEXT_PUBLIC_SITE_URL || "https://mtspace.coffee";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
-const sha512hex = (s: string) => crypto.createHash("sha512").update(s, "utf8").digest("hex");
 
 // 이니시스 모바일 표준결제(신버전 통합 결제요청 URL). 규격: manual.inicis.com/pay/stdpay_m.html
 export const INICIS_MOBILE_URL = "https://mobile.inicis.com/smart/payment/";
@@ -78,13 +77,14 @@ function inicisMobileFields(p: PaymentInit, mid: string, oid: string, price: str
     P_NOTI: p.orderId,
   };
   // 금액 위변조 방지 해시(amt_hash) — 모바일 HashKey(INICIS_MHASHKEY) 설정 시에만 활성화.
-  // P_CHKFAKE = BASE64(SHA512(P_AMT + P_OID + P_TIMESTAMP + HashKey)) — 이니시스 해시 데모가
-  // "SHA512 Hash (Hex To Base64)" 이므로 hex 문자열을 base64 인코딩한다.
+  // P_CHKFAKE = BASE64(SHA512(P_AMT + P_OID + P_TIMESTAMP + HashKey)), P_TIMESTAMP = 밀리초(manual.inicis.com/pay/stdpay_m.html).
   const hashKey = process.env.INICIS_MHASHKEY;
   if (hashKey) {
     const ts = Date.now().toString();
     fields.P_TIMESTAMP = ts;
-    fields.P_CHKFAKE = Buffer.from(sha512hex(`${price}${oid}${ts}${hashKey}`), "utf8").toString("base64");
+    // D-160: 2026-11-09 실결제 테스트에서 hex 문자열을 base64 한 값은 인증 단계 P_STATUS=01 로 거절됐다.
+    // 매뉴얼 BASE64_ENCODE(SHA512(Data)) 의 표준 해석인 "원본 다이제스트 바이트를 base64" 로 계산한다.
+    fields.P_CHKFAKE = crypto.createHash("sha512").update(`${price}${oid}${ts}${hashKey}`, "utf8").digest("base64");
     reserved.push("amt_hash=Y");
   }
   fields.P_RESERVED = reserved.join("&");

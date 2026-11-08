@@ -58,7 +58,11 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     // --- 모바일 표준결제 결과(P_*) --- : 인증결과 수신 → P_REQ_URL 로 승인요청(P_MID·P_TID) → 승인결과 검증
     if (body.P_STATUS !== undefined || body.P_TID !== undefined) {
       const st = String(body.P_STATUS ?? "");
-      if (st !== "00") return { ok: false, reason: `inicis_m_auth_${st || "empty"}`, orderNo };
+      if (st !== "00") {
+        // D-160: 인증 단계 실패 사유(P_RMESG1)를 남긴다. 이전엔 코드만 남아 해시 오류와 고객 취소를 구분할 수 없었다.
+        console.error(`[inicis-mobile-auth-failed] order=${orderNo} status=${st} msg=${String(body.P_RMESG1 ?? "").slice(0, 200)}`);
+        return { ok: false, reason: `inicis_m_auth_${st || "empty"}`, orderNo };
+      }
       const reqUrl = String(body.P_REQ_URL || "");
       const authTid = String(body.P_TID || "");
       if (!reqUrl || !authTid) return { ok: false, reason: "inicis_m_no_requrl", orderNo };

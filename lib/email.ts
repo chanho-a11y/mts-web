@@ -1,6 +1,5 @@
 // 이메일 발송 추상화 — 프로바이더는 환경변수로 결정(키 없으면 no-op).
-// 지원: Resend(RESEND_API_KEY) · 범용 웹훅(EMAIL_WEBHOOK_URL) · (그 외 미설정 시 발송 생략)
-// Gmail은 SMTP 릴레이를 웹훅으로 두거나 Resend로 보내는 것을 권장.
+// 지원: Resend(RESEND_API_KEY), 범용 웹훅(EMAIL_WEBHOOK_URL). 그 외 미설정 시 발송 생략.
 import { lotteTrackingUrl } from "@/lib/lotte";
 
 export interface SendResult {
@@ -17,23 +16,8 @@ const FROM = process.env.EMAIL_FROM || `MTSPACE COFFEE <${GMAIL_USER}>`;
 export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
   if (!to) return { sent: false, reason: "no_recipient" };
 
-  // 1순위: Gmail SMTP (앱 비밀번호) — chanho@mtspace.coffee 발송
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-  if (gmailPass) {
-    try {
-      const nodemailer = (await import("nodemailer")).default;
-      const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com", port: 465, secure: true,
-        auth: { user: GMAIL_USER, pass: gmailPass.replace(/\s+/g, "") },
-      });
-      const info = await transporter.sendMail({ from: FROM, to, subject, html });
-      return { sent: true, provider: "gmail", messageId: (info as { messageId?: string })?.messageId };
-    } catch (e) {
-      // Gmail 실패 시 다음 프로바이더(Resend·webhook)로 폴백한다.
-      console.warn("[email] gmail failed, falling back:", (e as Error)?.message?.slice(0, 120) || "smtp_error");
-    }
-  }
-
+  // D-160: Gmail SMTP(nodemailer) 경로 제거. 운영 환경에는 GMAIL_APP_PASSWORD 가 없어 항상 Resend 로 나가고 있었다.
+  // nodemailer 는 쓰이지 않으면서 취약점(high)만 안고 있었다. Gmail 이 다시 필요하면 Resend 도메인 발신으로 대체한다.
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {
     try {

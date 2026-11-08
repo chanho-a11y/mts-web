@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { adminApi } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,9 @@ function slugify(s: string): string {
 
 // 통합 스튜디오 블로그 저장 — 보관(draft)/게시(published). 게시글은 홈 블로그 섹션 노출.
 export async function POST(req: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (prof?.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const g = await adminApi();
+  if ("deny" in g) return g.deny;
+  const { supabase, user } = g;
 
   let p: any = {};
   try { p = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }

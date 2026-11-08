@@ -3,7 +3,9 @@ import { sendEmail, orderConfirmationHtml, orderAdminNotifyHtml } from "./email"
 
 export interface ApproveExtra { provider?: string; tid?: string; captureId?: string; raw?: unknown;
   // H-2: PG 가 실제 승인한 금액(주문 통화 기준 정수). 제공 시 order.grand_total 과 일치할 때만 결제완료 전이.
-  paidAmount?: number | null }
+  paidAmount?: number | null;
+  // S7(D-160): PG 승인응답에 실린 주문번호(MOID/P_OID). 지금은 대조 로그만 남긴다.
+  pgOrderNo?: string | null }
 export interface ApproveResult { ok: boolean; already?: boolean; orderNo?: string; reason?: string }
 
 // 주문 결제 승인 확정 — 멱등. payment.paid + orders.paid 로 전이(created·expired에서만).
@@ -15,6 +17,11 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return { ok: false, reason: "order_not_found" };
+
+  // ponytail: 불일치는 경고 로그만(결제를 막지 않음). 한 달 관찰해 오탐 0건이면 금액 대조처럼 fail-closed 로 바꾼다.
+  if (extra.pgOrderNo && extra.pgOrderNo !== order.order_no) {
+    console.warn(`[approve-orderno-mismatch] order=${order.order_no} pg=${extra.pgOrderNo} provider=${extra.provider}`);
+  }
 
   // 멱등: 이미 결제완료+ 단계면 통과
   const alreadyPaid = ["paid", "preparing", "shipped", "in_transit", "delivered"].includes(order.status);
@@ -41,7 +48,20 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
   // (결제는 됐는데 주문만 만료 상태로 남는 사고 방지)
   if (!alreadyPaid && (order.status === "created" || order.status === "expired")) {
     if (order.status === "expired") console.warn(`[approve-after-expire] order=${order.order_no} 만료 처리된 주문에 승인이 도착해 결제완료로 되살림`);
-    await db.from("orders").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", orderId);
+    // O1(D-160): 상태 전이를 조건부로 한다. 모바일 노티와 브라우저 리턴이 동시에 와도 실제로 상태를 바꾼 한 건만
+    // 아래 재고 차감과 메일 발송을 한다(이전엔 둘 다 통과해 주문확인, 관리자 알림 메일이 두 번 나갈 수 있었다).
+    // 업데이트 자체가 오류면 기존 동작(계속 진행)을 유지한다.
+    const { data: won, error: wonErr } = await db
+      .from("orders")
+      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("id", orderId)
+      .in("status", ["created", "expired"])
+      .select("id");
+    if (wonErr) console.error(`[approve-status-update-failed] order=${order.order_no}`, wonErr.message);
+    else if (!won || won.length === 0) {
+      console.log(`[approve-dup-callback] order=${order.order_no} 다른 콜백이 먼저 결제완료로 전이함`);
+      return { ok: true, already: true, orderNo: order.order_no };
+    }
 
     // D-101: 재고 차감은 '결제완료' 시점. (구: 출고 시점 차감 → 관리자가 출고를 누르지 않으면 영원히 미차감)
     // 멱등 보장은 두 겹 — ① 이 블록은 created/expired → paid 신규 전이 1회만 진입

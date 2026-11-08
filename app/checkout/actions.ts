@@ -26,10 +26,13 @@ export interface CheckoutPayload {
 }
 
 // 쿠폰/프로모션 코드 → KRW subtotal 기준 할인액
-async function resolveDiscount(supabase: any, code: string, subtotal: number): Promise<{ amount: number; label: string }> {
+async function resolveDiscount(supabase: any, code: string, subtotal: number, isBusinessBuyer: boolean): Promise<{ amount: number; label: string }> {
   if (!code) return { amount: 0, label: "" };
   const now = new Date().toISOString();
-  const { data: c } = await supabase.from("coupon").select("type,value,min_order,starts_at,ends_at,is_active").eq("code", code).maybeSingle();
+  const { data: c } = await supabase.from("coupon").select("type,value,min_order,starts_at,ends_at,is_active,b2b_only").eq("code", code).maybeSingle();
+  // O5(D-160): 사업자 전용 쿠폰은 승인된 사업자(또는 관리자)만.
+  // ponytail: usage_limit/used_count 는 아직 집계 경로가 없다(쿠폰 0건). 한정 쿠폰을 처음 발행할 때 승인 시점 증가와 함께 넣는다.
+  if (c?.b2b_only && !isBusinessBuyer) return { amount: 0, label: "" };
   let src: { type: string; value: number; min_order: number; starts_at: string | null; ends_at: string | null; is_active: boolean } | null = null;
   if (c) src = { type: c.type, value: c.value, min_order: c.min_order ?? 0, starts_at: c.starts_at, ends_at: c.ends_at, is_active: c.is_active };
   else {
@@ -57,6 +60,12 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!payload.items.length) return { ok: false, message: "장바구니가 비어 있습니다." };
+  // S3(D-160): 수량은 1~9999 정수만 받는다. 이전에는 클라이언트 값을 그대로 곱해 음수, 소수로 결제 금액을 깎을 수 있었다.
+  // 예전 장바구니에 문자열로 저장된 수량("2")도 있을 수 있어 숫자로 바꾼 뒤 검사한다.
+  payload = { ...payload, items: payload.items.map((i) => ({ ...i, qty: Number(i.qty) })) };
+  if (payload.items.some((i) => !Number.isInteger(i.qty) || i.qty < 1 || i.qty > 9999)) {
+    return { ok: false, message: "수량이 올바르지 않습니다. 장바구니에서 수량을 다시 확인해 주세요." };
+  }
 
   // 해외 배송지는 PayPal(외화)만 허용 — 이니시스는 KRW 전용이라 USD 환산액이 원화로 청구되는 것을 차단(D-085).
   if (payload.shipping.country !== "KR" && payload.provider !== "paypal") {
@@ -106,10 +115,15 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   for (const it of payload.items) {
     const { data: v } = await db
       .from("product_variant")
-      .select("id,sku,weight_g,option_values,is_b2b_only,inventory_policy,product(title_ko)")
+      .select("id,sku,weight_g,option_values,is_b2b_only,inventory_policy,is_active,product(title_ko,status)")
       .eq("id", it.variantId)
       .maybeSingle();
     if (!v) return { ok: false, message: "상품을 찾을 수 없습니다." };
+    // S5(D-160): 비회원은 service-role 로 조회해 RLS(판매중 상품만)를 거치지 않는다. 보관, 비활성 상품은 여기서 막는다.
+    // 관리자는 초안 상품 테스트 주문을 위해 통과.
+    if (buyerType !== "admin" && ((v as any).is_active === false || (v as any).product?.status !== "active")) {
+      return { ok: false, message: "판매가 종료된 상품이 포함되어 있습니다. 장바구니에서 제외한 뒤 다시 시도해 주세요." };
+    }
     if ((v as any).is_b2b_only && !isBusinessBuyer) {
       return { ok: false, message: "사업자 전용 상품이 포함되어 있습니다. 사업자 계정으로 로그인 후 구매해 주세요." };
     }
@@ -154,7 +168,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   const shippingFeeKRW = ship.feeKRW;
 
   // 쿠폰/프로모션 코드 할인
-  const disc = await resolveDiscount(db, payload.code ?? "", subtotal);
+  const disc = await resolveDiscount(db, payload.code ?? "", subtotal, isBusinessBuyer);
 
   // 합계 (KRW 기준 산출 후, 해외/페이팔이면 USD 환산)
   // USD 주문일 때만 실시간 환율 1회 조회(체크아웃당 1회, 이후 모든 환산에 동일 rate 적용).
@@ -201,9 +215,18 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   // D-154: 주문 시점 유입 경로 저장(service-role 별도 UPDATE, 실패해도 주문은 진행).
   await recordOrderAttribution(order.id);
 
-  await db.from("order_item").insert(
+  const { error: iErr } = await db.from("order_item").insert(
     lines.map((l) => ({ order_id: order.id, variant_id: l.variant_id, sku: l.sku, title_snapshot: l.title, option_snapshot: l.option, unit_price: l.unit, price_source: l.source, qty: l.qty, line_total: l.unit * l.qty })),
   );
+  // S3(D-160): 품목 저장이 실패하면 결제로 넘어가지 않는다(품목 없는 결제완료 주문 방지).
+  // 남은 주문 행은 cancelled 로 닫는다(created 로 두면 중단 결제 리마인드 메일이 나간다).
+  if (iErr) {
+    console.error(`[order-item-insert-failed] order=${orderNo}`, iErr.message);
+    try {
+      await (hasServiceRole ? createAdminClient() : db).from("orders").update({ status: "cancelled" }).eq("id", order.id);
+    } catch {}
+    return { ok: false, message: "주문 품목 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+  }
 
   // 체크아웃에서 '주소록에 저장'을 선택한 경우 (D-113)
   // - 로그인 회원 + 국내 주소만: addresses 에 state/city 컬럼이 없어 해외 주소는 주·도/도시가 소실된다.

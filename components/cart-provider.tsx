@@ -52,7 +52,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   const setQty = useCallback((variantId: string, qty: number) => {
-    setItems((prev) => prev.map((p) => p.variantId === variantId ? { ...p, qty: Math.max(1, qty) } : p));
+    setItems((prev) => prev.map((p) => p.variantId === variantId ? { ...p, qty: Math.max(1, Math.floor(qty) || 1) } : p));
   }, []);
   const remove = useCallback((variantId: string) => {
     setItems((prev) => prev.filter((p) => p.variantId !== variantId));

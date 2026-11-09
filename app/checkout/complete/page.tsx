@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { t } from "@/lib/i18n";
 import CheckoutCompleteClear from "@/components/checkout-complete-clear";
 import PurchaseEvent, { type PurchaseItem } from "@/components/purchase-event";
+import { isPaymentFailKind } from "@/lib/payment-fail";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "주문 완료" };
@@ -49,11 +50,18 @@ async function loadPurchase(orderNo: string) {
   }
 }
 
-export default async function CheckoutComplete({ searchParams }: { searchParams: { order?: string; paid?: string } }) {
+export default async function CheckoutComplete({ searchParams }: { searchParams: { order?: string; paid?: string; fail?: string } }) {
   const { locale } = await getStorefrontContext();
   const tt = t(locale);
   const paid = searchParams.paid === "1";
   const pendingPay = searchParams.paid === "0";
+  // D-163: 실패 사유 유형(화이트리스트만 인정, 그 외 값은 무시하고 일반 안내)
+  const fail = pendingPay && isPaymentFailKind(searchParams.fail) ? searchParams.fail : null;
+  const failBody = fail === "limit" ? tt.payFailLimitBody
+    : fail === "balance" ? tt.payFailBalanceBody
+    : fail === "card" ? tt.payFailCardBody
+    : fail === "cancel" ? tt.payCancelBody
+    : null;
 
   // 결제가 실제로 완료된 경우에만 전환 이벤트를 보낸다.
   const purchase = paid && searchParams.order ? await loadPurchase(searchParams.order) : null;
@@ -71,13 +79,13 @@ export default async function CheckoutComplete({ searchParams }: { searchParams:
           metaLines={purchase.metaLines}
         />
       )}
-      <h1 className="text-2xl font-bold">{paid ? tt.paidTitle : tt.orderReceivedTitle}</h1>
+      <h1 className="text-2xl font-bold">{paid ? tt.paidTitle : fail === "cancel" ? tt.payCancelTitle : fail ? tt.payFailTitle : tt.orderReceivedTitle}</h1>
       {searchParams.order && <p className="mt-3 font-mono text-sm text-neutral-500">{tt.orderNoLabel} {searchParams.order}</p>}
       <p className="mt-4 text-neutral-600">
         {paid
           ? tt.paidBody
           : pendingPay
-            ? tt.pendingPayBody
+            ? failBody ?? tt.pendingPayBody
             : tt.receivedBody}
       </p>
       <div className="mt-8 flex justify-center gap-3">

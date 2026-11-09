@@ -7,11 +7,11 @@ import { formatKRW, t, type Locale } from "@/lib/i18n";
 import { MAX_ADDRESSES, formatAddressLine, type AddressRow } from "@/lib/address";
 import { createOrderAction } from "@/app/checkout/actions";
 import { resolveCartPricesAction } from "@/app/checkout/price-actions";
-import type { Provider } from "@/lib/payments";
+import type { Provider, PgForm } from "@/lib/payments";
 import { trackMeta, toMetaContents } from "@/lib/meta-pixel";
 
 declare global {
-  interface Window { daum?: any; INIStdPay?: any }
+  interface Window { daum?: any; INIStdPay?: any; TossPayments?: any }
 }
 
 // 배송지 국가 — 국내 + EMS 요율 보유국 + 미국 + 기타(직접입력)
@@ -85,12 +85,42 @@ async function startInicis(fields: Record<string, string>) {
   window.INIStdPay?.pay("inicis_pay_form");
 }
 
+// 토스페이먼츠 결제창(SDK v2, D-161). 성공·실패는 successUrl/failUrl 로 페이지 이동한다.
+// PC 에서 고객이 창을 닫으면 Promise 가 USER_CANCEL 로 거절된다 → 체크아웃에 머물고 [결제창 다시 열기]로 같은 주문 재시도.
+const TOSS_SDK = "https://js.tosspayments.com/v2/standard";
+async function startToss(f: Record<string, string>): Promise<"cancel" | "opened"> {
+  await loadScript(TOSS_SDK);
+  if (!window.TossPayments) throw new Error("toss sdk missing");
+  const payment = window.TossPayments(f.clientKey).payment({ customerKey: f.customerKey });
+  const req: Record<string, unknown> = {
+    method: f.method || "CARD",
+    amount: { currency: "KRW", value: Number(f.amount) },
+    orderId: f.orderId,
+    orderName: f.orderName,
+    successUrl: f.successUrl,
+    failUrl: f.failUrl,
+    customerName: f.customerName,
+    // 토스페이 선택 시 토스페이 앱 화면으로 바로 연다. 신용카드는 통합 결제창(카드사 선택).
+    card: f.easyPay ? { flowMode: "DIRECT", easyPay: f.easyPay, useEscrow: false } : { flowMode: "DEFAULT", useEscrow: false },
+  };
+  if (f.customerEmail) req.customerEmail = f.customerEmail;
+  if (f.customerMobilePhone) req.customerMobilePhone = f.customerMobilePhone;
+  try {
+    await payment.requestPayment(req);
+    return "opened";
+  } catch (e) {
+    const code = (e as { code?: string })?.code;
+    if (code === "USER_CANCEL" || code === "PAY_PROCESS_CANCELED") return "cancel";
+    throw e;
+  }
+}
+
 interface CheckoutInitial { recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string }
 export default function CheckoutForm({
-  tip, email = "", locale = "ko", initial,
+  tip, email = "", locale = "ko", initial, tossOn = false,
   savedAddresses = [], canSaveAddress = false, addressBookFull = false,
 }: {
-  tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial;
+  tip: number; email?: string; locale?: Locale; initial?: CheckoutInitial; tossOn?: boolean;
   savedAddresses?: AddressRow[]; canSaveAddress?: boolean; addressBookFull?: boolean;
 }) {
   // 장바구니 비우기는 결제 완료 페이지(CheckoutCompleteClear)에서 처리한다.
@@ -114,6 +144,7 @@ export default function CheckoutForm({
   const en = locale === "en";
   const ALL_METHODS: { p: Provider; label: string }[] = [
     { p: "inicis", label: tt.pmInicis },
+    ...(tossOn ? [{ p: "toss" as Provider, label: tt.pmToss }] : []),
     { p: "paypal", label: tt.pmPaypal },
   ];
   const router = useRouter();
@@ -121,6 +152,8 @@ export default function CheckoutForm({
   // 모바일 여부는 마운트 후 판정(SSR 하이드레이션 불일치 방지)
   const [isMobile, setIsMobile] = useState(false);
   const [payMethod, setPayMethod] = useState<"CARD" | "BANK">("CARD");
+  // 토스 결제수단(D-161): 토스페이 앱 바로 열기 또는 신용카드 결제창
+  const [tossMethod, setTossMethod] = useState<"TOSSPAY" | "CARD">("TOSSPAY");
   useEffect(() => { setIsMobile(isMobileDevice()); }, []);
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -133,7 +166,7 @@ export default function CheckoutForm({
   // 결제창 호출 이후 상태 — 여기서는 새 주문을 만들지 않고, 같은 주문번호로 결제창만 다시 연다.
   const [pgOpened, setPgOpened] = useState(false);
   const [pgOrderNo, setPgOrderNo] = useState<string | null>(null);
-  const lastForm = useRef<{ sdk: "inicis" | "inicis-mobile"; action?: string; fields: Record<string, string> } | null>(null);
+  const lastForm = useRef<PgForm | null>(null);
   // 로그인 회원의 저장 배송지/프로필로 프리필(비회원이면 빈 값)
   const [country, setCountry] = useState(initial?.country || "KR");
   const [countryName, setCountryName] = useState("");
@@ -220,10 +253,20 @@ export default function CheckoutForm({
   // 결제창 열기 — 최초 호출과 '다시 열기'가 같은 경로를 쓴다(둘 다 새 주문을 만들지 않음).
   async function openPg(form: NonNullable<typeof lastForm.current>): Promise<boolean> {
     try {
+      if (form.sdk === "toss") {
+        const r = await startToss(form.fields);
+        if (r === "cancel") setMsg(en ? "Payment was cancelled. Use [Reopen payment window] to try again with the same order." : "결제가 취소되었습니다. 아래 [결제창 다시 열기]로 같은 주문을 다시 결제할 수 있습니다.");
+        return true;
+      }
       if (form.sdk === "inicis-mobile") startInicisMobile(form.action || "", form.fields);
       else await startInicis(form.fields);
       return true;
-    } catch {
+    } catch (e) {
+      if (form.sdk === "toss") {
+        const m = (e as { message?: string })?.message;
+        setMsg(`${en ? "Could not open Toss Payments." : "토스 결제창을 열지 못했습니다."}${m ? ` (${m})` : ""} ${en ? "Try [Reopen payment window]." : "아래 [결제창 다시 열기]를 눌러주세요."}`);
+        return false;
+      }
       setMsg("결제창을 열지 못했습니다. 팝업 차단을 해제한 뒤 아래 [결제창 다시 열기]를 눌러주세요.");
       return false;
     }
@@ -241,7 +284,7 @@ export default function CheckoutForm({
         tip,
         provider,
         mobile: isMobile,
-        payMethod: isMobile ? payMethod : undefined,
+        payMethod: provider === "toss" ? tossMethod : provider === "inicis" && isMobile ? payMethod : undefined,
         code: code.trim() || undefined,
         email: String(formData.get("email") || "") || undefined,
         saveAddress: saveAddress && canSaveAddress && isKR && addrChoice === "new",
@@ -264,7 +307,7 @@ export default function CheckoutForm({
       return;
     }
     setMsg(res.message);
-    // 이니시스: 모바일=결제요청 URL 로 폼 POST / PC=INIStdPay SDK 결제창
+    // 이니시스: 모바일=결제요청 URL 로 폼 POST / PC=INIStdPay SDK 결제창 / 토스=SDK requestPayment
     // ※ 장바구니는 여기서 비우지 않는다. 결제 완료 페이지에서 비운다 —
     //   결제창을 닫은 고객이 장바구니까지 잃고 처음부터 담아야 했던 문제를 없앤다.
     if (res.ok && res.form) {
@@ -389,6 +432,19 @@ export default function CheckoutForm({
             <input type="radio" name="pm" checked={provider === m.p} onChange={() => setProvider(m.p)} /> {m.label}
           </label>
         ))}
+        {/* 토스(D-161): 토스페이 앱 바로 열기 / 신용카드 결제창. PC, 모바일 공통 */}
+        {provider === "toss" && (
+          <div className="ml-6 flex gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="toss_m" checked={tossMethod === "TOSSPAY"} onChange={() => setTossMethod("TOSSPAY")} />
+              {en ? "Toss Pay" : "토스페이"}
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="toss_m" checked={tossMethod === "CARD"} onChange={() => setTossMethod("CARD")} />
+              {en ? "Credit card" : "신용카드"}
+            </label>
+          </div>
+        )}
         {/* 모바일 이니시스는 결제수단을 사전 지정해야 함(모바일 표준결제 규격) */}
         {isMobile && provider === "inicis" && (
           <div className="ml-6 flex gap-4 text-sm">

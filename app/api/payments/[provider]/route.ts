@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { approveOrder } from "@/lib/payments-approve";
-import { paypalToken, paypalCapture } from "@/lib/payments";
+import { paypalToken, paypalCapture, tossConfirm } from "@/lib/payments";
 import { logPaymentEvent } from "@/lib/payment-events";
 import { resolveInicisApproveUrl } from "@/lib/inicis-idc";
 
@@ -111,7 +111,51 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     return { ...r, orderNo: r.orderNo || orderNo };
   }
 
+  if (provider === "toss") {
+    // D-161 토스페이먼츠. successUrl/failUrl 둘 다 GET 으로 돌아온다(쿼리: paymentKey·orderId·amount / code·message·orderId).
+    if (q.get("fail")) {
+      const code = String(q.get("code") || "unknown").replace(/[^A-Z0-9_]/gi, "").slice(0, 60);
+      console.warn(`[toss-fail] order=${orderNo} code=${code} msg=${String(q.get("message") || "").slice(0, 200)}`);
+      return { ok: false, reason: `toss_fail_${code}`, orderNo };
+    }
+    if (!process.env.TOSS_SECRET_KEY) return { ok: false, reason: "toss_unconfigured", orderNo };
+    const paymentKey = String(q.get("paymentKey") || "");
+    const tossOrderId = String(q.get("orderId") || "");
+    const amount = Number(q.get("amount"));
+    if (!paymentKey || !tossOrderId || !Number.isFinite(amount)) return { ok: false, reason: "toss_bad_return", orderNo };
+
+    // 승인 전 대조(fail-closed): 토스 문서 권고대로 successUrl 의 amount 가 우리가 요청한 금액인지 먼저 확인한다.
+    // 다르면 confirm 을 호출하지 않으므로 고객 카드에 잘못된 금액이 청구되지 않는다.
+    const { data: od } = await db().from("orders").select("order_no,grand_total,currency,status").eq("id", orderId).maybeSingle();
+    if (!od) return { ok: false, reason: "order_not_found", orderNo };
+    if (tossOrderId !== od.order_no) return { ok: false, reason: "toss_order_mismatch", orderNo: od.order_no };
+    // 새로고침 등으로 같은 successUrl 이 다시 열려도 이미 결제완료면 승인을 재요청하지 않는다.
+    if (["paid", "preparing", "shipped", "in_transit", "delivered"].includes(od.status)) return { ok: true, already: true, orderNo: od.order_no };
+    if (od.currency !== "KRW" || Math.round(amount) !== Math.round(Number(od.grand_total))) {
+      console.error(`[toss-amount-mismatch-before-confirm] order=${od.order_no} expected=${od.grand_total} got=${amount}`);
+      return { ok: false, reason: "amount_mismatch", orderNo: od.order_no };
+    }
+
+    const c = await tossConfirm(paymentKey, od.order_no, Math.round(amount));
+    if (!c.ok) {
+      console.error(`[toss-confirm-failed] order=${od.order_no} code=${c.code} msg=${String(c.message ?? "").slice(0, 200)}`);
+      return { ok: false, reason: `toss_confirm_${String(c.code ?? "err").slice(0, 60)}`, orderNo: od.order_no };
+    }
+    // H-2: 승인응답 totalAmount 를 approveOrder 가 한 번 더 대조한다. pg_tid = paymentKey(취소 API 의 키).
+    const tr = await approveOrder(db(), orderId, { provider, tid: c.paymentKey || paymentKey, raw: c.raw, paidAmount: c.totalAmount, pgOrderNo: c.orderId });
+    return { ...tr, orderNo: tr.orderNo || od.order_no };
+  }
+
   return { ok: false, reason: "unknown_provider", orderNo };
+}
+
+// 결제창(iframe 일 수 있음) 안에서 열린 응답이 최상위 창을 결제완료 페이지로 옮기게 하는 HTML.
+function topRedirect(url: URL) {
+  const target = JSON.stringify(url.toString());
+  return new NextResponse(
+    `<!doctype html><html><head><meta charset="utf-8"></head><body><script>try{(window.top||window).location.replace(${target});}catch(e){location.replace(${target});}</script></body></html>`,
+    { headers: { "content-type": "text/html; charset=utf-8" } },
+  );
 }
 
 // 브라우저 리턴(GET) → 결제완료 페이지로 리다이렉트
@@ -129,6 +173,9 @@ export async function GET(req: NextRequest, { params }: { params: { provider: st
   const url = new URL("/checkout/complete", SITE);
   if (r.orderNo) url.searchParams.set("order", r.orderNo);
   url.searchParams.set("paid", r.ok ? "1" : "0");
+  // 토스 PC 결제창은 iframe 이다. 리턴이 iframe 안에서 열려도 완료 페이지(X-Frame-Options DENY)가 최상위 창에 뜨도록
+  // 이니시스 POST 응답과 같은 방식으로 window.top 을 이동시킨다.
+  if (params.provider === "toss") return topRedirect(url);
   return NextResponse.redirect(url);
 }
 
@@ -155,11 +202,7 @@ export async function POST(req: NextRequest, { params }: { params: { provider: s
     const url = new URL("/checkout/complete", SITE);
     if (r.orderNo) url.searchParams.set("order", r.orderNo);
     url.searchParams.set("paid", r.ok ? "1" : "0");
-    const target = JSON.stringify(url.toString());
-    return new NextResponse(
-      `<!doctype html><html><head><meta charset="utf-8"></head><body><script>try{(window.top||window).location.replace(${target});}catch(e){location.replace(${target});}</script></body></html>`,
-      { headers: { "content-type": "text/html; charset=utf-8" } },
-    );
+    return topRedirect(url);
   }
 
   return NextResponse.json({ received: true, provider: params.provider, ...r });

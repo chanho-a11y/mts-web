@@ -13,6 +13,7 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency, 
 }) {
   const router = useRouter();
   const isPaypal = provider === "paypal";
+  const pgName = provider === "toss" ? "토스페이먼츠" : "이니시스";
   const [qty, setQty] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +31,7 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency, 
   async function run(mode: "full" | "partial") {
     if (busy) return;
     const confirmMsg = mode === "full"
-      ? `잔여 전액(${money(remaining, currency)})을 이니시스에서 취소합니다. 진행할까요?`
+      ? `잔여 전액(${money(remaining, currency)})을 ${isPaypal ? "페이팔" : pgName}에서 취소합니다. 진행할까요?`
       : `선택 품목 ${money(selectedAmount, currency)}을 부분취소합니다. 진행할까요?`;
     if (!window.confirm(confirmMsg)) return;
     setBusy(true); setMsg(null);
@@ -48,7 +49,7 @@ export default function OrderCancelPanel({ orderId, items, remaining, currency, 
       <p className="text-xs text-neutral-500">
         {isPaypal
           ? "페이팔 주문은 전체 환불만 지원합니다. 환불 성공 시 취소이력 기록 → (출고된 건) 재고 자동복원."
-          : "부분취소는 품목별 수량을 선택하면 금액이 자동 계산됩니다. 취소 성공 시 이니시스 승인취소 → 취소이력 기록 → (출고된 건) 재고 자동복원."}
+          : `부분취소는 품목별 수량을 선택하면 금액이 자동 계산됩니다. 취소 성공 시 ${pgName} 승인취소 → 취소이력 기록 → (출고된 건) 재고 자동복원.`}
       </p>
 
       {!isPaypal && (

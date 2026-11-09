@@ -7,7 +7,7 @@
 //   전문형식 = x-www-form-urlencoded(모든 value urlEncode), 응답 = JSON(resultCode "00"=성공).
 //   ※ 카드취소는 INIAPI Key만 사용(signKey 아님). 인증서/IV는 가상계좌 환불 전용 → 불필요.
 import crypto from "crypto";
-import { paypalToken, paypalBase } from "./payments";
+import { paypalToken, paypalBase, TOSS_API, tossAuthHeader } from "./payments";
 
 const sha512 = (s: string) => crypto.createHash("sha512").update(s, "utf8").digest("hex");
 const TEST = process.env.PAYMENTS_TEST_MODE === "true";
@@ -122,4 +122,38 @@ export async function paypalRefund(opts: { captureId: string; amount?: number; c
   const raw = (await res.json().catch(() => null)) as { id?: string; status?: string; message?: string } | null;
   const ok = res.ok && (raw?.status === "COMPLETED" || raw?.status === "PENDING");
   return { ok, refundId: raw?.id, message: ok ? "페이팔 환불 완료" : `페이팔 환불 실패 (${raw?.message || res.status})`, raw };
+}
+
+// ── 토스페이먼츠 취소(D-161) ──
+// POST /v1/payments/{paymentKey}/cancel  body { cancelReason, cancelAmount? }  (cancelAmount 생략 = 잔액 전액 취소)
+// Idempotency-Key 로 같은 취소 요청의 중복 실행(더블클릭, 재시도)을 막는다. 성공 판정 = 응답 cancels 마지막 항목 cancelStatus DONE.
+export interface TossCancelResult { ok: boolean; cancelId?: string; message: string; raw?: unknown }
+export async function tossCancel(opts: { paymentKey: string; reason: string; amount?: number; idempotencyKey: string }): Promise<TossCancelResult> {
+  if (TEST) return { ok: true, cancelId: `TESTTOSSCANCEL${Date.now()}`, message: "테스트 모드 취소" };
+  if (!opts.paymentKey) return { ok: false, message: "취소할 paymentKey 가 없습니다." };
+  const auth = tossAuthHeader();
+  if (!auth) return { ok: false, message: "TOSS_SECRET_KEY 가 설정되지 않았습니다." };
+  const body: Record<string, unknown> = { cancelReason: (opts.reason || "관리자 취소").slice(0, 200) };
+  if (opts.amount != null) body.cancelAmount = opts.amount;
+  let res: Response;
+  try {
+    res = await fetch(`${TOSS_API}/v1/payments/${encodeURIComponent(opts.paymentKey)}/cancel`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json", "Idempotency-Key": opts.idempotencyKey.slice(0, 300) },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    return { ok: false, message: `토스 취소 통신 실패: ${(e as Error).message}` };
+  }
+  const raw = (await res.json().catch(() => null)) as
+    | { cancels?: { transactionKey?: string; cancelStatus?: string }[] | null; code?: string; message?: string }
+    | null;
+  const last = raw?.cancels && raw.cancels.length > 0 ? raw.cancels[raw.cancels.length - 1] : null;
+  const ok = res.ok && last?.cancelStatus === "DONE";
+  return {
+    ok,
+    cancelId: last?.transactionKey,
+    message: ok ? "토스 취소 완료" : `토스 취소 실패 (${raw?.message || raw?.code || res.status})`,
+    raw,
+  };
 }

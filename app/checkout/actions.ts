@@ -2,7 +2,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
-import { getAdapter, type Provider } from "@/lib/payments";
+import { getAdapter, tossEnabled, type Provider, type PgForm } from "@/lib/payments";
 import { computeShipping } from "@/lib/shipping";
 import { getKrwPerUsd } from "@/lib/fx";
 import { getStorefrontContext } from "@/lib/storefront";
@@ -17,7 +17,7 @@ export interface CheckoutPayload {
   code?: string;
   email?: string;
   mobile?: boolean;   // 클라이언트 기기 판별(이니시스 PC/모바일 모듈 분기)
-  payMethod?: string; // 모바일 이니시스 지불수단(CARD|BANK)
+  payMethod?: string; // 모바일 이니시스 지불수단(CARD|BANK), 토스 결제수단(TOSSPAY|CARD)
   saveAddress?: boolean; // 이 배송지를 주소록에 저장(로그인 회원·국내 주소만)
   shipping: {
     recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string;
@@ -52,7 +52,7 @@ export interface CheckoutResult {
   message: string;
   pgReady?: boolean;
   redirectUrl?: string | null;
-  form?: { sdk: "inicis" | "inicis-mobile"; action?: string; fields: Record<string, string> } | null;
+  form?: PgForm | null;
 }
 
 export async function createOrderAction(payload: CheckoutPayload): Promise<CheckoutResult> {
@@ -68,6 +68,9 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   }
 
   // 해외 배송지는 PayPal(외화)만 허용 — 이니시스는 KRW 전용이라 USD 환산액이 원화로 청구되는 것을 차단(D-085).
+  // 결제수단은 서버에서 다시 확인한다(클라이언트가 보낸 provider 값을 그대로 믿지 않음).
+  if (!["inicis", "toss", "paypal"].includes(payload.provider)) return { ok: false, message: "지원하지 않는 결제수단입니다." };
+  if (payload.provider === "toss" && !tossEnabled()) return { ok: false, message: "토스 결제는 준비 중입니다. 다른 결제수단을 선택해 주세요." };
   if (payload.shipping.country !== "KR" && payload.provider !== "paypal") {
     return { ok: false, message: "해외 배송 주문은 PayPal 결제만 가능합니다. (International orders can only be paid with PayPal.)" };
   }

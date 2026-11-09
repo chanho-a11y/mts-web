@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import CheckoutForm from "@/components/checkout-form";
+import { tossEnabled } from "@/lib/payments";
 import { getStorefrontContext } from "@/lib/storefront";
 import { MAX_ADDRESSES, type AddressRow } from "@/lib/address";
 import { t } from "@/lib/i18n";
@@ -48,6 +49,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { t
       <h1 className="mb-6 text-2xl font-bold">{tt.checkoutTitle}</h1>
       <CheckoutForm
         tip={tip}
+        tossOn={tossEnabled()}
         email={user?.email ?? ""}
         locale={locale}
         initial={initial}

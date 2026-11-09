@@ -52,7 +52,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   const shipAddr = order.shipping_address as { recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string } | null;
 
   const providerCancelable =
-    (pay?.provider === "inicis" && !!pay?.pg_tid) ||
+    ((pay?.provider === "inicis" || pay?.provider === "toss") && !!pay?.pg_tid) ||
     (pay?.provider === "paypal" && !!pay?.capture_id);
   const canCancel =
     providerCancelable &&
@@ -173,8 +173,8 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
           <OrderCancelPanel orderId={order.id} items={panelItems} remaining={remaining} currency={cur} provider={pay?.provider ?? ""} />
         ) : (
           <p className="text-sm text-neutral-500">
-            {pay?.provider && !["inicis", "paypal"].includes(pay.provider)
-              ? "이니시스·페이팔 결제만 취소를 지원합니다."
+            {pay?.provider && !["inicis", "toss", "paypal"].includes(pay.provider)
+              ? "이니시스, 토스, 페이팔 결제만 취소를 지원합니다."
               : remaining <= 0
                 ? "이미 전액 취소되었습니다."
                 : "현재 상태에서는 취소할 수 없습니다."}

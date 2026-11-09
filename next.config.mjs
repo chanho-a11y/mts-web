@@ -69,14 +69,14 @@ const nextConfig = {
   async headers() {
     const csp = [
       "default-src 'self'",
-      // Next 인라인/PG SDK(이니시스·카카오·페이팔)·GA·Meta 픽셀·Turnstile(가입 봇 차단, D-091) 허용
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.inicis.com https://*.kakaopay.com https://*.kakao.com https://*.paypal.com https://*.paypalobjects.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://challenges.cloudflare.com",
+      // Next 인라인/PG SDK(이니시스·카카오·페이팔·토스페이먼츠 D-161)·GA·Meta 픽셀·Turnstile(가입 봇 차단, D-091) 허용
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.inicis.com https://*.kakaopay.com https://*.kakao.com https://*.paypal.com https://*.paypalobjects.com https://*.tosspayments.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co https://*.inicis.com https://*.kakaopay.com https://*.paypal.com https://www.google-analytics.com https://region1.google-analytics.com https://connect.facebook.net",
-      "frame-src 'self' https://*.inicis.com https://*.kakaopay.com https://*.kakao.com https://*.paypal.com https://challenges.cloudflare.com",
-      "form-action 'self' https://*.inicis.com https://*.kakaopay.com https://*.paypal.com",
+      "connect-src 'self' https://*.supabase.co https://*.inicis.com https://*.tosspayments.com https://*.kakaopay.com https://*.paypal.com https://www.google-analytics.com https://region1.google-analytics.com https://connect.facebook.net",
+      "frame-src 'self' https://*.inicis.com https://*.tosspayments.com https://*.toss.im https://*.kakaopay.com https://*.kakao.com https://*.paypal.com https://challenges.cloudflare.com",
+      "form-action 'self' https://*.inicis.com https://*.tosspayments.com https://*.kakaopay.com https://*.paypal.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "object-src 'none'",

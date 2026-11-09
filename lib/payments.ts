@@ -1,9 +1,12 @@
-// Payment provider adapters. 이니시스(INIStdPay·KRW) · 페이팔(USD).
+// Payment provider adapters. 이니시스(INIStdPay·KRW) · 토스페이먼츠(결제창 SDK v2, KRW, D-161) · 페이팔(USD).
 // 실키 미설정 시: PAYMENTS_TEST_MODE=true 면 승인 라우트로 리다이렉트해 전체 플로우 검증.
 //               그 외에는 notConfigured(주문만 생성, 결제 대기).
 import crypto from "crypto";
 
-export type Provider = "inicis" | "paypal";
+export type Provider = "inicis" | "toss" | "paypal";
+
+// 클라이언트가 결제창을 여는 데 쓰는 폼. PC 이니시스=INIStdPay SDK, 모바일 이니시스=결제요청 URL 로 직접 POST, 토스=SDK requestPayment.
+export type PgForm = { sdk: "inicis" | "inicis-mobile" | "toss"; action?: string; fields: Record<string, string> };
 
 export interface PaymentInit {
   orderId: string;
@@ -16,13 +19,13 @@ export interface PaymentInit {
   buyerTel?: string;
   buyerEmail?: string;
   mobile?: boolean;   // 모바일 기기 여부 → 이니시스는 모바일 전용 표준결제 모듈로 분기(PC 모듈은 모바일에서 차단됨)
-  payMethod?: string; // 모바일 지불수단(CARD|BANK) — 모바일 규격은 결제수단을 사전 지정
+  payMethod?: string; // 이니시스 모바일 지불수단(CARD|BANK), 토스 결제수단(TOSSPAY|CARD)
 }
 export interface PaymentInitResult {
   ready: boolean;          // true면 결제창/리다이렉트/폼 진행 가능
   redirectUrl?: string;    // 리다이렉트형(PayPal·테스트모드)
   // 폼 제출형: PC=INIStdPay SDK 호출, 모바일=action(모바일 결제요청 URL)으로 직접 POST
-  form?: { sdk: "inicis" | "inicis-mobile"; action?: string; fields: Record<string, string> };
+  form?: PgForm;
   tid?: string;            // ready 단계에서 발급된 PG 거래ID → payment.pg_tid 저장
   message: string;
 }
@@ -140,6 +143,79 @@ export const inicis: PaymentAdapter = {
   },
 };
 
+// ---- 토스페이먼츠 결제창 (SDK v2 payment().requestPayment, KRW) ----
+// D-161. 키는 반드시 'API 개별 연동 키'(test_ck / live_ck, test_sk / live_sk). 결제위젯 키(gck / gsk)는 이 방식에서 쓸 수 없다.
+// 흐름: SDK requestPayment → successUrl(GET ?paymentKey&orderId&amount) → 서버가 금액 대조 후 /v1/payments/confirm.
+//       실패는 failUrl(GET ?code&message&orderId). PC 에서 고객이 창을 닫으면 Promise 가 USER_CANCEL 로 끝나 체크아웃에 머문다.
+export const TOSS_API = "https://api.tosspayments.com";
+// 토스 선택지 노출 여부. 키 두 개가 다 있을 때만 켠다(테스트 모드는 항상). 배포 순서 = 코드 → enum 마이그레이션 → 키 등록.
+// 키가 없는 동안에는 체크아웃에 보이지 않고 서버도 거절하므로, enum 적용 전 결제 레코드 저장 실패가 생기지 않는다.
+export function tossEnabled(): boolean {
+  return TEST || (!!process.env.TOSS_CLIENT_KEY && !!process.env.TOSS_SECRET_KEY);
+}
+export function tossAuthHeader(): string | null {
+  const sk = process.env.TOSS_SECRET_KEY;
+  if (!sk) return null;
+  return `Basic ${Buffer.from(`${sk}:`).toString("base64")}`;
+}
+export interface TossConfirmResult { ok: boolean; code?: string; message?: string; raw?: unknown; totalAmount?: number | null; orderId?: string | null; paymentKey?: string | null }
+// 결제 승인. Idempotency-Key = paymentKey 로 같은 결제의 중복 승인 요청(새로고침, 중복 콜백)을 한 번으로 묶는다.
+export async function tossConfirm(paymentKey: string, orderId: string, amount: number): Promise<TossConfirmResult> {
+  const auth = tossAuthHeader();
+  if (!auth) return { ok: false, code: "unconfigured", message: "TOSS_SECRET_KEY 미설정" };
+  let res: Response;
+  try {
+    res = await fetch(`${TOSS_API}/v1/payments/confirm`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json", "Idempotency-Key": paymentKey.slice(0, 300) },
+      body: JSON.stringify({ paymentKey, orderId, amount }),
+    });
+  } catch (e) {
+    return { ok: false, code: "network", message: (e as Error).message };
+  }
+  const raw = (await res.json().catch(() => null)) as { status?: string; totalAmount?: number; orderId?: string; paymentKey?: string; code?: string; message?: string } | null;
+  const ok = res.ok && raw?.status === "DONE";
+  return {
+    ok, raw,
+    code: ok ? undefined : String(raw?.code ?? res.status),
+    message: raw?.message,
+    totalAmount: raw?.totalAmount != null ? Math.round(Number(raw.totalAmount)) : null,
+    orderId: raw?.orderId ?? null,
+    paymentKey: raw?.paymentKey ?? null,
+  };
+}
+
+export const toss: PaymentAdapter = {
+  provider: "toss", label: "토스페이·신용카드 (토스페이먼츠)", currency: "KRW",
+  async init(p) {
+    if (TEST) return testRedirect("toss", p);
+    const clientKey = process.env.TOSS_CLIENT_KEY, secretKey = process.env.TOSS_SECRET_KEY;
+    if (!clientKey || !secretKey) return notConfigured("toss");
+    if (/^(test|live)_gck/.test(clientKey) || /^(test|live)_gsk/.test(secretKey)) {
+      return { ready: false, message: "토스 결제위젯 키가 들어 있습니다. 개발자센터의 'API 개별 연동 키'(ck / sk)로 바꿔 주세요." };
+    }
+    const origin = p.origin || SITE();
+    const q = `oid=${p.orderId}&order=${encodeURIComponent(p.orderNo)}`;
+    const phone = (p.buyerTel || "").replace(/\D/g, "");
+    const fields: Record<string, string> = {
+      clientKey,
+      // customerKey: 비회원 결제와 같은 취급이라 주문마다 무작위 값(36자, 영숫자와 '-'). 개인정보나 순번은 넣지 않는다.
+      customerKey: crypto.randomUUID(),
+      method: "CARD",
+      easyPay: p.payMethod === "TOSSPAY" ? "TOSSPAY" : "",
+      amount: String(p.amount),
+      orderId: p.orderNo,
+      orderName: `MTSPACE COFFEE 주문 ${p.orderNo}`.slice(0, 100),
+      customerName: (p.buyerName || "고객").slice(0, 100),
+      customerEmail: (p.buyerEmail || "").slice(0, 100),
+      customerMobilePhone: phone.length >= 8 && phone.length <= 15 ? phone : "",
+      successUrl: `${origin}/api/payments/toss?${q}`,
+      failUrl: `${origin}/api/payments/toss?${q}&fail=1`,
+    };
+    return { ready: true, message: "toss ready", form: { sdk: "toss", fields } };
+  },
+};
+
 // ---- PayPal Orders v2 (REST, USD) ----
 export function paypalBase() {
   return process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
@@ -190,5 +266,5 @@ export const paypal: PaymentAdapter = {
   },
 };
 
-export const ADAPTERS: Record<Provider, PaymentAdapter> = { inicis, paypal };
+export const ADAPTERS: Record<Provider, PaymentAdapter> = { inicis, toss, paypal };
 export function getAdapter(p: Provider): PaymentAdapter { return ADAPTERS[p]; }

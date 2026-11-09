@@ -44,6 +44,12 @@ const DICT = {
     orderReceivedTitle: "주문이 접수되었습니다", orderNoLabel: "주문번호",
     paidBody: "결제가 정상 승인되었습니다. 로스터리에서 신선하게 준비해 출고해 드립니다. 출고 시 이메일로 안내드립니다.",
     pendingPayBody: "결제가 완료되지 않았습니다. 마이페이지에서 다시 결제하거나 장바구니에서 재시도해 주세요.",
+    // D-163 결제 실패 사유별 안내
+    payFailTitle: "결제가 승인되지 않았습니다", payCancelTitle: "결제가 취소되었습니다",
+    payFailLimitBody: "카드사에서 한도 초과로 승인을 거절했습니다. 다른 카드로 결제하시거나 카드사에 한도를 확인하신 뒤 장바구니에서 다시 시도해 주세요.",
+    payFailBalanceBody: "잔액 부족으로 승인이 거절되었습니다. 다른 결제수단으로 장바구니에서 다시 시도해 주세요.",
+    payFailCardBody: "카드사에서 승인을 거절했습니다. 다른 카드로 결제하시거나 카드사에 확인하신 뒤 장바구니에서 다시 시도해 주세요.",
+    payCancelBody: "결제를 취소하셨습니다. 장바구니의 상품은 그대로 남아 있어 바로 다시 결제하실 수 있습니다.",
     receivedBody: "주문이 접수되었습니다. 주문 내역은 마이페이지에서 확인하실 수 있습니다.",
     orderHistory: "주문 내역", continueShopping: "쇼핑 계속",
     // 문의
@@ -184,6 +190,12 @@ const DICT = {
     orderReceivedTitle: "Your order has been received", orderNoLabel: "Order no.",
     paidBody: "Your payment has been approved. We'll prepare your order fresh at our roastery and ship it out. We'll email you when it ships.",
     pendingPayBody: "Payment was not completed. Please pay again from My Page or retry from your cart.",
+    // D-163 payment failure reasons
+    payFailTitle: "Payment was not approved", payCancelTitle: "Payment was cancelled",
+    payFailLimitBody: "Your card issuer declined the payment because the card limit has been exceeded. Please use another card or check your limit with the issuer, then retry from your cart.",
+    payFailBalanceBody: "The payment was declined due to insufficient balance. Please retry from your cart with another payment method.",
+    payFailCardBody: "Your card issuer declined the payment. Please use another card or contact your issuer, then retry from your cart.",
+    payCancelBody: "You cancelled the payment. Your cart items are still there, so you can pay again right away.",
     receivedBody: "Your order has been received. You can review it any time on My Page.",
     orderHistory: "Order history", continueShopping: "Continue shopping",
     // Contact

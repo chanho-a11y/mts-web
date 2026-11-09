@@ -6,6 +6,7 @@ import { approveOrder } from "@/lib/payments-approve";
 import { paypalToken, paypalCapture, tossConfirm } from "@/lib/payments";
 import { logPaymentEvent } from "@/lib/payment-events";
 import { resolveInicisApproveUrl } from "@/lib/inicis-idc";
+import { classifyPaymentFail, type PaymentFailKind } from "@/lib/payment-fail";
 
 export const dynamic = "force-dynamic";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -24,10 +25,31 @@ function pickOrderId(q: URLSearchParams, body: Record<string, unknown>) {
   return String(q.get("oid") || body.oid || body.order_id || body.P_NOTI || "");
 }
 
+// D-163: 실패 응답에 PG 원문 메시지(pgMsg, 로그·payment_event 용)와 고객 안내 유형(fail, 완료 페이지 용)을 싣는다.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const clip = (v: unknown) => String(v ?? "").slice(0, 200);
+function failOut(reason: string, orderNo: string, pgMsg: unknown) {
+  const msg = clip(pgMsg);
+  return { ok: false as const, reason, orderNo, pgMsg: msg || undefined, fail: classifyPaymentFail(msg) };
+}
+type FailExtra = { pgMsg?: string; fail?: PaymentFailKind | null };
+
+// D-163: 모바일 이니시스는 복귀 URL 에 주문번호가 없어 로그에 order= 가 비어 찍혔다. orderId 로 주문번호를 찾아 채운다.
+async function lookupOrderNo(orderId: string): Promise<string> {
+  if (!UUID_RE.test(orderId)) return "";
+  try {
+    const { data } = await db().from("orders").select("order_no").eq("id", orderId).maybeSingle();
+    return String((data as { order_no?: string } | null)?.order_no ?? "");
+  } catch {
+    return "";
+  }
+}
+
 // 공통 승인 처리. provider별 검증 후 approveOrder.
 async function handle(provider: string, q: URLSearchParams, body: Record<string, unknown>) {
   const orderId = pickOrderId(q, body);
-  const orderNo = String(q.get("order") || body.order || body.order_no || "");
+  let orderNo = String(q.get("order") || body.order || body.order_no || "");
+  if (!orderNo && orderId) orderNo = await lookupOrderNo(orderId);
   if (!orderId) return { ok: false, reason: "no_order", orderNo };
 
   // 테스트 모드: 키 없이 전체 플로우 검증용 (PAYMENTS_TEST_MODE=true)
@@ -61,7 +83,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
       if (st !== "00") {
         // D-160: 인증 단계 실패 사유(P_RMESG1)를 남긴다. 이전엔 코드만 남아 해시 오류와 고객 취소를 구분할 수 없었다.
         console.error(`[inicis-mobile-auth-failed] order=${orderNo} status=${st} msg=${String(body.P_RMESG1 ?? "").slice(0, 200)}`);
-        return { ok: false, reason: `inicis_m_auth_${st || "empty"}`, orderNo };
+        return failOut(`inicis_m_auth_${st || "empty"}`, orderNo, body.P_RMESG1);
       }
       const reqUrl = String(body.P_REQ_URL || "");
       const authTid = String(body.P_TID || "");
@@ -81,7 +103,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
       const ap = Object.fromEntries(new URLSearchParams(apText)) as Record<string, string>;
       if (String(ap.P_STATUS ?? "") !== "00") {
         console.error(`[inicis-mobile-approve-failed] order=${orderNo} status=${ap.P_STATUS} msg=${ap.P_RMESG1}`);
-        return { ok: false, reason: `inicis_m_approve_${ap.P_STATUS || "err"}`, orderNo };
+        return failOut(`inicis_m_approve_${ap.P_STATUS || "err"}`, orderNo, ap.P_RMESG1);
       }
       // H-2: 승인금액(P_AMT) 대조는 approveOrder 가 수행(불일치 시 결제완료 전이 차단)
       const mPaid = ap.P_AMT != null ? Math.round(Number(ap.P_AMT)) : null;
@@ -92,7 +114,11 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     const resultCode = String(body.resultCode || "");
     const authToken = String(body.authToken || "");
     const authUrl = String(body.authUrl || "");
-    if (resultCode !== "0000" || !authToken || !authUrl) return { ok: false, reason: "inicis_auth_failed", orderNo };
+    if (resultCode !== "0000" || !authToken || !authUrl) {
+      // D-163: PC 인증 실패도 사유를 남긴다. 이전엔 조용히 반환돼 고객 취소와 카드 거절을 구분할 수 없었다.
+      console.error(`[inicis-auth-failed] order=${orderNo} code=${resultCode || "empty"} msg=${clip(body.resultMsg)}`);
+      return failOut("inicis_auth_failed", orderNo, body.resultMsg);
+    }
     // 보안(D-143): 승인요청은 idc_name 으로 고른 화이트리스트 URL 로만 보낸다(authUrl 은 대조용).
     const pIdc = resolveInicisApproveUrl("pc", body.idc_name, authUrl);
     if (!pIdc.ok) return { ok: false, reason: `inicis_idc_${pIdc.reason}`, orderNo };
@@ -103,7 +129,13 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     const form = new URLSearchParams({ mid, authToken, timestamp, signature, verification, charset: "UTF-8", format: "JSON" });
     const res = await fetch(pIdc.url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() });
     const raw = await res.json().catch(() => null);
-    if (!raw || String(raw.resultCode) !== "0000") return { ok: false, reason: "inicis_approve_failed", orderNo };
+    if (!raw || String(raw.resultCode) !== "0000") {
+      // D-163: PC 승인 거절 사유(한도 초과 등)를 남긴다. 2026-11-09 김용민님 건이 이 경로에서 사유 없이 실패했다.
+      const rc = raw ? String((raw as { resultCode?: unknown }).resultCode ?? "") : `http_${res.status}`;
+      const rm = raw ? (raw as { resultMsg?: unknown }).resultMsg : "no_json";
+      console.error(`[inicis-approve-failed] order=${orderNo} code=${rc} msg=${clip(rm)}`);
+      return failOut("inicis_approve_failed", orderNo, rm);
+    }
     // H-2: 이니시스 승인응답 TotPrice(KRW) 대조
     const totPrice = (raw as { TotPrice?: string | number }).TotPrice;
     const paidAmount = totPrice != null ? Math.round(Number(totPrice)) : null;
@@ -116,7 +148,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     if (q.get("fail")) {
       const code = String(q.get("code") || "unknown").replace(/[^A-Z0-9_]/gi, "").slice(0, 60);
       console.warn(`[toss-fail] order=${orderNo} code=${code} msg=${String(q.get("message") || "").slice(0, 200)}`);
-      return { ok: false, reason: `toss_fail_${code}`, orderNo };
+      return failOut(`toss_fail_${code}`, orderNo, `${code} ${q.get("message") || ""}`);
     }
     if (!process.env.TOSS_SECRET_KEY) return { ok: false, reason: "toss_unconfigured", orderNo };
     const paymentKey = String(q.get("paymentKey") || "");
@@ -139,7 +171,7 @@ async function handle(provider: string, q: URLSearchParams, body: Record<string,
     const c = await tossConfirm(paymentKey, od.order_no, Math.round(amount));
     if (!c.ok) {
       console.error(`[toss-confirm-failed] order=${od.order_no} code=${c.code} msg=${String(c.message ?? "").slice(0, 200)}`);
-      return { ok: false, reason: `toss_confirm_${String(c.code ?? "err").slice(0, 60)}`, orderNo: od.order_no };
+      return failOut(`toss_confirm_${String(c.code ?? "err").slice(0, 60)}`, od.order_no, `${c.code ?? ""} ${c.message ?? ""}`);
     }
     // H-2: 승인응답 totalAmount 를 approveOrder 가 한 번 더 대조한다. pg_tid = paymentKey(취소 API 의 키).
     const tr = await approveOrder(db(), orderId, { provider, tid: c.paymentKey || paymentKey, raw: c.raw, paidAmount: c.totalAmount, pgOrderNo: c.orderId });
@@ -169,10 +201,12 @@ export async function GET(req: NextRequest, { params }: { params: { provider: st
     stage: "return",
     ok: r.ok,
     code: r.ok ? null : (r as { reason?: string }).reason ?? null,
+    message: r.ok ? null : (r as FailExtra).pgMsg ?? null,
   });
   const url = new URL("/checkout/complete", SITE);
   if (r.orderNo) url.searchParams.set("order", r.orderNo);
   url.searchParams.set("paid", r.ok ? "1" : "0");
+  if (!r.ok && (r as FailExtra).fail) url.searchParams.set("fail", String((r as FailExtra).fail));
   // 토스 PC 결제창은 iframe 이다. 리턴이 iframe 안에서 열려도 완료 페이지(X-Frame-Options DENY)가 최상위 창에 뜨도록
   // 이니시스 POST 응답과 같은 방식으로 window.top 을 이동시킨다.
   if (params.provider === "toss") return topRedirect(url);
@@ -194,6 +228,7 @@ export async function POST(req: NextRequest, { params }: { params: { provider: s
     stage: "approve",
     ok: r.ok,
     code: r.ok ? null : (r as { reason?: string }).reason ?? null,
+    message: r.ok ? null : (r as FailExtra).pgMsg ?? null,
   });
 
   // 이니시스는 인증 결과를 returnUrl 로 브라우저 POST 한다(결제창 팝업 컨텍스트).
@@ -202,6 +237,7 @@ export async function POST(req: NextRequest, { params }: { params: { provider: s
     const url = new URL("/checkout/complete", SITE);
     if (r.orderNo) url.searchParams.set("order", r.orderNo);
     url.searchParams.set("paid", r.ok ? "1" : "0");
+    if (!r.ok && (r as FailExtra).fail) url.searchParams.set("fail", String((r as FailExtra).fail));
     return topRedirect(url);
   }
 

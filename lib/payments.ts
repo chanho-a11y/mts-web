@@ -148,10 +148,16 @@ export const inicis: PaymentAdapter = {
 // 흐름: SDK requestPayment → successUrl(GET ?paymentKey&orderId&amount) → 서버가 금액 대조 후 /v1/payments/confirm.
 //       실패는 failUrl(GET ?code&message&orderId). PC 에서 고객이 창을 닫으면 Promise 가 USER_CANCEL 로 끝나 체크아웃에 머문다.
 export const TOSS_API = "https://api.tosspayments.com";
-// 토스 선택지 노출 여부. 키 두 개가 다 있을 때만 켠다(테스트 모드는 항상). 배포 순서 = 코드 → enum 마이그레이션 → 키 등록.
-// 키가 없는 동안에는 체크아웃에 보이지 않고 서버도 거절하므로, enum 적용 전 결제 레코드 저장 실패가 생기지 않는다.
+// 토스 노출 2단 스위치(D-161).
+//  1) 키 두 개(TOSS_CLIENT_KEY, TOSS_SECRET_KEY)가 다 있어야 결제 자체가 가능하다.
+//  2) 고객 공개는 TOSS_PUBLIC=true 일 때만. 그 전에는 관리자 계정에게만 보여서 대표가 운영 사이트에서 실결제 검증을 할 수 있다.
+// 테스트 모드(로컬)는 항상 켠다. 서버(createOrderAction)도 같은 판정으로 거절하므로 화면 조작으로 우회할 수 없다.
 export function tossEnabled(): boolean {
   return TEST || (!!process.env.TOSS_CLIENT_KEY && !!process.env.TOSS_SECRET_KEY);
+}
+export function tossVisibleTo(isAdmin: boolean): boolean {
+  if (!tossEnabled()) return false;
+  return TEST || process.env.TOSS_PUBLIC === "true" || isAdmin;
 }
 export function tossAuthHeader(): string | null {
   const sk = process.env.TOSS_SECRET_KEY;

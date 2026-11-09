@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import CheckoutForm from "@/components/checkout-form";
-import { tossEnabled } from "@/lib/payments";
+import { tossVisibleTo } from "@/lib/payments";
 import { getStorefrontContext } from "@/lib/storefront";
 import { MAX_ADDRESSES, type AddressRow } from "@/lib/address";
 import { t } from "@/lib/i18n";
@@ -19,12 +19,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { t
   // 목록을 통째로 넘겨 체크아웃에서 배송지를 고를 수 있게 한다(D-113).
   // limit 은 상한(5)보다 넉넉히 — 상한 도입 이전에 5건을 넘겨 저장한 계정이 있다.
   let savedAddresses: AddressRow[] = [];
+  let isAdmin = false;
   let initial: {
     recipient: string; phone: string; country: string; zipcode: string; addr1: string; addr2: string;
   } | undefined;
   if (user) {
     const [{ data: prof }, { data: addrs }] = await Promise.all([
-      supabase.from("profiles").select("name,phone").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("name,phone,role").eq("id", user.id).maybeSingle(),
       supabase.from("addresses")
         .select("id,label,recipient,phone,country,zipcode,addr1,addr2,entrance_memo,is_default")
         .eq("profile_id", user.id)
@@ -33,6 +34,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { t
         .limit(20),
     ]);
     savedAddresses = (addrs ?? []) as AddressRow[];
+    isAdmin = (prof as { role?: string } | null)?.role === "admin";
     const a = savedAddresses[0];
     initial = {
       recipient: a?.recipient || prof?.name || "",
@@ -49,7 +51,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { t
       <h1 className="mb-6 text-2xl font-bold">{tt.checkoutTitle}</h1>
       <CheckoutForm
         tip={tip}
-        tossOn={tossEnabled()}
+        tossOn={tossVisibleTo(isAdmin)}
         email={user?.email ?? ""}
         locale={locale}
         initial={initial}

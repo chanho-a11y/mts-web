@@ -2,7 +2,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
-import { getAdapter, tossEnabled, type Provider, type PgForm } from "@/lib/payments";
+import { getAdapter, tossVisibleTo, type Provider, type PgForm } from "@/lib/payments";
 import { computeShipping } from "@/lib/shipping";
 import { getKrwPerUsd } from "@/lib/fx";
 import { getStorefrontContext } from "@/lib/storefront";
@@ -70,7 +70,6 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   // 해외 배송지는 PayPal(외화)만 허용 — 이니시스는 KRW 전용이라 USD 환산액이 원화로 청구되는 것을 차단(D-085).
   // 결제수단은 서버에서 다시 확인한다(클라이언트가 보낸 provider 값을 그대로 믿지 않음).
   if (!["inicis", "toss", "paypal"].includes(payload.provider)) return { ok: false, message: "지원하지 않는 결제수단입니다." };
-  if (payload.provider === "toss" && !tossEnabled()) return { ok: false, message: "토스 결제는 준비 중입니다. 다른 결제수단을 선택해 주세요." };
   if (payload.shipping.country !== "KR" && payload.provider !== "paypal") {
     return { ok: false, message: "해외 배송 주문은 PayPal 결제만 가능합니다. (International orders can only be paid with PayPal.)" };
   }
@@ -105,6 +104,11 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
       isBusinessBuyer = biz?.status === "approved";
       if (isBusinessBuyer) buyerType = "business";
     }
+  }
+
+  // D-161: 토스는 공개 전까지 관리자만. 화면과 같은 판정을 서버에서 다시 한다(주문 생성 전).
+  if (payload.provider === "toss" && !tossVisibleTo(buyerType === "admin")) {
+    return { ok: false, message: "토스 결제는 준비 중입니다. 다른 결제수단을 선택해 주세요." };
   }
 
   // 오버셀 방지(D-101) — 같은 variant 가 여러 줄로 담겼을 수 있으므로 수량을 먼저 합산한다.

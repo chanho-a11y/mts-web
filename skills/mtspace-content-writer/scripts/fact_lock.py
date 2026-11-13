@@ -52,7 +52,8 @@ BANNED_RX = [re.compile(p, re.I) for b in KB["banned"] if b["id"] in ("B01", "B0
 
 
 def norm_num(s):
-    return re.sub(r"\s+", "", s).replace("℃", "°C").replace("mL", "ml")
+    s = re.sub(r"\s+", "", s).replace("℃", "°C").replace("mL", "ml")
+    return re.sub(r"(?<=\d)[\-–—~](?=\d)", "~", s)          # 범위 기호(하이픈, 줄표, 물결)는 같은 사실
 
 
 def extract(text):
@@ -62,16 +63,16 @@ def extract(text):
         if term and term in masked:
             facts[term] = cat
             masked = masked.replace(term, " " * len(term))
-    rest = text
-    for m in RANGE.finditer(text):
-        facts.setdefault(norm_num(m.group(0)), "수치 범위")
-        rest = rest.replace(m.group(0), " ")
-    for rx, cat in [(PRICE, "가격"), (TIME, "시간"), (RATIO, "비율"), (NUM2, "수치")]:
-        for m in rx.finditer(rest):
+    rest = re.sub(r"(?<=\d)\s*[–—]\s*(?=\d)", "~", text)       # 범위 기호 통일
+    for rx, cat in [(TIME, "시간"), (RANGE, "수치 범위"), (PRICE, "가격"), (RATIO, "비율"), (NUM2, "수치")]:
+        found = list(rx.finditer(rest))
+        for m in found:
             v = norm_num(m.group(0))
             if cat == "수치" and re.fullmatch(r"\d{1,2}(일|분)", v) is None and re.fullmatch(r"\d+", v):
                 continue
             facts.setdefault(v, cat)
+        for m in reversed(found):
+            rest = rest[:m.start()] + " " * (m.end() - m.start()) + rest[m.end():]
     return facts
 
 

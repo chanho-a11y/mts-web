@@ -24,6 +24,7 @@ AXIS_REQUIRED = {"mall_blog", "naver", "instagram", "b2b_doc"}
 def strip_html(s):
     s = re.sub(r"(?i)<br\s*/?>", "\n", s)
     s = re.sub(r"(?i)</(p|h[1-6]|li|tr|div|section)>", "\n", s)
+    s = re.sub(r"(?i)</t[dh]>", " | ", s)
     s = re.sub(r"<[^>]+>", "", s)
     return html.unescape(s)
 
@@ -104,8 +105,8 @@ def check_banned(text, channel, kb, out):
                 for m in re.finditer(pat, line, re.I):
                     code = b["code"]
                     if b["id"] == "B03":
-                        if channel == "pdp" and line.startswith("[제목]"):
-                            continue                                   # 상품 제목 용량 허용(대표 2026-11-13)
+                        if channel == "pdp" and (line.startswith("[제목]") or re.search(r"(중량|용량)\s*:?\s*$", line[:m.start()])):
+                            continue                                   # 상품 제목, 스펙 칸 용량 허용(대표 2026-11-13)
                         win = line[max(0, m.start() - 12): m.end() + 12]
                         if RECIPE_CTX.search(win) and not re.search(r"1\s?kg|대용량", m.group(0)):
                             code = "REVIEW"                             # 레시피 수치일 수 있음

@@ -1,3 +1,4 @@
+import { cleanLd } from "@/lib/seo-text";
 import B2bCta from "@/components/b2b-cta";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -284,12 +285,26 @@ export default async function ProductPage({ params }: { params: { slug: string }
     returnMethod: "https://schema.org/ReturnByMail",
     returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
   };
+  // 상품 스키마 설명(D-168): 한 줄 소개만 쓰면 AI 와 검색이 인용할 내용이 없다. 한 줄 소개 + 플레이버 + 스토리 앞부분(최대 약 320자).
+  const storyPlain = (storyTxt ?? "").replace(/<[^>]+>/g, " ").replace(/[#*_>`]/g, "").replace(/\s+/g, " ").trim();
+  const storyLead = (() => {
+    if (!storyPlain) return "";
+    const parts = storyPlain.split(/(?<=[.!?。])\s+/);
+    let out = "";
+    for (const s of parts) { if ((out + " " + s).length > 320) break; out = out ? `${out} ${s}` : s; }
+    return out || storyPlain.slice(0, 320);
+  })();
+  const ldDescription = [
+    oneLiner ? oneLiner.replace(/[.。]\s*$/, "") + "." : "",
+    flavorArr.length ? (locale === "en" ? `Flavour notes: ${flavorArr.join(", ")}.` : `플레이버 노트: ${flavorArr.join(", ")}.`) : "",
+    storyLead,
+  ].filter(Boolean).join(" ");
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "Product", name: title, image: p.images.map((i) => i.storage_path),
-        description: oneLiner ?? flavorArr.join(", "),
+        description: ldDescription,
         brand: { "@type": "Brand", name: pBrand.name },
         url: `https://mtspace.coffee/products/${p.slug}`,
         sku: p.slug, // 쇼핑 피드(app/feed/shopping.xml) g:id 와 같은 값
@@ -335,7 +350,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
   return (
     <div className="mtpdp" style={pointVars}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(cleanLd(jsonLd)) }} />
       <MetaViewContent slug={p.slug} name={title} value={visibleMinPrice} />
       <div className="page">
         <div className="accent" />
@@ -405,7 +420,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {flavCards.length > 0 && (
               <section className="sec">
-                <h2 className="head">{locale === "en" ? "Flavour Notes" : "Flavour Notes · 플레이버 노트"}</h2>
+                <h2 className="head">{locale === "en" ? "Flavour Notes" : "Flavour Notes | 플레이버 노트"}</h2>
                 <div className="flav">
                   {flavCards.map((n) => <div className="card" key={n}><div className="ft">{n}</div></div>)}
                 </div>
@@ -413,7 +428,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             )}
 
             <section className="sec">
-              <h2 className="head">{locale === "en" ? "About MTSPACE COFFEE" : "About MTSPACE COFFEE · 엠티스페이스 커피 소개"}</h2>
+              <h2 className="head">{locale === "en" ? "About MTSPACE COFFEE" : "About MTSPACE COFFEE | 엠티스페이스 커피 소개"}</h2>
               <div className="about">
                 <div className="txt">
                   <p>{locale === "en" ? pBrand.philosophy.en : pBrand.philosophy.ko}</p>
@@ -428,7 +443,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {(infoRows.length > 0 || hasRecipe || storyTxt) && (
               <section className="sec">
-                <h2 className="head">{locale === "en" ? "Coffee Information" : "Coffee Information · 커피 정보"}</h2>
+                <h2 className="head">{locale === "en" ? "Coffee Information" : "Coffee Information | 커피 정보"}</h2>
                 {infoRows.length > 0 && (
                   <div className="grid2">
                     {infoRows.map(([k, v]) => (
@@ -439,7 +454,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 {storyTxt && (
                   <details className="story" style={{ marginTop: infoRows.length > 0 ? 22 : 0 }}>
                     <summary>
-                      <span>{locale === "en" ? "Story" : "Story · 스토리"}</span>
+                      <span>{locale === "en" ? "Story" : "Story | 스토리"}</span>
                       <span className="chev" aria-hidden>▾</span>
                     </summary>
                     <div className="story-b">
@@ -449,7 +464,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 )}
                 {hasRecipe && (
                   <div style={{ marginTop: (infoRows.length > 0 || storyTxt) ? 22 : 0 }}>
-                    <h3 className="head" style={{ margin: "0 0 12px" }}>{locale === "en" ? "Recipe" : "Recipe · 레시피"}</h3>
+                    <h3 className="head" style={{ margin: "0 0 12px" }}>{locale === "en" ? "Recipe" : "Recipe | 레시피"}</h3>
                     {recipeBlocks.length > 0 ? (
                       recipeBlocks.map((b) => (
                         <div className="recgrp" key={b.mode}>
@@ -476,7 +491,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             )}
 
             <section className="sec">
-              <h2 className="head">{locale === "en" ? "FAQ" : "FAQ · 자주 묻는 질문"}</h2>
+              <h2 className="head">{locale === "en" ? "FAQ" : "FAQ | 자주 묻는 질문"}</h2>
               {faqs.map((f, i) => (
                 <div className="faq" key={i}><div className="q">Q. {f.q}</div><div className="a">{f.a}</div></div>
               ))}
@@ -484,7 +499,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {/* more information: 전 제품 공통 구매, 정책 안내. 로스팅, 출고 요일은 표기하지 않는다(D-147) */}
             <section className="sec" style={{ paddingBottom: 8 }}>
-              <h2 className="head">{locale === "en" ? "more information" : "more information · 구매 안내"}</h2>
+              <h2 className="head">{locale === "en" ? "more information" : "more information | 구매 안내"}</h2>
               {locale === "en" ? (
                 <ul className="more">
                   <li>MTSPACE COFFEE is at its best when enjoyed <b>14–28 days after roasting</b>, on average.</li>
@@ -516,7 +531,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
             {/* 리뷰 — 가장 마지막(연관 제품 위)으로 이동 */}
             <section className="sec" style={{ paddingBottom: 8 }}>
-              <h2 className="head">{locale === "en" ? "Reviews" : "Reviews · 리뷰"} {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
+              <h2 className="head">{locale === "en" ? "Reviews" : "Reviews | 리뷰"} {revCount > 0 && <span style={{ color: "var(--point-text)" }}>★ {avgRating.toFixed(1)} ({revCount})</span>}</h2>
               {(reviews ?? []).map((rv, i) => (
                 <div className="rev" key={i}>
                   <div style={{ fontSize: 12 }}><span style={{ color: "var(--point-text)" }}>{"★".repeat(rv.rating)}{"☆".repeat(5 - rv.rating)}</span> <b>{rv.title}</b> <span style={{ color: "var(--faint)", fontSize: 11 }}>{rv.author_name}</span></div>

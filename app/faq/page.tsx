@@ -1,3 +1,4 @@
+import { cleanLd } from "@/lib/seo-text";
 import { createClient } from "@/lib/supabase/server";
 import { getStorefrontContext } from "@/lib/storefront";
 import { t } from "@/lib/i18n";
@@ -48,7 +49,7 @@ export default async function FaqPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(cleanLd(jsonLd)) }} />
       <h1 className="text-2xl font-bold">{tt.faqTitle}</h1>
       {[...groups.entries()].map(([cat, list]) => (
         <section key={cat} className="mt-8">

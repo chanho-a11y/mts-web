@@ -27,6 +27,9 @@ export const FOUNDER_PERSON = {
   jobTitle: "MTSPACE COFFEE 대표, 바리스타 컴페티터",
   url: "https://mtspace.coffee/about",
   sameAs: ["https://chanhohong.com", "https://instagram.com/chanhohong"],
+  // 사이트 블로그 저자 소개와 같은 사실만 쓴다(D-168).
+  description: "한국과 호주의 스페셜티 커피 바리스타 컴페티터(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
+  knowsAbout: ["스페셜티 커피", "커피 로스팅", "커피 추출", "바리스타 교육", "커피 대회"],
 } as const;
 
 // 브랜드 공식 채널 (sameAs)
@@ -61,6 +64,9 @@ export function organizationJsonLd(brand: Brand, locale: "ko" | "en") {
       postalCode: "12451",
     },
     sameAs: brandSameAs(brand),
+    // AI 답변이 회사 성격을 정확히 요약하도록 다루는 분야와 서비스 지역을 밝힌다(D-168).
+    areaServed: { "@type": "Country", name: "KR" },
+    knowsAbout: ["스페셜티 커피", "커피 로스팅", "카페 원두 납품", "OEM 계약 로스팅", "바리스타 교육", "카페 컨설팅"],
   };
 }
 

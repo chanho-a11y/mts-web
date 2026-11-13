@@ -1,3 +1,4 @@
+import { cleanLd } from "@/lib/seo-text";
 import B2bCta from "@/components/b2b-cta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -110,7 +111,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(cleanLd(jsonLd)) }} />
       <Link href="/blogs/coffeelog" className="text-sm text-neutral-500 hover:underline">← Coffeelog</Link>
       <h1 className="mt-3 text-3xl font-bold leading-tight">{post.title}</h1>
       <div className="mt-3 border-l-2 border-neutral-200 pl-3 text-sm text-neutral-500">

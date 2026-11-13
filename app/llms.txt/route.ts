@@ -53,6 +53,8 @@ export async function GET() {
     ...posts.map((p) => `- [${seoTitle(p.title)}](${base}/blogs/coffeelog/${encodeURIComponent(p.slug)})` + (p.excerpt ? `: ${seoText(p.excerpt)}` : "")),
     ``,
     `## 카페 납품과 컨설팅`,
+    `- 카페 원두 납품 안내(정기 납품, 전용 블렌드 OEM 계약 로스팅, 교육과 오픈 지원, 진행 순서, 납품 FAQ): ${base}/wholesale`,
+    `- 납품 요약: 시드니에서 검증한 생두 구성과 로스팅 레시피를 그대로 쓴다. 블렌드는 에티오피아 베이스, 싱글 오리진은 라이트 로스팅. 미리 볶아 쌓아 두지 않고 주문에 맞춰 로스팅한다. 소량으로 시작하는 카페도 납품 가능. 도매가는 사업자 회원 가입 후 사업자등록증 확인이 끝나면 계정에 바로 적용되어 그 가격으로 주문한다.`,
     `- 컨설팅과 파트너십(브랜드 전략, 데이터와 POS 분석, 운영 SOP, 계약 로스팅, 바리스타 교육): ${base}/consulting`,
     `- 사업자 회원가입(승인 후 등급별 도매가 적용): ${base}/account/signup?role=business`,
     `- 납품 문의: ${base}/contact?type=wholesale`,

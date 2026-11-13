@@ -7,7 +7,7 @@ import Link from "next/link";
 // 주간 마케팅 보고(MCP commerce_run_report: web_traffic)가 이 이벤트를 집계한다.
 
 type Gtag = (...args: unknown[]) => void;
-type Source = "blog" | "education" | "product" | "consulting" | "about";
+type Source = "blog" | "education" | "product" | "consulting" | "about" | "wholesale";
 
 const COPY = {
   ko: {
@@ -16,6 +16,7 @@ const COPY = {
     p: "납품 조건과 샘플은 문의로, 도매가 확인은 사업자 가입 후 승인으로 진행됩니다.",
     inquiry: "납품 문의하기",
     signup: "사업자 회원 가입",
+    guide: "납품 조건과 진행 순서 보기",
   },
   en: {
     tag: "FOR CAFES & BUSINESSES",
@@ -23,16 +24,17 @@ const COPY = {
     p: "Ask us about supply terms and samples, or register as a business to see wholesale pricing after approval.",
     inquiry: "Wholesale inquiry",
     signup: "Register as a business",
+    guide: "See supply terms and how it works",
   },
 } as const;
 
 export default function B2bCta({ locale = "ko", source }: { locale?: string; source: Source }) {
   const c = locale === "en" ? COPY.en : COPY.ko;
-  const track = (cta: "wholesale_inquiry" | "business_signup") => {
+  const track = (cta: "wholesale_inquiry" | "business_signup" | "wholesale_guide") => {
     try {
       const gtag = (window as unknown as { gtag?: Gtag }).gtag;
       if (typeof gtag === "function") {
-        gtag("event", "b2b_cta_click", { cta, cta_source: source, cta_path: window.location.pathname });
+        gtag("event", "b2b_cta_click", { cta, cta_source: source, cta_path: window.location.pathname, transport_type: "beacon" });
       }
     } catch {
       // 계측 실패가 이동을 막으면 안 된다
@@ -60,6 +62,11 @@ export default function B2bCta({ locale = "ko", source }: { locale?: string; sou
           {c.signup}
         </Link>
       </div>
+      {source !== "wholesale" && (
+        <Link href="/wholesale" onClick={() => track("wholesale_guide")} className="mt-4 inline-block text-[13px] text-inkSoft underline underline-offset-4 hover:text-ink">
+          {c.guide}
+        </Link>
+      )}
     </section>
   );
 }

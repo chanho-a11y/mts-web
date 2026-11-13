@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/json-ld";
 import { absoluteUrl, siteBaseUrl, breadcrumbJsonLd, faqJsonLd, DEFAULT_OG_IMAGE, FOUNDER_PERSON } from "@/lib/seo";
-import { fitTitle, seoText, seoTitle } from "@/lib/seo-text";
+import { fitTitle, seoText, seoTitle, seoHeading, cleanHeadingsHtml } from "@/lib/seo-text";
 import { CHAPTERS, COPY_KO, LEVEL_LABEL, type ChapterCopy, type ChapterMeta, type Level } from "./_content/meta";
 import { COPY_EN } from "./_content/meta.en";
 import contentKo from "./_content/content.ko.json";
@@ -44,7 +44,7 @@ export const UI = {
     contents: "목차",
     sourceNote:
       "수치와 규정은 1차 사내 지식베이스 → 2차 SCA·WBC·동료평가 논문 → 3차 웹 순의 출처 위계에 따라 검증했습니다. 근거가 불충분한 항목은 본문에 [확인 필요]로 표시했습니다.",
-    consultCta: "교육·컨설팅 문의",
+    consultCta: "교육과 컨설팅 문의",
     consultDesc: "로스터리 셋업, 프로파일 설계, 바리스타 교육, 대회 준비 — 현장에 맞춘 컨설팅을 제공합니다.",
   },
   en: {
@@ -260,7 +260,7 @@ export function EducationIndex({ locale }: { locale: EduLocale }) {
                       <Icon name={c.icon} />
                       <div className="min-w-0">
                         <p className="font-mono text-[11px] tracking-widest text-clayDeep">{c.no}</p>
-                        <h3 className="mt-1 font-serif text-[17px] font-bold leading-snug text-ink">{copy.title}</h3>
+                        <h3 className="mt-1 font-serif text-[17px] font-bold leading-snug text-ink">{seoHeading(copy.title)}</h3>
                         <p className="mt-1.5 text-[13px] leading-relaxed text-inkSoft">{copy.tagline}</p>
                       </div>
                     </Link>
@@ -327,7 +327,7 @@ export function ChapterView({ locale, slug }: { locale: EduLocale; slug: string 
           <p className="font-mono text-[11px] tracking-widest text-clayDeep">
             {meta.no} · {LEVEL_LABEL[meta.level][locale]}
           </p>
-          <h1 className="mt-1.5 font-serif text-[28px] font-bold leading-tight text-ink md:text-[32px]">{copy.title}</h1>
+          <h1 className="mt-1.5 font-serif text-[28px] font-bold leading-tight text-ink md:text-[32px]">{seoHeading(copy.title)}</h1>
           <p className="mt-2.5 text-[15px] leading-relaxed text-inkSoft">{copy.tagline}</p>
           <p className="mt-3 text-xs text-inkSoft">{u.author}</p>
         </div>
@@ -341,7 +341,7 @@ export function ChapterView({ locale, slug }: { locale: EduLocale; slug: string 
           {body.sections.map((s) => (
             <li key={s.id}>
               <a href={`#${s.id}`} className="text-inkSoft hover:text-clayDeep">
-                {s.title}
+                {seoHeading(s.title)}
               </a>
             </li>
           ))}
@@ -355,7 +355,7 @@ export function ChapterView({ locale, slug }: { locale: EduLocale; slug: string 
         )}
         {body.intro.figure && <div dangerouslySetInnerHTML={{ __html: body.intro.figure }} />}
         {body.sections.map((s) => (
-          <div key={s.id} dangerouslySetInnerHTML={{ __html: s.html }} />
+          <div key={s.id} dangerouslySetInnerHTML={{ __html: cleanHeadingsHtml(s.html) }} />
         ))}
       </div>
 
@@ -379,13 +379,13 @@ export function ChapterView({ locale, slug }: { locale: EduLocale; slug: string 
         {prev ? (
           <Link href={chapterPath(locale, prev.slug)} className="rounded-card border border-line p-4 hover:border-clay">
             <span className="text-[11px] uppercase tracking-widest text-inkSoft">← {u.prev}</span>
-            <span className="mt-1 block font-serif text-[15px] font-bold text-ink">{COPY[locale][prev.slug]?.title}</span>
+            <span className="mt-1 block font-serif text-[15px] font-bold text-ink">{seoHeading(COPY[locale][prev.slug]?.title ?? "")}</span>
           </Link>
         ) : <span />}
         {next && (
           <Link href={chapterPath(locale, next.slug)} className="rounded-card border border-line p-4 text-right hover:border-clay">
             <span className="text-[11px] uppercase tracking-widest text-inkSoft">{u.next} →</span>
-            <span className="mt-1 block font-serif text-[15px] font-bold text-ink">{COPY[locale][next.slug]?.title}</span>
+            <span className="mt-1 block font-serif text-[15px] font-bold text-ink">{seoHeading(COPY[locale][next.slug]?.title ?? "")}</span>
           </Link>
         )}
       </nav>

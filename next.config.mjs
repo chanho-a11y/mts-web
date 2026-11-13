@@ -40,6 +40,7 @@ const LEGACY_404 = [
   ['/products/싱글-오리진-콜롬비아-라-레이나-벨렌-게이샤-colombia-la-reina-belen-geisha-washed-125g', S],
   // 컬렉션과 피드
   ['/collections/normcore-coffee', ALL], ['/collections/사업자-전용', W],
+  ['/collections/frontpage', ALL], // D-168: 구 Shopify 홈 컬렉션
   ['/collections/single-origins.atom', S], ['/collections/blends.atom', B],
   ['/collections/wholesale.atom', W], ['/collections/normcore-coffee.atom', ALL],
   // Shopify 페이지
@@ -149,6 +150,11 @@ const nextConfig = {
       { source: '/products/house-1kg', destination: '/products/house-1000', permanent: true },
       // D-146: Search Console 404 정리(2026-10-19). 단종, 구 Shopify 상품은 컬렉션으로(대표 결정).
       ...LEGACY_404.flatMap(([from, to]) => legacy(from, to)),
+      // D-168: 구 Shopify 상품 JSON 주소(/products/<handle>.json)는 상품 주소로 보낸다(구 handle 이면 위 규칙으로 한 번 더 이동).
+      { source: '/products/:slug.json', destination: '/products/:slug', permanent: true },
+      // D-168: AI 답변 링크에 닫는 괄호가 붙어 들어오는 404(예: /en/education/sensory-cupping)). 원문과 %29 형태 둘 다.
+      { source: '/:path(.+)\\)', destination: '/:path', permanent: true },
+      { source: '/:path(.+)%29', destination: '/:path', permanent: true },
     ];
   },
 };

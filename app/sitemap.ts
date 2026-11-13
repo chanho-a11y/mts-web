@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getCategories(storefrontId),
   ]);
 
-  const statics = ["", "/collections/all", "/about", "/consulting", "/coffee-info", "/blogs/coffeelog", "/faq", "/contact",
+  const statics = ["", "/wholesale", "/collections/all", "/about", "/consulting", "/coffee-info", "/blogs/coffeelog", "/faq", "/contact",
     "/education", "/en/education",
     "/policies/shipping-policy", "/policies/refund-policy", "/policies/privacy-policy", "/policies/terms-of-service",
     "/policies/contact-information", "/policies/legal-notice"];
@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...statics.map((p) => ({
       url: `${base}${p}`,
       changeFrequency: "weekly" as const,
-      priority: p === "" ? 1 : 0.6,
+      priority: p === "" ? 1 : p === "/wholesale" ? 0.9 : 0.6,
       ...(p === "/education" || p === "/en/education" ? { alternates: eduAlt("/education", "/en/education") } : {}),
     })),
     ...categories.filter((c) => (c.products?.length ?? 0) > 0).map((c) => ({ url: `${base}/collections/${c.slug}`, changeFrequency: "weekly" as const, priority: 0.7 })),

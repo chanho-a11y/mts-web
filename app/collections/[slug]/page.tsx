@@ -23,15 +23,35 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const supabase = createClient();
   const { data: cat } = await supabase.from("category").select("name_ko,name_en").eq("slug", params.slug).maybeSingle();
   const name = cat ? (locale === "en" && cat.name_en ? cat.name_en : cat.name_ko) : params.slug;
-  const description = locale === "en"
+  // 주요 컬렉션은 검색 의도에 맞춘 설명문을 쓴다(D-168). 나머지는 공통 문장.
+  const COLL_DESC: Record<string, { ko: string; en: string; tko: string; ten: string }> = {
+    wholesale: {
+      tko: "사업자 전용 원두: 카페 납품용 블렌드와 디카페인", ten: "Wholesale Coffee for Cafes",
+      ko: `${brand.name} 사업자 전용 원두. 카페 납품용 시그니쳐 블렌드와 디카페인을 사업자 회원 승인 후 등급별 도매가로 주문할 수 있습니다.`,
+      en: `${brand.name} wholesale coffee for cafes: signature blends and decaf, ordered at tier pricing once your business account is approved.`,
+    },
+    blends: {
+      tko: "시그니쳐 블렌드: 에티오피아 베이스 블렌드 원두", ten: "Signature Blends",
+      ko: `${brand.name} 시그니쳐 블렌드. 댐굳, 올라운더, 스팟라이트, 이지피지 등 에티오피아 베이스 블렌드를 에스프레소, 라떼, 필터 용도에 맞춰 고를 수 있습니다.`,
+      en: `${brand.name} signature blends with an Ethiopian base, for espresso, milk drinks and filter.`,
+    },
+    "single-origins": {
+      tko: "싱글 오리진: 라이트 로스팅 스페셜티 원두", ten: "Single Origins",
+      ko: `${brand.name} 싱글 오리진. 에티오피아, 케냐, 페루 등 산지의 개성을 살린 라이트 로스팅 스페셜티 원두와 컵 노트, 추천 레시피를 소개합니다.`,
+      en: `${brand.name} single origins: light-roasted specialty coffee from Ethiopia, Kenya, Peru and more, with cup notes and recipes.`,
+    },
+  };
+  const cd = COLL_DESC[params.slug];
+  const description = cd ? (locale === "en" ? cd.en : cd.ko) : locale === "en"
     ? `${name} from ${brand.name}: specialty coffee roasted fresh every week. Everyday Excellence.`
     : `${brand.name} ${name} 컬렉션. 매주 신선하게 로스팅한 스페셜티 커피. Everyday Excellence.`;
+  const metaTitle = cd ? (locale === "en" ? cd.ten : cd.tko) : name;
   // 상품이 하나도 없는 컬렉션(준비 중)은 색인하지 않는다(D-134).
   const count = (await getCategories(storefrontId)).find((c) => c.slug === params.slug)?.products.length ?? 0;
   return {
-    title: name, description, alternates: { canonical: `/collections/${params.slug}` },
+    title: metaTitle, description, alternates: { canonical: `/collections/${params.slug}` },
     ...(count === 0 ? { robots: { index: false, follow: true } } : {}),
-    openGraph: { title: `${name} | ${brand.name}`, description, type: "website", url: `/collections/${params.slug}`, images: ["/images/og-default.png"] },
+    openGraph: { title: `${metaTitle} | ${brand.name}`, description, type: "website", url: `/collections/${params.slug}`, images: ["/images/og-default.png"] },
   };
 }
 
@@ -92,6 +112,12 @@ export default async function CollectionPage({ params }: { params: { slug: strin
         <h1 className="text-3xl font-extrabold tracking-tight">{locale === "en" && catRow.name_en ? catRow.name_en : catRow.name_ko}</h1>
         <p className={`mt-1 font-mono text-xs uppercase tracking-wider ${catRow.banner_path ? "text-oat/80" : "text-inkSoft"}`}>{products.length} {tt.items}</p>
       </div>
+      {params.slug === "wholesale" && (
+        <p className="mb-6 text-[14px] text-inkSoft">
+          {locale === "en" ? "New to wholesale? " : "처음 납품을 검토하신다면 "}
+          <a href="/wholesale" className="font-semibold text-ink underline underline-offset-4">{locale === "en" ? "See supply terms and how it works" : "납품 조건과 진행 순서를 먼저 확인하세요"}</a>
+        </p>
+      )}
       {products.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {products.map((p) => <ProductCard key={p.slug} p={p} locale={locale} compact />)}

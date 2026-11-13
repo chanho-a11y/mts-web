@@ -17,6 +17,7 @@ AI 에이전트가 ${base} 와 상호작용하는 방법을 안내합니다.
 - 카테고리: GET ${base}/collections/{slug}
 - 검색: GET ${base}/search?q={query}
 - 사이트맵: GET ${base}/sitemap.xml
+- 카페 원두 납품 안내(조건, 진행 순서, FAQ): GET ${base}/wholesale
 - 사이트 요약(LLM): GET ${base}/llms.txt
 - 제품 자산 이미지: GET ${base}/api/og/thumbnail/{slug} (PNG), ${base}/api/asset/cardnews/{slug} (SVG)
 

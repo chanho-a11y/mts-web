@@ -69,7 +69,7 @@ const DICT = {
     coffeelogEmpty: "곧 다양한 커피 이야기가 업데이트될 예정입니다.",
     // FAQ
     faqTitle: "자주 묻는 질문", faqEmpty: "등록된 FAQ가 없습니다.",
-    faqCatShipping: "배송", faqCatReturn: "교환·환불", faqCatProduct: "제품",
+    faqCatShipping: "배송", faqCatReturn: "교환, 환불", faqCatProduct: "제품",
     faqCatWholesale: "사업자(도매)", faqCatOrder: "주문", faqCatAccount: "계정", faqCatGeneral: "일반",
     // 프로모션
     promoCode: "할인 코드", discountSuffix: "할인", shopWithCode: "이 코드로 쇼핑하기",
@@ -215,7 +215,7 @@ const DICT = {
     coffeelogEmpty: "Coffee stories are coming soon.",
     // FAQ
     faqTitle: "Frequently Asked Questions", faqEmpty: "No FAQs yet.",
-    faqCatShipping: "Shipping", faqCatReturn: "Returns · Exchanges", faqCatProduct: "Product",
+    faqCatShipping: "Shipping", faqCatReturn: "Returns, Exchanges", faqCatProduct: "Product",
     faqCatWholesale: "Wholesale", faqCatOrder: "Orders", faqCatAccount: "Account", faqCatGeneral: "General",
     // Promo
     promoCode: "Discount code", discountSuffix: "off", shopWithCode: "Shop with this code",

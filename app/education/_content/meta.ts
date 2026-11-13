@@ -27,8 +27,8 @@ export interface ChapterCopy {
 }
 
 export const LEVEL_LABEL: Record<Level, { ko: string; en: string }> = {
-  basic: { ko: "기초 · 중급", en: "Basic · Intermediate" },
-  expert: { ko: "전문", en: "Expert · Professional" },
+  basic: { ko: "기초, 중급", en: "Basic, Intermediate" },
+  expert: { ko: "전문", en: "Expert, Professional" },
   competition: { ko: "경기", en: "Competition" },
 };
 

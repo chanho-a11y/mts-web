@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import type { CartItem } from "@/lib/cart";
+import { notifyNewInquiry } from "@/lib/contact-inbox";
 
 // 과거 주문 → 현재 가격 기준 장바구니 항목으로 반환 (B2B 재주문)
 export async function getReorderItems(orderNo: string): Promise<CartItem[]> {
@@ -28,8 +29,11 @@ export async function requestTaxInvoiceAction(formData: FormData) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orderNo = String(formData.get("order_no") || "");
-  await supabase.from("contact_message").insert({
+  const row = {
     name: user?.email ?? "회원", email: user?.email ?? "", type: "tax_invoice",
     message: `세금계산서 발행 요청 — 주문번호 ${orderNo}`,
-  });
+  };
+  const { error } = await supabase.from("contact_message").insert(row);
+  // D-166: 세금계산서 요청도 문의함과 같은 경로로 대표에게 알린다.
+  if (!error) await notifyNewInquiry(row);
 }

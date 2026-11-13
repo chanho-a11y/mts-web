@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ] },
     { href: "/admin/customers", label: "고객 관리", children: [
       { href: "/admin/business", label: "사업자 승인" },
+      { href: "/admin/inquiries", label: "문의함" },
     ] },
     { href: "/admin/marketing", label: "마케팅", children: [
       { href: "/admin/marketing/popups", label: "공지 팝업" },

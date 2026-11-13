@@ -197,4 +197,34 @@ export const COPY_EN: Record<string, ChapterCopy> = {
         a: "Rarity alone is not enough; it needs a narrative and it needs to be reproducible. It must be clear what the judges are meant to perceive in that coffee, and that flavour has to come back reliably under competition-day conditions. Competitors often work directly with the producer to secure a small high-quality lot." },
     ],
   },
+  "batch-brew": {
+    title: "Batch Brew: Filter Coffee for the Bar, Made the Same Every Time",
+    tagline: "55g per litre, grind for flavour, sold within the hour",
+    description:
+      "Batch brew for cafes: the reference ratio of 55g of coffee per litre of water, tuning flavour with grind, holding vessels and selling time, and how to size batches across the day.",
+    keywords: ["batch brew", "batch brew ratio", "cafe filter coffee", "coffee brewer", "airpot", "cafe operations", "filter coffee recipe"],
+    faq: [
+      { q: "What ratio should batch brew start at?",
+        a: "Start at 55g of coffee per litre of water, roughly 1:18, the reference ratio in the SCA coffee brewer standard. For a stronger cup, move toward 1:17 or 1:16." },
+      { q: "Can I just scale up my pour-over recipe?",
+        a: "Keep the ratio, but re-dial the grind. A machine holds water against the coffee for a different length of time." },
+      { q: "How long can brewed coffee be held?",
+        a: "The SCA standard requires the vessel to keep coffee at 80~85℃ for the first 30 minutes, and many shops work to selling within an hour. An insulated airpot keeps flavour longer than a hot plate." },
+    ],
+  },
+  "competition-to-cafe-recipe": {
+    title: "From Competition Recipe to Cafe Recipe: Carry the Principles, Not the Numbers",
+    tagline: "Turning competition thinking into cafe numbers",
+    description:
+      "What to take from a WBC or WBrC competition recipe and what to change for the cafe: the difference in conditions, three principles worth keeping, five translation steps and a worked example.",
+    keywords: ["competition recipe", "cafe recipe", "barista competition", "WBC", "WBrC", "recipe card", "brewing consistency", "barista training"],
+    faq: [
+      { q: "Can I use a competition recipe as it is in my cafe?",
+        a: "You can, but once the water, the staff or the coffee changes, the same cup does not come out. Take the principles and re-tune them to your shop's conditions." },
+      { q: "What should I take from a competition recipe?",
+        a: "Three principles: write the taste goal as a sentence, fix every variable as a number, and change one thing at a time before tasting." },
+      { q: "The cup changes from barista to barista. Where do I start?",
+        a: "Start with a recipe card written in numbers and an opening check that measures the first cup. If the pour is complicated, drop the moves that barely change the result." },
+    ],
+  },
 };

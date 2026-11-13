@@ -31,7 +31,7 @@ export const UI = {
   ko: {
     section: "교육 자료",
     title: "커피 교육 자료",
-    lede: "생두에서 한 잔까지, 그리고 WBC·WBrC 경기까지 — 스페셜티 커피의 전 영역을 13개 챕터로 정리했습니다. 각 항목은 용어와 정의 → 무엇이고 왜 그런가 → 어떻게 그렇게 되는가 → 실제 적용 예의 순서로 구성됩니다.",
+    lede: "생두에서 한 잔까지, 그리고 WBC·WBrC 경기까지 — 스페셜티 커피의 전 영역을 15개 챕터로 정리했습니다. 각 항목은 용어와 정의 → 무엇이고 왜 그런가 → 어떻게 그렇게 되는가 → 실제 적용 예의 순서로 구성됩니다.",
     author: "글 홍찬호 (Chanho Hong)",
     chapters: "챕터",
     sections: "개 절",
@@ -50,7 +50,7 @@ export const UI = {
   en: {
     section: "Education",
     title: "Coffee Education",
-    lede: "From green coffee to the finished cup, and on to WBC and WBrC competition — the whole of specialty coffee set out in thirteen chapters. Every topic follows the same four steps: term and definition → what it is and why → how it comes about → how it applies in practice.",
+    lede: "From green coffee to the finished cup, and on to WBC and WBrC competition — the whole of specialty coffee set out in fifteen chapters. Every topic follows the same four steps: term and definition → what it is and why → how it comes about → how it applies in practice.",
     author: "Written by Chanho Hong",
     chapters: "chapters",
     sections: "sections",
@@ -90,8 +90,8 @@ export function indexMetadata(l: EduLocale): Metadata {
   const path = basePath(l);
   const desc =
     l === "ko"
-      ? "생두, 추출 이론, 센서리, 브루잉, 에스프레소, 밀크, 로스팅, 품질관리, 로스터리 셋업, WBC, WBrC까지 13개 챕터로 정리한 스페셜티 커피 교육 자료. 홍찬호 저술, MTSPACE COFFEE 발행."
-      : "A thirteen-chapter specialty coffee education manual covering green coffee, extraction theory, sensory, brewing, espresso, milk, roasting, quality control, roastery setup, WBC and WBrC. Written by Chanho Hong for MTSPACE COFFEE.";
+      ? "생두, 추출 이론, 센서리, 브루잉, 에스프레소, 밀크, 로스팅, 품질관리, 로스터리 셋업, WBC, WBrC, 배치 브루, 대회 레시피의 매장 적용까지 15개 챕터로 정리한 스페셜티 커피 교육 자료. 홍찬호 저술, MTSPACE COFFEE 발행."
+      : "A fifteen-chapter specialty coffee education manual covering green coffee, extraction theory, sensory, brewing, espresso, milk, roasting, quality control, roastery setup, WBC, WBrC, batch brew and turning competition recipes into cafe recipes. Written by Chanho Hong for MTSPACE COFFEE.";
   return {
     title: u.title,
     description: desc,
@@ -159,8 +159,8 @@ function courseJsonLd(l: EduLocale) {
     "@type": "Course",
     name: u.title,
     description: l === "ko"
-      ? "스페셜티 커피 전 영역을 다루는 13개 챕터 교육 과정."
-      : "A thirteen-chapter course covering the whole of specialty coffee.",
+      ? "스페셜티 커피 전 영역을 다루는 15개 챕터 교육 과정."
+      : "A fifteen-chapter course covering the whole of specialty coffee.",
     url: absoluteUrl(basePath(l)),
     inLanguage: l === "ko" ? "ko-KR" : "en",
     provider: { "@type": "Organization", name: "MTSPACE COFFEE", url: siteBaseUrl() },

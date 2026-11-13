@@ -1,0 +1,25 @@
+{
+  "version": "v1 (rules.ts + naver-blog-scheduler 규칙, 글쓰기 전용 스킬 없음)",
+  "date": "2026-11-13",
+  "caught": {
+    "s1_blog_wholesale.json": [
+      "B02",
+      "B03"
+    ],
+    "s2_naver_R02.txt": [],
+    "s3_pdp_kochere.json": [
+      "B03",
+      "B04"
+    ],
+    "s4_insta_b2b_lineup.json": [],
+    "s5_synthetic_banned.txt": [
+      "B01",
+      "B02",
+      "B03",
+      "B04",
+      "B05",
+      "B11"
+    ]
+  },
+  "note": "v1에는 인증, 건강 효능, 구표기, 옛 이름, 호칭, 출처 없는 수치, 디카페인 오표기, 브랜드 혼입, 사실 대조, 중복 검사가 없었다"
+}

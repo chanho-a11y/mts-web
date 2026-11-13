@@ -1,0 +1,20 @@
+{
+  "check": [
+    {"sample": "s1_blog_wholesale.json", "channel": "mall_blog", "exit": 0, "has": ["B02:FIX", "B03:FIX"], "not": ["BLOCK"]},
+    {"sample": "s2_naver_R02.txt", "channel": "naver", "exit": 0, "has": [], "not": ["B01", "B02", "B03", "B04", "B05", "BLOCK"]},
+    {"sample": "s3_pdp_kochere.json", "channel": "pdp", "exit": 0, "has": ["B02:FIX", "B04:FIX", "B03:FIX"], "not": ["BLOCK"]},
+    {"sample": "s4_insta_b2b_lineup.json", "channel": "instagram", "exit": 0, "has": [], "not": ["FIX", "BLOCK", "B15"]},
+    {"sample": "s5_synthetic_banned.txt", "channel": "mall_blog", "exit": 1,
+     "has": ["B01:FIX", "B02:FIX", "B03:FIX", "B04:FIX", "B05:FIX", "B06:BLOCK", "B07:BLOCK", "B08:REVIEW", "B09:FIX", "B10:FIX", "B11:REVIEW", "B12:FIX", "B14:REVIEW", "B15:FIX", "B16:BLOCK"],
+     "not": ["B13"]},
+    {"sample": "s5_synthetic_banned.txt", "channel": "naver", "exit": 1, "has": ["B13:FIX"], "not": []},
+    {"sample": "s7_no_user_axis.txt", "channel": "mall_blog", "exit": 1, "has": ["에셋 A1 쓰는 사람:BLOCK"], "not": []},
+    {"sample": "s8_duplicate.txt", "channel": "caption", "exit": 1, "has": ["중복 항목:BLOCK"], "not": []}
+  ],
+  "fact_lock": [
+    {"orig": "s3_pdp_kochere_plain.txt", "new": "s6a_fix_ok.txt", "verdict": "PASS", "exit": 0},
+    {"orig": "s3_pdp_kochere_plain.txt", "new": "s6b_fact_dropped.txt", "verdict": "BLOCK", "exit": 1},
+    {"orig": "s3_pdp_kochere_plain.txt", "new": "s6c_item_dropped.txt", "verdict": "REVIEW", "exit": 0},
+    {"orig": "s3_pdp_kochere_plain.txt", "new": "s6d_fact_added.txt", "verdict": "BLOCK", "exit": 1}
+  ]
+}

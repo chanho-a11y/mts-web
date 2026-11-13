@@ -46,7 +46,7 @@ export function buildDesignedDetailHtml(f: DesignedFields, keyColor?: string): s
     flavorChips ? `<section style="margin:0 0 18px"><h2 style="font-size:15px;margin:0 0 10px;color:#888;text-transform:uppercase;letter-spacing:1px">Flavour</h2>${flavorChips}</section>` : "",
     factRows ? `<section style="margin:0 0 18px;padding:20px 22px;border-radius:16px;background:${key}0d"><h2 style="font-size:16px;margin:0 0 8px;border-left:4px solid ${key};padding-left:10px">커피 정보</h2><dl style="margin:0">${factRows}</dl></section>` : "",
     recipes ? `<section style="margin:0 0 18px;padding:20px 22px;border-radius:16px;border:1px solid ${key}33"><h2 style="font-size:16px;margin:0 0 8px;border-left:4px solid ${key};padding-left:10px">추천 추출</h2>${recipes}</section>` : "",
-    `<section style="margin:0 0 4px;padding:18px 22px;border-radius:16px;background:#fafafa"><p style="margin:0;font-size:14px;color:#555">MTSPACE COFFEE는 경기도 가평 청평 로스터리에서 매주 월·화 로스팅하여 화·수 순차 출고합니다 — everyday excellence.</p></section>`,
+    `<section style="margin:0 0 4px;padding:18px 22px;border-radius:16px;background:#fafafa"><p style="margin:0;font-size:14px;color:#555">MTSPACE COFFEE는 자체 로스터리에서 직접 로스팅합니다. everyday excellence.</p></section>`,
   ].filter(Boolean).join("\n");
 }
 
@@ -73,8 +73,8 @@ ${p.body_html ?? ""}`.trim();
 <h2>${p.title_ko}, 어떻게 즐기면 좋을까</h2>
 <p>${p.one_liner ?? ""}</p>
 <h3>풍미</h3><p>${notes ? `${notes}의 향미가 특징입니다.` : "균형 잡힌 향미가 특징입니다."}</p>
-<h3>추천 추출</h3><p>${roast ? `${roast} 로스트에 맞춰 ` : ""}에스프레소·핸드드립(V60)·콜드브루를 추천합니다.</p>
-<h3>신선도</h3><p>MTSPACE COFFEE는 경기도 가평 자체 로스터리에서 매주 월·화 로스팅하여 화·수 출고합니다.</p>`.trim();
+<h3>추천 추출</h3><p>${roast ? `${roast} 로스트에 맞춰 ` : ""}에스프레소, 핸드드립(V60), 콜드브루를 추천합니다.</p>
+<h3>로스팅</h3><p>MTSPACE COFFEE 자체 로스터리에서 직접 로스팅합니다.</p>`.trim();
 
   const desc = (p.one_liner || notes || p.title_ko).slice(0, 150);
   return [

@@ -270,10 +270,10 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     const origin = f.country || "";
     const typeWord = origin ? `${origin} 원산지의 싱글 오리진 성격` : "블렌드";
 
-    const lead = `${name}은(는) ${notesLine}의 향미를 지닌 ${roast} MTSPACE COFFEE의 커피입니다. ${f.story || `${name}은(는) 매주 월·화요일에 로스팅해 화·수요일에 갓 볶은 상태로 출고합니다.`} 이 글에서는 ${name}의 풍미 프로파일, 원산지 배경, 집에서 그대로 재현할 수 있는 추천 추출 레시피, 그리고 보관과 신선도 관리까지 한 번에 정리했습니다.`;
+    const lead = `${name}은(는) ${notesLine}의 향미를 지닌 ${roast} MTSPACE COFFEE의 커피입니다. ${f.story || `${name}은(는) MTSPACE COFFEE 로스터리에서 직접 로스팅합니다.`} 이 글에서는 ${name}의 풍미 프로파일, 원산지 배경, 집에서 그대로 재현할 수 있는 추천 추출 레시피, 그리고 보관과 신선도 관리까지 한 번에 정리했습니다.`;
 
     const tldr = notes.slice(0, 3).map((n) => `<li>${esc(n)} — ${esc(noteDescribe(n))}</li>`).join("")
-      + `<li>로스팅: ${esc(f.roast || "밸런스 로스팅")} · 신선도: 월·화 로스팅 / 화·수 출고</li>`;
+      + `<li>로스팅: ${esc(f.roast || "밸런스 로스팅")}</li>`;
 
     const tableRows = ([["로스팅", f.roast], ["원산지", f.country], ["품종", f.variety], ["가공", f.process], ["중량", f.weight ? `${f.weight}g` : ""]] as [string, string | undefined][])
       .filter(([, v]) => v).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v as string)}</td></tr>`).join("");
@@ -290,7 +290,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     // 정보 이득(Information Gain) + 1차 경험(Experience) 슬롯 — 경쟁 글이 복제할 수 없는 우리 자산.
     // [홍찬호 대표 코멘트]는 발행 전 채우는 placeholder(휴먼화·점검기가 미작성 시 감지).
     const infoGain = `<h2>MTSPACE COFFEE의 방식</h2>`
-      + `<p>${esc(name)}은(는) 경기도 가평 청평의 자체 로스터리에서 매주 월·화요일에 로스팅합니다. 우리는 대회에서 검증한 로스팅·추출 기준을 실무에 그대로 적용해, 누가 내려도 일정한 컵 퀄리티가 나오도록 프로파일을 다듬습니다. V60에서는 물줄기를 회전시키는 차노토네이도(Chanotonado) 방식으로 추출의 균일성을 관리합니다. <em>[홍찬호 대표 현장 코멘트: ${esc(name)}의 로스팅·추출에서 특히 신경 쓴 점을 한두 문장으로 채우세요]</em></p>`;
+      + `<p>${esc(name)}은(는) 자체 로스터리에서 로스팅합니다. 우리는 대회에서 검증한 로스팅과 추출 기준을 실무에 그대로 적용해, 누가 내려도 일정한 컵 퀄리티가 나오도록 프로파일을 다듬습니다. V60에서는 물줄기를 회전시키는 차노토네이도(Chanotonado) 방식으로 추출의 균일성을 관리합니다. <em>[홍찬호 대표 현장 코멘트: ${esc(name)}의 로스팅과 추출에서 특히 신경 쓴 점을 한두 문장으로 채우세요]</em></p>`;
 
     // 자사 1차 데이터 → 출처 태깅(자사)해 본문에 삽입. 통계·수치의 출처가 되어 팩트체크 게이트를 통과.
     const ev = f.evidence ?? {};
@@ -325,12 +325,12 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
       `<ol>${recipeList}</ol>`,
 
       `<h2>보관과 신선도</h2>`,
-      `<p>${esc(name)}은(는) 로스팅 후 평균 14~28일 구간에서 가장 이상적인 풍미를 냅니다. 개봉 후에는 밀폐하여 직사광선을 피해 상온에 보관하고, 2~3주 안에 소비하시길 권합니다. MTSPACE COFFEE는 매주 월·화요일에 로스팅하고 화·수요일에 출고하므로, 주문하신 원두는 늘 신선한 상태로 도착합니다.</p>`,
+      `<p>${esc(name)}은(는) 로스팅 후 평균 14~28일 구간에서 가장 이상적인 풍미를 냅니다. 개봉 후에는 밀폐하여 직사광선을 피해 상온에 보관하고, 2~3주 안에 소비하시길 권합니다.</p>`,
 
       `<h2>자주 묻는 질문</h2>`,
       `<p><strong>Q. ${esc(name)}의 향미는 어떤가요?</strong><br/>${esc(notesLine)}의 노트를 중심으로, ${esc(f.roast || "밸런스")} 로스팅의 균형 잡힌 컵을 경험하실 수 있습니다.</p>`,
       `<p><strong>Q. 어떤 추출에 잘 어울리나요?</strong><br/>${rcp.length ? esc(rcp.map(([k]) => k).join(" · ")) : "에스프레소 · 핸드드립 · 콜드브루"} 등 다양한 방식에 두루 어울립니다.</p>`,
-      `<p><strong>Q. 언제 로스팅하고 배송되나요?</strong><br/>매주 월·화요일 로스팅, 화·수요일 출고로 신선하게 배송됩니다.</p>`,
+      `<p><strong>Q. 원두는 어디서 로스팅하나요?</strong><br/>MTSPACE COFFEE 자체 로스터리에서 직접 로스팅해 보내드립니다.</p>`,
 
       `<h2>구매 안내</h2>`,
       `<p><a href="https://mtspace.coffee">mtspace.coffee</a>에서 ${esc(name)}을(를) 만나보세요. 사업자 도매 문의도 함께 안내해 드립니다.</p>`,
@@ -371,14 +371,14 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     const has = (re: RegExp) => re.test(blogBody);
     const bannedHit = BANNED_WORDS.filter((w) => blogBody.includes(w));
     const items: { axis: string; ok: boolean; label: string }[] = [
-      { axis: "정보이득", ok: /차노토네이도|찬호토네이도|가평|로스터리|팩토리|대회|거래처/.test(text), label: "1차 경험/정보 이득(차노토네이도·가평 로스터리·대회·거래처) 포함" },
+      { axis: "정보이득", ok: /차노토네이도|찬호토네이도|로스터리|팩토리|대회|거래처/.test(text), label: "1차 경험/정보 이득(차노토네이도, 로스터리, 대회, 거래처) 포함" },
       { axis: "경험/저자", ok: !/\[홍찬호 대표/.test(blogBody), label: "저자 코멘트 슬롯 작성(placeholder 제거)" },
       { axis: "인용가능성", ok: /(란|이란)\s*[^<]{0,60}(이다|입니다)/.test(text), label: "정의형 문장(‘X란 ~이다/입니다’)" },
       { axis: "인용가능성", ok: has(/<h2/i), label: "H2 소제목 구조화" },
       { axis: "인용가능성", ok: has(/<table/i), label: "표(인용률↑)" },
       { axis: "인용가능성", ok: has(/<ol|<ul/i), label: "번호/불릿 목록" },
       { axis: "인용가능성", ok: /자주 묻는|faq/i.test(blogBody), label: "FAQ 섹션(→ FAQPage 스키마)" },
-      { axis: "검증/신선도", ok: /월·화|월,\s?화|로스팅/.test(text), label: "신선도 표기(월·화 로스팅 / 화·수 출고)" },
+      { axis: "검증/요일 미표기", ok: /로스팅/.test(text) && !/(월|화|수|목)\s*[·,]?\s*(화|수|목)?\s*(요일)?\s*에?\s*(로스팅|출고)/.test(text), label: "로스팅 근거 있음, 요일 표기 없음(D-167)" },
       { axis: "검증/신선도", ok: bannedHit.length === 0, label: bannedHit.length ? `금지표현 발견: ${bannedHit.join(", ")}` : "금지표현 0(최고의·유일한·완벽한·구 블렌드명)" },
       { axis: "검증/신선도", ok: findUnsourcedStats(blogBody).length === 0, label: (() => { const u = findUnsourcedStats(blogBody); return u.length ? `출처 없는 수치 ${u.length}건: ${u.slice(0, 5).join(", ")} (게시 잠금 대상)` : "모든 통계·수치에 출처(자사/KB/링크) 태깅됨"; })() },
       { axis: "분량", ok: chars >= 1200, label: `본문 ${chars}자 / ${words}단어 (발행 가능선 1,200자+)` },
@@ -417,7 +417,7 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     body = body.replace(/<img((?![^>]*\balt=)[^>]*)>/gi, `<img$1 alt="${esc(name)}">`);
     body = body.replace(/\s—\s/g, ", ");
     if (flavorArr.length && !flavorArr.some((n) => body.includes(n))) body += `\n<p><strong>플레이버 노트:</strong> ${flavorArr.join(" · ")}</p>`;
-    if (!/자주 묻는|faq/i.test(body)) body += `\n<h2>자주 묻는 질문</h2>\n<p><strong>Q. ${esc(name)}의 플레이버는 어떤가요?</strong><br/>${flavorArr.length ? esc(flavorArr.join(", ")) : "밸런스 좋은 풍미"}의 노트를 느낄 수 있습니다.</p>\n<p><strong>Q. 언제 로스팅하고 배송되나요?</strong><br/>매주 월·화 로스팅, 화·수 출고로 신선하게 배송됩니다.</p>`;
+    if (!/자주 묻는|faq/i.test(body)) body += `\n<h2>자주 묻는 질문</h2>\n<p><strong>Q. ${esc(name)}의 플레이버는 어떤가요?</strong><br/>${flavorArr.length ? esc(flavorArr.join(", ")) : "밸런스 좋은 풍미"}의 노트를 느낄 수 있습니다.</p>\n<p><strong>Q. 원두는 어디서 로스팅하나요?</strong><br/>MTSPACE COFFEE 자체 로스터리에서 직접 로스팅해 보내드립니다.</p>`;
     if (!/mtspace\.coffee/i.test(body)) body += `\n<h2>구매 안내</h2>\n<p><a href="https://mtspace.coffee">mtspace.coffee</a>에서 ${esc(name)}을(를) 만나보세요.</p>`;
     const newTitle = (!blogTitle || blogTitle.length < 15) ? `${name} — ${flavorArr.slice(0, 2).join(", ") || "스페셜티 커피"} | MTSPACE COFFEE` : blogTitle;
     pushEditor(body, newTitle);

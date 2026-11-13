@@ -74,7 +74,7 @@ export function orderConfirmationHtml(orderNo: string, name?: string, amount?: n
     "결제가 완료되었습니다 ✓",
     `<p>${name ? name + "님, " : ""}주문(<b>${orderNo}</b>) 결제가 정상적으로 완료되었습니다. 감사합니다.</p>
      ${money ? `<p style="margin:8px 0"><b>결제 금액</b> · ${money}</p>` : ""}
-     <p>원두는 <b>매주 월·화 로스팅, 화·수 출고</b> 일정에 맞춰 가평 로스터리에서 갓 볶아 보내드립니다. 출고 시 별도 안내 메일을 드립니다.</p>
+     <p>원두는 MTSPACE COFFEE 로스터리에서 볶아 보내드립니다. 출고 시 별도 안내 메일을 드립니다.</p>
      <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
   );
 }
@@ -128,7 +128,7 @@ export function shipNotificationHtml(orderNo: string, name?: string, trackings: 
     "주문하신 원두가 출고되었습니다",
     `<p>${name ? escHtml(name) + "님, " : ""}주문하신 상품(<b>${escHtml(orderNo)}</b>)을 롯데택배로 보내드렸습니다.</p>
      ${box}
-     <p>가평 로스터리에서 갓 로스팅한 원두입니다. 받으신 후 밀폐 보관하시고 2~3주 안에 즐겨 주세요.</p>
+     <p>MTSPACE COFFEE 로스터리에서 로스팅한 원두입니다. 받으신 후 밀폐 보관하시고 2~3주 안에 즐겨 주세요.</p>
      <p style="font-size:13px;color:#888">배송 조회는 택배사 집하 처리 후 반영되어, 출고 당일에는 조회되지 않을 수 있습니다.</p>
      <p style="margin-top:16px"><a href="https://mtspace.coffee/account/orders/${encodeURIComponent(orderNo)}" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px">주문 내역 보기</a></p>`,
   );

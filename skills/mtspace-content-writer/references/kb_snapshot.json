@@ -1,0 +1,727 @@
+{
+  "schema_version": "1.0-draft",
+  "snapshot_date": "2026-11-13",
+  "status": "1단계 승인(2026-11-13 대표). 2단계 진행 전",
+  "authority": {
+    "order": [
+      "대표 결정(의사결정 로그 최신 D-###, 프로젝트 preferences)",
+      "Supabase kb_entry (정본 1)",
+      "로컬 03_knowledge_base (정본 2, 교육자료 v7 = T2-Edu)",
+      "commerce_get_brand_tokens (규칙층)"
+    ],
+    "conflict_rule": "위가 아래를 이긴다. 같은 층에서 충돌하면 [확인 필요]로 올린다.",
+    "sources": {
+      "kb_entry": "Supabase mtspace-commerce apiskyivlvebpvvxfejq, 192행",
+      "local_kb": "03_knowledge_base/mtspace_kb.json prohibited_expressions, validators/L1~L4",
+      "server_social_rules": "new-website/lib/social/rules.ts BANNED, CAPACITY",
+      "naver_rules": "_tools/naver_scheduler/SKILL.md 1절",
+      "decisions": [
+        "D-022",
+        "D-118",
+        "D-120",
+        "D-123",
+        "D-127",
+        "D-138",
+        "D-159"
+      ]
+    }
+  },
+  "verdict_codes": {
+    "BLOCK": "막음: 사실 훼손, 보호 영역 변경, 같은 글 중복, 건강 효능",
+    "FIX": "고침: 금지어, 명백한 오류",
+    "REVIEW": "검토: 의도에 따라 다름, 승인 필요 항목",
+    "KEEP": "유지: 의도된 반복, 말버릇"
+  },
+  "channels": [
+    "mall_blog",
+    "pdp",
+    "naver",
+    "instagram",
+    "b2b_doc",
+    "education",
+    "caption"
+  ],
+  "banned": [
+    {
+      "id": "B01",
+      "cat": "지역명",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "가평",
+        "청평",
+        "경기도",
+        "인천",
+        "부평"
+      ],
+      "why": "D-138 콘텐츠에 지역명 금지. B2B 문서도 예외 없음(2026-11-13 대표)",
+      "src": "D-138, rules.ts",
+      "allow": "상품 식품 표시사항(업소명 및 소재지)과 사이트 하단 사업자 정보처럼 법정 표기 영역은 예외"
+    },
+    {
+      "id": "B02",
+      "cat": "신선도 문구(로스팅과 출고 요일, 일정)",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "(월|화|수|목|금|토|일)\\s*(요일)?\\s*[,·와과및]?\\s*(월|화|수|목|금|토|일)?\\s*(요일)?\\s*에?\\s*(로스팅|출고|볶)",
+        "(로스팅|출고)\\s*(요일|일정)",
+        "요일"
+      ],
+      "why": "D-138 신선도 문구 금지. 거래 문서도 미허용(2026-11-13 대표)",
+      "src": "D-138"
+    },
+    {
+      "id": "B03",
+      "cat": "제품 용량",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "(?<![\\d.])(125|200|250|500)\\s?g(?![a-zA-Z가-힣])",
+        "(?<![\\d.])1\\s?kg(?![a-zA-Z])",
+        "대용량"
+      ],
+      "allow": "레시피 도징과 추출량(15g, 20g, 43g 등), 계산 예시의 kg 단위 사용량은 문맥 검토. 상품 제목과 옵션의 용량은 허용(pdp)",
+      "why": "D-138 제품 용량 표기 금지",
+      "src": "D-138, rules.ts CAPACITY"
+    },
+    {
+      "id": "B04",
+      "cat": "문장부호",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "—",
+        "–",
+        "·"
+      ],
+      "replace": {
+        "—": "쉼표, 콜론, 문장 분리",
+        "·": "쉼표 또는 슬래시"
+      },
+      "why": "프로젝트 지침, D-138",
+      "src": "지침, rules.ts"
+    },
+    {
+      "id": "B05",
+      "cat": "절대화와 무근거 최상급",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "세계\\s*최고",
+        "최고(의|급)?",
+        "단연\\s*최고",
+        "유일(한|하게)?",
+        "완벽한",
+        "1등",
+        "최상(의|급)",
+        "절대적",
+        "비교\\s*불가",
+        "단\\s*하나의",
+        "\\bbest\\s+in\\s+the\\s+world\\b",
+        "\\bperfect\\s+(extraction|cup|coffee)\\b"
+      ],
+      "why": "브랜드 토큰 absolutes, L4 absolute_terms",
+      "src": "brand.forbidden.absolutes, L4"
+    },
+    {
+      "id": "B06",
+      "cat": "인증 무근거",
+      "code": "BLOCK",
+      "channels": "all",
+      "patterns": [
+        "100%\\s*(공정무역|직거래|다이렉트|유기농)",
+        "공정무역\\s*(표준|인증)",
+        "인증된\\s*직거래",
+        "FDA\\s*승인",
+        "식약처\\s*인증",
+        "WHO\\s*권장"
+      ],
+      "why": "발급 기관과 인증번호 없는 인증 표현 금지",
+      "src": "L4 unverifiable_certifications"
+    },
+    {
+      "id": "B07",
+      "cat": "건강 효능",
+      "code": "BLOCK",
+      "channels": "all",
+      "patterns": [
+        "지방\\s*분해",
+        "다이어트",
+        "항암",
+        "심혈관",
+        "체지방",
+        "콜레스테롤",
+        "항산화",
+        "노화\\s*방지",
+        "면역력",
+        "당뇨",
+        "치매",
+        "질병을?\\s*(예방|치료)",
+        "효능"
+      ],
+      "why": "식품표시광고법상 질병 예방, 치료 효능 표현 금지. 세부 조항은 korean-law로 확인 예정",
+      "src": "L4 health_claims"
+    },
+    {
+      "id": "B08",
+      "cat": "모호 표현과 포지셔닝 충돌",
+      "code": "REVIEW",
+      "channels": "all",
+      "patterns": [
+        "진한\\s*커피",
+        "부드러운\\s*원두",
+        "쓴맛이?\\s*없는",
+        "누구나\\s*좋아하는",
+        "고급스러운\\s*맛",
+        "가성비",
+        "저렴한\\s*가격",
+        "\\bcheap\\b"
+      ],
+      "why": "스페셜티 포지셔닝 충돌, 구체 표현으로 대체",
+      "src": "L4, kb_entry 피해야 할 표현"
+    },
+    {
+      "id": "B09",
+      "cat": "폐기된 구표기",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "화\\s*[·,]?\\s*수\\s*[·,]?\\s*목\\s*로스팅",
+        "인천\\s*부평",
+        "부평대로",
+        "Brand\\s*Blue",
+        "#0076BA",
+        "#004D80",
+        "#16E7CF",
+        "24\\s*SKU"
+      ],
+      "why": "D-019, D-022",
+      "src": "brand.forbidden.legacy_*"
+    },
+    {
+      "id": "B10",
+      "cat": "폐기된 옛 제품명",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "Dark\\s*Velvet",
+        "Sweetheart",
+        "Citrus\\s*Breeze",
+        "다크\\s*벨벳",
+        "스윗하트",
+        "시트러스\\s*브리즈"
+      ],
+      "why": "폐기 확인(2026-11-13 대표)",
+      "src": "대표"
+    },
+    {
+      "id": "B11",
+      "cat": "판매 종료 제품(승인 필요)",
+      "code": "REVIEW",
+      "channels": "all",
+      "patterns": [
+        "아아\\s*블렌드",
+        "Ah-?A\\s*Blend",
+        "ah-a"
+      ],
+      "why": "아아 블렌드 archived. 목록에는 두되 쓸 때마다 대표 승인(2026-11-13). 제품 링크 금지",
+      "src": "대표, naver-blog-package"
+    },
+    {
+      "id": "B12",
+      "cat": "대표 호칭",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "경쟁\\s*바리스타"
+      ],
+      "replace": {
+        "경쟁 바리스타": "바리스타 컴페티터"
+      },
+      "why": "D-159",
+      "src": "D-159"
+    },
+    {
+      "id": "B13",
+      "cat": "B2B 내부 약어",
+      "code": "FIX",
+      "channels": [
+        "naver"
+      ],
+      "patterns": [
+        "N\\s*:\\s*W",
+        "\\bsplit\\b",
+        "\\bQC\\b"
+      ],
+      "why": "네이버 원고 한정으로 현행 유지(2026-11-13 대표). 교육 자료와 인스타에서는 QC 허용",
+      "src": "naver SKILL.md"
+    },
+    {
+      "id": "B14",
+      "cat": "출처 없는 수치",
+      "code": "REVIEW",
+      "channels": "all",
+      "patterns": [
+        "\\d+(\\.\\d+)?\\s*%\\s*(가|의|이)?\\s*(고객|사람|카페|재구매|만족)"
+      ],
+      "why": "출처 없는 통계 금지. 자사 실측, 지식베이스, 링크 중 하나로 근거",
+      "src": "brand.forbidden.unsourced_stats"
+    },
+    {
+      "id": "B15",
+      "cat": "디카페인 오표기",
+      "code": "FIX",
+      "channels": "all",
+      "patterns": [
+        "이지피지[^.\\n,]{0,15}(?<!예가체프\\s)디카페인",
+        "(?<!예가체프\\s)디카페인[^.\\n,]{0,6}이지피지"
+      ],
+      "why": "디카페인 표기는 예가체프 디카페인에만. 이지피지는 로우 카페인 블렌드",
+      "src": "상품 데이터, blog-cafe-decaf-menu"
+    },
+    {
+      "id": "B16",
+      "cat": "브랜드 혼입",
+      "code": "BLOCK",
+      "channels": "all",
+      "patterns": [
+        "HUSK",
+        "허스크",
+        "RoasteryFlow",
+        "로스터리\\s*플로우",
+        "logrid",
+        "로그리드",
+        "Läb\\s*CNC",
+        "Lab\\s*CNC",
+        "랩씨앤씨",
+        "Keystone\\s*Ops",
+        "키스톤옵스"
+      ],
+      "why": "별개 제품, 혼입 절대 금지. NORMCORE는 신뢰 자산으로 언급 허용(D-118)",
+      "src": "feedback_product-boundary"
+    }
+  ],
+  "preferred": [
+    {
+      "from": "진한 커피",
+      "to": "풀바디, 묵직한 바디"
+    },
+    {
+      "from": "쓴 커피",
+      "to": "다크 로스트의 깊은 쓴맛처럼 구체화"
+    },
+    {
+      "from": "부드러운 원두",
+      "to": "실키한 바디, 라운드한 산미 등 구체화"
+    },
+    {
+      "from": "경쟁 바리스타",
+      "to": "바리스타 컴페티터"
+    },
+    {
+      "from": "14회 수상",
+      "to": "입상 14회 (전체 수상 이력은 19개)"
+    },
+    {
+      "from": "클로로젠산",
+      "to": "클로로겐산"
+    },
+    {
+      "from": "피네",
+      "to": "미분"
+    },
+    {
+      "from": "리프락토미터",
+      "to": "리프랙토미터"
+    },
+    {
+      "from": "침출",
+      "to": "여과 (침출수만 예외)"
+    },
+    {
+      "from": "이지피지 디카페인",
+      "to": "이지피지 로우 카페인 블렌드"
+    },
+    {
+      "from": "예가체프 디카페인(단독 표기)",
+      "to": "에티오피아 예가체프 디카페인"
+    }
+  ],
+  "facts": {
+    "brand": {
+      "name": "MTSPACE COFFEE",
+      "tagline": "everyday excellence",
+      "owner": "홍찬호",
+      "owner_title": "바리스타 컴페티터",
+      "voice": [
+        "origin integrity",
+        "technical rigor",
+        "quiet confidence",
+        "everyday access"
+      ]
+    },
+    "products_active": [
+      {
+        "ko": "댐굳",
+        "en": "Damn Good",
+        "type": "블렌드",
+        "roast": "다크",
+        "notes": [
+          "다크 초콜릿",
+          "자두",
+          "바닐라"
+        ],
+        "ratio": "에티오피아 내추럴 7 : 워시드 3"
+      },
+      {
+        "ko": "올라운더",
+        "en": "Allrounder",
+        "type": "블렌드",
+        "roast": "미디움",
+        "notes": [
+          "베리류",
+          "사과",
+          "카카오",
+          "아몬드"
+        ],
+        "ratio": "6 : 4 (blog-why-ethiopia-base)"
+      },
+      {
+        "ko": "스팟라이트",
+        "en": "Spotlight",
+        "type": "블렌드",
+        "roast": "라이트",
+        "notes": [
+          "귤",
+          "자몽",
+          "적포도",
+          "살구"
+        ]
+      },
+      {
+        "ko": "이지피지",
+        "en": "EZPZ",
+        "type": "블렌드(로우 카페인)",
+        "roast": "미디움",
+        "notes": [
+          "카라멜",
+          "견과류",
+          "시트러스"
+        ]
+      },
+      {
+        "ko": "클래식 블렌드",
+        "en": "Classic Blend",
+        "type": "블렌드(사업자)",
+        "roast": "미디움",
+        "notes": [
+          "초콜릿",
+          "견과류",
+          "은은한 과일"
+        ]
+      },
+      {
+        "ko": "하우스 블렌드",
+        "en": "House Blend",
+        "type": "블렌드(사업자)",
+        "roast": "다크",
+        "notes": [
+          "다크 초콜릿",
+          "견과류",
+          "마일드 단맛"
+        ]
+      },
+      {
+        "ko": "에티오피아 예가체프 디카페인",
+        "en": "Ethiopia Yirgacheffe Decaf",
+        "type": "사업자",
+        "roast": "미디움",
+        "notes": [
+          "허브",
+          "감귤",
+          "카카오"
+        ]
+      },
+      {
+        "ko": "에티오피아 코체레 다니초 워시드",
+        "en": "Ethiopia Kochere Danicho Washed",
+        "type": "싱글 오리진",
+        "roast": "라이트",
+        "notes": [
+          "자스민",
+          "유자",
+          "오렌지필",
+          "살구"
+        ]
+      },
+      {
+        "ko": "케냐 무가야 AA 워시드",
+        "en": "Kenya Mugaya AA Washed",
+        "type": "싱글 오리진",
+        "roast": "라이트",
+        "notes": [
+          "크랜베리",
+          "사과",
+          "사탕수수",
+          "자몽"
+        ]
+      },
+      {
+        "ko": "에티오피아 시다모 벤사 아르베고나 타데세 욘카 내추럴",
+        "en": "Ethiopia Sidamo Bensa Arbegona Tadesse Yonka Natural",
+        "type": "싱글 오리진",
+        "roast": "라이트",
+        "notes": [
+          "라즈베리",
+          "블루베리",
+          "핵과류",
+          "사탕수수"
+        ]
+      },
+      {
+        "ko": "페루 부에노스 아이레스",
+        "en": "Peru Buenos Aires",
+        "type": "싱글 오리진",
+        "roast": "라이트",
+        "notes": [
+          "사과",
+          "카라멜",
+          "자두"
+        ]
+      }
+    ],
+    "products_archived": [
+      "아아 블렌드",
+      "놈코어 스탠다드",
+      "파나마 핀카 하트만 게이샤",
+      "케냐 무가야 AB",
+      "페루 라스 티링게스",
+      "파나마 아우로마르",
+      "콜롬비아 엘 타블론",
+      "에티오피아 베켈레 카차라",
+      "온두라스 모나르카",
+      "에티오피아 아리차 에이미",
+      "과테말라 비스타 에르모사",
+      "에티오피아 구지 함벨라 게넷"
+    ],
+    "rules": {
+      "flavor_notes_canon": "product.flavor_notes (D-123). story, seo와 다르면 flavor_notes를 따른다",
+      "single_origin_roast": "싱글 오리진은 무조건 라이트 로스팅 (D-138)",
+      "recipe_canon": "product.recipe, 가격은 variants.base_price",
+      "usp": "라이트든 다크든, 캐릭터는 에티오피아 (D-120)",
+      "lineup_b2b": "사업자 라인 일곱 종: 스팟라이트, 올라운더, 클래식 블렌드, 이지피지, 예가체프 디카페인, 댐굳, 하우스 블렌드"
+    },
+    "lexicon": {
+      "process": [
+        "워시드",
+        "내추럴",
+        "허니",
+        "펄프드 내추럴",
+        "무산소",
+        "혐기 발효",
+        "카보닉 매서레이션",
+        "웻 헐드",
+        "레이트 하비스트"
+      ],
+      "roast": [
+        "라이트",
+        "미디움",
+        "미디엄",
+        "미디움 다크",
+        "다크"
+      ],
+      "country": [
+        "에티오피아",
+        "케냐",
+        "페루",
+        "콜롬비아",
+        "과테말라",
+        "온두라스",
+        "파나마",
+        "브라질"
+      ],
+      "region": [
+        "예가체프",
+        "코체레",
+        "하마",
+        "시다모",
+        "벤사",
+        "아르베고나",
+        "게메초",
+        "구지",
+        "키리냐가",
+        "카하마르카",
+        "하엔",
+        "나리뇨",
+        "우에우에테낭고"
+      ],
+      "producer_station": [
+        "다니초 무케레",
+        "다니초 워싱스테이션",
+        "타데세 욘카",
+        "무가야",
+        "무티라 협동조합"
+      ],
+      "variety": [
+        "에티오피아 토착종",
+        "헤어룸",
+        "74110",
+        "74112",
+        "74119",
+        "74158",
+        "티피카",
+        "카투라",
+        "카투아이",
+        "부르봉",
+        "게이샤",
+        "SL28",
+        "SL34"
+      ],
+      "unit_regex": "(\\d[\\d,]*(\\.\\d+)?)\\s*(g|kg|ml|mL|°C|℃|초|분|일|%|원|m|masl|µm|헥타르)",
+      "ratio_regex": "\\d+(\\.\\d+)?\\s*:\\s*\\d+(\\.\\d+)?",
+      "time_regex": "\\d+:\\d{2}(\\s*[-~]\\s*\\d+:\\d{2})?"
+    }
+  },
+  "asset_axes": {
+    "rule": "네 축 중 사용자 축(A1)이 없으면 발행 보류 (2026-11-13 대표 승인)",
+    "A1_user": {
+      "name": "쓰는 사람(카페, 바리스타, 홈카페의 하루)",
+      "detect": [
+        "카페",
+        "매장",
+        "사장님",
+        "바리스타",
+        "손님",
+        "메뉴",
+        "홈카페",
+        "집에서",
+        "아침",
+        "오후",
+        "저녁",
+        "그라인더",
+        "바 세팅",
+        "운영",
+        "고객"
+      ]
+    },
+    "A2_bean": {
+      "name": "원두(산지, 가공)",
+      "detect": [
+        "산지",
+        "농장",
+        "워싱스테이션",
+        "생산자",
+        "품종",
+        "가공",
+        "고도",
+        "해발",
+        "컵 노트",
+        "생두",
+        "에티오피아",
+        "케냐",
+        "페루"
+      ]
+    },
+    "A3_roast": {
+      "name": "로스팅(포인트, 일관성)",
+      "detect": [
+        "로스팅",
+        "로스트",
+        "프로파일",
+        "디벨롭먼트",
+        "배치",
+        "일관성",
+        "배합",
+        "1차 크랙",
+        "배전"
+      ]
+    },
+    "A4_brew": {
+      "name": "추출(레시피, 숫자)",
+      "detect": [
+        "레시피",
+        "도징",
+        "추출",
+        "분쇄",
+        "비율",
+        "수율",
+        "블룸",
+        "에스프레소",
+        "필터",
+        "드립",
+        "샷"
+      ]
+    }
+  },
+  "channel_rules": {
+    "mall_blog": {
+      "min_chars": 1500,
+      "count": "공백 포함 [확인 필요]",
+      "tone": "합쇼체 정보형 (D-127)",
+      "cta": "납품 문의 + 사업자 가입 둘 다 (D-129)",
+      "structure_single_origin": "D-123 구조",
+      "links": "https://mtspace.coffee 절대 URL",
+      "english_summary": true,
+      "sources_block": true
+    },
+    "pdp": {
+      "canon": "flavor_notes, recipe, base_price",
+      "seo_title": "원산지 + 농장/로트 + 프로세스",
+      "faq": true,
+      "capacity": "상품 제목과 옵션(variant)의 용량 표기는 허용. story, one_liner, seo 설명문 등 본문 서술에는 금지 (2026-11-13 대표)"
+    },
+    "naver": {
+      "min_chars": 1500,
+      "count": "공백 포함",
+      "tone": "캐주얼 해요체 정보형, 홈카페와 카페 사장님 격주 (D-126)",
+      "tags": 5,
+      "max_links": 3,
+      "dup_window": 25,
+      "tables": "줄글로",
+      "tail_block": "로스팅 주기, 지역 표기 빼고 링크만 [확인 필요: 8/25 패키지 기준과 D-138 충돌]"
+    },
+    "instagram": {
+      "caption_order": "한글 먼저, 영문 병기",
+      "hashtags": "고정 세트, 캡션 맨 끝",
+      "server_check": "lib/social/rules.ts 와 B01~B05 동일하게 맞출 것"
+    },
+    "b2b_doc": {
+      "tone": "합쇼체, B2B 담당자 화자",
+      "format": "chanho-document-design",
+      "freshness_region": "미허용"
+    },
+    "education": {
+      "layers": [
+        "용어",
+        "정의",
+        "설명",
+        "예시"
+      ],
+      "canon": "The Basic of Coffee KR v7",
+      "lang": "국문 먼저, 영문"
+    },
+    "caption": {
+      "max_chars_no_space": 500,
+      "output": "교정본 1개 (세 버전 요청 시 세 본)"
+    }
+  },
+  "versions": {
+    "tone_split": "B2B 담당자 톤과 소비자 톤을 나눈다 (2026-11-13 대표 승인)",
+    "short_default": "짧은 글은 교정본 1개"
+  },
+  "open_issues": [
+    "타데세 욘카: 제목 시다모, story 시다마 표기 불일치",
+    "케냐 무가야 AA 상품 seo가 구지 함벨라 게넷 글을 복사한 상태",
+    "타데세 욘카, 페루 부에노스 아이레스 seo 컵 노트가 flavor_notes와 다름"
+  ],
+  "resolved": [
+    "Q1 정본 위계 승인: 대표 결정 > kb_entry > 로컬 KB > 브랜드 토큰",
+    "Q2 요일 표기 제외로 정정: site_setting brand.rule.freshness, kb_entry 신선도 캐논 수정 완료(백업 *_bak_20261113)",
+    "Q3 kb_entry 헤드라인 패턴 정정 완료",
+    "Q4 kb_entry 현행 싱글 오리진 4종 추가 완료(position 2025~2028)",
+    "Q5 QC는 네이버만 금지, 현행 유지",
+    "Q6 상품 제목, 옵션 용량 표기 허용",
+    "Q7 발행분 소급 정정 승인. 방식은 별도 확인"
+  ]
+}

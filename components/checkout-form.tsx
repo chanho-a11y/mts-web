@@ -9,6 +9,7 @@ import { createOrderAction } from "@/app/checkout/actions";
 import { resolveCartPricesAction } from "@/app/checkout/price-actions";
 import type { Provider, PgForm } from "@/lib/payments";
 import { trackMeta, toMetaContents } from "@/lib/meta-pixel";
+import { INICIS_BANK_ENABLED } from "@/lib/payment-flags";
 
 declare global {
   interface Window { daum?: any; INIStdPay?: any; TossPayments?: any }
@@ -446,7 +447,8 @@ export default function CheckoutForm({
           </div>
         )}
         {/* 모바일 이니시스는 결제수단을 사전 지정해야 함(모바일 표준결제 규격) */}
-        {isMobile && provider === "inicis" && (
+        {/* D-170: 계좌이체 미계약 동안은 선택지 자체를 숨김(카드 고정) */}
+        {INICIS_BANK_ENABLED && isMobile && provider === "inicis" && (
           <div className="ml-6 flex gap-4 text-sm">
             <label className="flex items-center gap-2">
               <input type="radio" name="inicis_m" checked={payMethod === "CARD"} onChange={() => setPayMethod("CARD")} />

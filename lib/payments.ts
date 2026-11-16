@@ -2,6 +2,7 @@
 // 실키 미설정 시: PAYMENTS_TEST_MODE=true 면 승인 라우트로 리다이렉트해 전체 플로우 검증.
 //               그 외에는 notConfigured(주문만 생성, 결제 대기).
 import crypto from "crypto";
+import { INICIS_BANK_ENABLED } from "./payment-flags";
 
 export type Provider = "inicis" | "toss" | "paypal";
 
@@ -63,7 +64,8 @@ const testRedirect = (provider: Provider, p: PaymentInit): PaymentInitResult => 
 // STEP3 P_REQ_URL 로 P_MID·P_TID 승인요청 → STEP4 승인결과(P_STATUS=00) 수신
 // ※ P_NOTI 에 orderId 를 실어 보내면 인증·승인 결과에 그대로 반환되어 주문 식별에 쓸 수 있다.
 function inicisMobileFields(p: PaymentInit, mid: string, oid: string, price: string, origin: string): Record<string, string> {
-  const method = p.payMethod === "BANK" ? "BANK" : "CARD";
+  // D-170: 계좌이체 미계약 동안은 클라이언트 값과 무관하게 카드로 고정(서버측 가드)
+  const method = INICIS_BANK_ENABLED && p.payMethod === "BANK" ? "BANK" : "CARD";
   const reserved = ["centerCd=Y"];
   if (method === "CARD") reserved.push("below1000=Y");
   const fields: Record<string, string> = {
@@ -96,7 +98,7 @@ function inicisMobileFields(p: PaymentInit, mid: string, oid: string, price: str
 
 // ---- 이니시스 INIStdPay (PC 표준결제, KRW) ----
 export const inicis: PaymentAdapter = {
-  provider: "inicis", label: "신용카드·계좌이체 (이니시스)", currency: "KRW",
+  provider: "inicis", label: "신용카드 (이니시스)", currency: "KRW",
   async init(p) {
     if (TEST) return testRedirect("inicis", p);
     const mid = process.env.INICIS_MID, signKey = process.env.INICIS_SIGNKEY;
@@ -126,7 +128,8 @@ export const inicis: PaymentAdapter = {
       buyername: p.buyerName || "고객",
       buyertel: p.buyerTel || "",
       buyeremail: p.buyerEmail || "",
-      gopaymethod: "Card:DirectBank:VBank",
+      // D-170: 실시간 계좌이체, 가상계좌 미계약 → 계약 전까지 카드만
+      gopaymethod: INICIS_BANK_ENABLED ? "Card:DirectBank:VBank" : "Card",
       // centerCd(Y): 인증결과에 idc_name 수신 → 승인 URL 화이트리스트 판정(D-143, lib/inicis-idc.ts). 옵션 구분자는 ":".
       acceptmethod: "below1000:centerCd(Y)",
       use_chkfake: "Y",

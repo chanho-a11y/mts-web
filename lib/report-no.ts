@@ -4,6 +4,7 @@ export interface ReportPreset {
   reportNo: string;   // 품목보고번호(공백 제거 포맷)
   name: string;       // 표시용 제품명(참고)
   material: string;   // 원재료명(선택 시 자동 세트)
+  origin?: string | null; // 원산지 국가(싱글 오리진 자동 선택 기준, D-172)
 }
 
 // 매칭 보정용: 공백 제거 정규화(구 데이터가 "2022026 4913101" 처럼 공백 포함 저장된 경우 대비)

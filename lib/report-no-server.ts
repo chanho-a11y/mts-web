@@ -6,11 +6,12 @@ export async function getReportPresets(): Promise<ReportPreset[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from("report_no")
-    .select("report_no,product_name,material,position")
+    .select("report_no,product_name,material,origin,position")
     .order("position", { ascending: true });
   return (data ?? []).map((r: any) => ({
     reportNo: String(r.report_no ?? ""),
     name: String(r.product_name ?? ""),
     material: String(r.material ?? "커피원두(100%)"),
+    origin: r.origin ? String(r.origin) : null,
   }));
 }

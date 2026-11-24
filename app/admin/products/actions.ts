@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateDrafts, buildDesignedDetailHtml } from "@/lib/content-gen";
 import { buildRecipeFromForm } from "@/lib/recipe";
+import { getReportPresets } from "@/lib/report-no-server";
+import { reportNoForCountry, standardRecipeFor } from "@/lib/product-standards";
 import { buildEvidenceFromForm } from "@/lib/evidence";
 
 import { requireAdmin, isAdminUser } from "@/lib/auth-guard";
@@ -130,6 +132,18 @@ export async function upsertProductAction(formData: FormData) {
     recipe: buildRecipeFromForm(g),
     evidence: buildEvidenceFromForm(g),
   };
+  // D-172: 원산지 객체는 국가만 덮어쓰고 지역, 농장 등 나머지 키는 보존한다(MCP 초안이 넣은 값 유실 방지).
+  if (origSlug) {
+    const { data: prevO } = await supabase.from("product").select("origin").eq("slug", origSlug).maybeSingle();
+    const prevOrigin = ((prevO as { origin?: Record<string, unknown> } | null)?.origin ?? {}) as Record<string, unknown>;
+    row.origin = { ...prevOrigin, country: g("origin_country"), country_en: g("origin_country_en") || null } as typeof row.origin;
+  }
+  // D-172: 품목보고번호가 비어 있으면 원산지 국가로 자동 지정, 레시피가 비어 있으면 가공 방식 기준 레시피.
+  if (!row.report_no) {
+    const hit = reportNoForCountry(g("origin_country"), await getReportPresets());
+    if (hit) { row.report_no = hit.reportNo; if (!row.material) row.material = hit.material; }
+  }
+  if (!row.recipe) row.recipe = standardRecipeFor(row.process);
   // 발행 가드(D-121) — draft→active 또는 신규 active 저장 시 최소 요건 검사.
   if (row.status === "active") {
     let prevStatus: string | null = null;

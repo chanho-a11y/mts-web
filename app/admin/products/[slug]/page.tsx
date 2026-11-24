@@ -34,6 +34,9 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
   ]);
   const categoryOptions = (cats ?? []).map((c: any) => ({ slug: c.slug, name: c.name_ko }));
   const reportPresets = await getReportPresets();
+  // 키 컬러 초안 추천용: 판매중, 초안 제품의 키 컬러(D-172)
+  const { data: colorRows } = await supabase.from("product").select("key_color").in("status", ["active", "draft"]).not("key_color", "is", null);
+  const takenColors = Array.from(new Set((colorRows ?? []).map((r: any) => String(r.key_color))));
 
   // 기존 고객별 단가 (이 제품 변형에 한해)
   let customerPrices: any[] = [];
@@ -69,7 +72,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
       <div>
         <h1 className="mb-1 text-2xl font-bold">제품 수정</h1>
         <p className="mb-4 text-sm text-neutral-500">{p.slug}</p>
-        <ProductForm initial={initial} categories={categoryOptions} reportPresets={reportPresets} />
+        <ProductForm initial={initial} categories={categoryOptions} reportPresets={reportPresets} takenColors={takenColors} />
       </div>
 
       {/* 재고 */}

@@ -151,7 +151,8 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
         className="prose prose-neutral mt-8 max-w-none leading-relaxed [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-bold [&_li]:ml-5 [&_li]:list-disc [&_p]:mt-3"
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.body_html) }}
       />
-      {post.tags && post.tags.length > 0 && (
+      {/* 태그는 국문만 저장되므로 EN 화면에서는 숨긴다(D-175) */}
+      {!isEn && post.tags && post.tags.length > 0 && (
         <div className="mt-8 flex flex-wrap gap-2">
           {post.tags.map((t: string) => <span key={t} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">#{t}</span>)}
         </div>

@@ -9,6 +9,8 @@ import { pointColor } from "@/lib/point-color";
 export default function ProductCard({ p, locale, compact }: { p: ProductCardData; locale: Locale; compact?: boolean }) {
   const tt = t(locale);
   const title = (locale === "en" && p.title_en ? p.title_en : p.title_ko).replace(/\[.*?\]\s*/g, "");
+  // EN: 영문 컵노트(flavor_notes_en) 우선, 없으면 국문 폴백
+  const notes = locale === "en" && p.flavor_notes_en?.length ? p.flavor_notes_en : p.flavor_notes;
   const dot = pointColor({ keyColor: p.key_color, flavorNotes: p.flavor_notes, roast: p.roast_level });
   // 하단 라벨 = 실제 유형 반영(하드코딩 SINGLE ORIGIN 버그 수정)
   const TYPE_LABEL: Record<string, string> = { "블렌드": "BLEND", "싱글 오리진": "SINGLE ORIGIN", "디카페인": "DECAF", "merch": "MERCH" };
@@ -25,7 +27,7 @@ export default function ProductCard({ p, locale, compact }: { p: ProductCardData
         {p.image ? (
           <Image
             src={p.image}
-            alt={p.imageAlt ?? title}
+            alt={locale === "en" ? title : (p.imageAlt ?? title)}
             fill
             sizes="(max-width:768px) 50vw, 280px"
             className="object-cover transition duration-300 group-hover:scale-[1.04]"
@@ -34,9 +36,9 @@ export default function ProductCard({ p, locale, compact }: { p: ProductCardData
       </div>
       <div className="mt-3">
         <p className="line-clamp-2 text-[15px] font-extrabold leading-snug text-ink">{title}</p>
-        {p.flavor_notes.length > 0 && (
+        {notes.length > 0 && (
           <p className="prose-serif mt-1 line-clamp-1 text-[13px] italic text-clayDeep">
-            {p.flavor_notes.slice(0, 3).join(" · ")}
+            {notes.slice(0, 3).join(" · ")}
           </p>
         )}
         <div className="mt-1.5 flex items-baseline justify-between">

@@ -104,6 +104,10 @@ export async function upsertProductAction(formData: FormData) {
   // 카테고리 wholesale(사업자 전용)이면 자동으로 B2B 전용 처리
   const is_b2b = formData.get("is_b2b_only") === "on" || catSlug === "wholesale";
   const g = (n: string) => String(formData.get(n) || "");
+  // REGION 한/영: 폼에 입력칸이 있을 때만 반영(다른 저장 경로에서 기존 값 유실 방지)
+  const regionPatch: Record<string, string | null> = formData.has("origin_region")
+    ? { region: g("origin_region").trim() || null, region_en: g("origin_region_en").trim() || null }
+    : {};
   const row = {
     slug,
     brand_id: brand.id,
@@ -118,7 +122,7 @@ export async function upsertProductAction(formData: FormData) {
     roast_level_en: orNull(g("roast_level_en")),
     flavor_notes: csv(g("flavor_notes")),
     flavor_notes_en: csvOrNull(g("flavor_notes_en")),
-    origin: { country: g("origin_country"), country_en: g("origin_country_en") || null },
+    origin: { country: g("origin_country"), country_en: g("origin_country_en") || null, ...regionPatch },
     variety: orNull(g("variety")),
     variety_en: orNull(g("variety_en")),
     process: orNull(g("process")),
@@ -136,7 +140,7 @@ export async function upsertProductAction(formData: FormData) {
   if (origSlug) {
     const { data: prevO } = await supabase.from("product").select("origin").eq("slug", origSlug).maybeSingle();
     const prevOrigin = ((prevO as { origin?: Record<string, unknown> } | null)?.origin ?? {}) as Record<string, unknown>;
-    row.origin = { ...prevOrigin, country: g("origin_country"), country_en: g("origin_country_en") || null } as typeof row.origin;
+    row.origin = { ...prevOrigin, country: g("origin_country"), country_en: g("origin_country_en") || null, ...regionPatch } as typeof row.origin;
   }
   // D-172: 품목보고번호가 비어 있으면 원산지 국가로 자동 지정, 레시피가 비어 있으면 가공 방식 기준 레시피.
   if (!row.report_no) {

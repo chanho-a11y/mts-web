@@ -5,7 +5,12 @@ import { getPageSettings } from "@/lib/page-content";
 
 export const dynamic = "force-dynamic";
 const CONSULTING_DESC = "호주 시드니 Normcore Coffee에서 시작해 성장한 MTSPACE COFFEE의 컨설팅과 파트너십. 브랜드 전략, 데이터와 POS 분석, 운영 SOP, 계약 로스팅, 매장 운영 대행, 바리스타 교육까지 검증된 노하우를 전수합니다.";
-export function generateMetadata() {
+const CONSULTING_DESC_EN = "Consulting and partnerships from MTSPACE COFFEE, grown from Normcore Coffee in Sydney: brand strategy, data and POS analysis, operations SOPs, contract roasting, cafe operations and barista training.";
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  if (locale === "en") {
+    return { title: "Consulting & Partnership: brand, operations and roasting partner", description: CONSULTING_DESC_EN, alternates: { canonical: "/consulting" }, openGraph: { title: "Consulting & Partnership | MTSPACE COFFEE", description: CONSULTING_DESC_EN, type: "website", url: "/consulting", siteName: "MTSPACE COFFEE", locale: "en_US", images: ["/images/og-default.png"] } };
+  }
   return {
   title: "Consulting & Partnership: 브랜드, 운영, 로스팅 파트너",
   description:

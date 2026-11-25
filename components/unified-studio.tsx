@@ -7,6 +7,7 @@ import { shrinkImage, readUploadJson } from "@/lib/client-image";
 import RichEditor from "@/components/rich-editor";
 import ImageUpload from "@/components/image-upload";
 import { adminToast } from "@/components/admin-toast";
+import { thumbSquare } from "@/lib/thumb-svg";
 
 // 통합 스튜디오: 제품 관리에서 입력한 정보를 '불러와' 상세·블로그·카드뉴스·레이블·썸네일을 작업.
 // 스튜디오에서는 제품 정보를 입력하지 않는다(읽기전용). 텍스트 디테일(블로그 본문 등)만 편집.
@@ -77,24 +78,7 @@ function slide(idx: number, accent: string, data: { ko: string; en?: string; fla
   }
   return head + bg + wm + dot + body + pageTag + `</svg>`;
 }
-// 썸네일(1080×1080) — 제품 키 컬러 배경 + 제품명 + 플레이버 노트
-function thumbSquare(accent: string, ko: string, en: string | undefined, flavor: string[]): string {
-  const W = 1080, H = 1080;
-  const nameLines = wrapText(ko || "제품명", 11).slice(0, 2);
-  const baseY = 520 - (nameLines.length - 1) * 60;
-  const notes = flavor.slice(0, 4).join(" · ");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
-    + `<rect width="${W}" height="${H}" fill="${accent}"/>`
-    + `<text x="64" y="100" fill="#FFFFFF" opacity="0.85" font-family="Helvetica Neue, Arial" font-weight="800" font-size="30" letter-spacing="2">MTSPACE <tspan font-weight="300">COFFEE</tspan></text>`
-    + `<circle cx="${W - 72}" cy="90" r="13" fill="#FFFFFF" opacity="0.9"/>`
-    + nameLines.map((l, i) => `<text x="${W / 2}" y="${baseY + i * 120}" text-anchor="middle" fill="#FFFFFF" font-family="Helvetica Neue, Arial" font-weight="800" font-size="104">${esc(l)}</text>`).join("")
-    + (en ? `<text x="${W / 2}" y="${baseY + nameLines.length * 120 - 10}" text-anchor="middle" fill="#FFFFFF" opacity="0.85" font-family="IBM Plex Mono, monospace" font-size="30" letter-spacing="3">${esc(en.toUpperCase())}</text>` : "")
-    + (notes ? `<text x="${W / 2}" y="${baseY + nameLines.length * 120 + 70}" text-anchor="middle" fill="#FFFFFF" opacity="0.95" font-family="Spectral, serif" font-style="italic" font-size="46">${esc(notes)}</text>` : "")
-    + `<line x1="64" y1="980" x2="${W - 64}" y2="980" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1"/>`
-    + `<text x="64" y="1028" fill="#FFFFFF" opacity="0.8" font-family="IBM Plex Mono, monospace" font-size="24">everyday excellence</text>`
-    + `<text x="${W - 64}" y="1028" text-anchor="end" fill="#FFFFFF" opacity="0.8" font-family="IBM Plex Mono, monospace" font-size="24">@mtspacecoffee</text>`
-    + `</svg>`;
-}
+// 썸네일(1080×1080): 영문 위주 템플릿은 lib/thumb-svg.ts 공용(D-175). 일괄 교체 스크립트와 같은 함수.
 function wrapText(s: string, perLine: number): string[] {
   const words = s.split(/\s+/); const out: string[] = []; let cur = "";
   for (const w of words) { if ((cur + " " + w).trim().length > perLine) { out.push(cur.trim()); cur = w; } else cur += " " + w; }
@@ -153,7 +137,8 @@ export default function UnifiedStudio({ items, initialTab }: { items: StudioItem
     return ([["ESPRESSO", f.rcp_es], ["FILTER", f.rcp_fil], ["MILK", f.rcp_milk]] as [string, string][]).filter(([, v]) => v);
   }, [f]);
 
-  const thumb = useMemo(() => thumbSquare(accent, f.ko || "(제품명)", f.en, flavorArr), [accent, f.ko, f.en, flavorArr]);
+  const flavorEnArr = useMemo(() => (f.flavor_en || "").split(/[,·]/).map((s) => s.trim()).filter(Boolean), [f.flavor_en]);
+  const thumb = useMemo(() => thumbSquare(accent, f.en || "", f.ko || "(제품명)", flavorEnArr.length ? flavorEnArr : flavorArr), [accent, f.ko, f.en, flavorEnArr, flavorArr]);
   const slides = useMemo(() => [1, 2, 3, 4, 5].map((i) => slide(i, accent, { ko: f.ko || "(제품명)", en: f.en, flavor: flavorArr, story: f.story, rcp })), [accent, f, flavorArr, rcp]);
 
   // 키워드 풀 — 제품 정보(우선) + 지식베이스/온라인 리서치(API). 제품 선택 시 제품 키워드가 앞에.

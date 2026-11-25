@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { seoText } from "@/lib/seo-text";
+import { getStorefrontContext } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,39 @@ const POLICIES: Record<string, { title: string; body: string }> = {
   },
 };
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const policy = POLICIES[params.slug];
-  if (!policy) return { title: "정책" };
+// EN 사이트(쿠키 locale=en)용 영문판. 법적 효력은 국문판 기준임을 명시한다.
+const POLICIES_EN: Record<string, { title: string; body: string }> = {
+  "refund-policy": {
+    title: "Refund policy",
+    body: "Because roasted coffee is a fresh food product, exchanges and refunds are available within 7 days of delivery only when the bag is unopened and the beans are undamaged. For change-of-mind returns, return shipping in both directions may be charged. Opened or ground products cannot be refunded.",
+  },
+  "shipping-policy": {
+    title: "Shipping policy",
+    body: "MTSPACE COFFEE ships coffee roasted at our own roastery in order sequence (the freshest available batch, dispatched within 7 days at most). Domestic orders in Korea ship with Lotte Global Logistics and arrive 1 to 2 days after dispatch. International orders (coffee beans only) ship with EMS Premium; customs and local delivery can add time.",
+  },
+  "privacy-policy": {
+    title: "Privacy policy",
+    body: "MTS Solutions Co., Ltd. collects and uses only the minimum personal information required under applicable law, and destroys it without delay once the purpose of collection has been fulfilled. Privacy Officer: Chanho Hong. For details, please contact us at hello@mtspace.coffee.",
+  },
+  "terms-of-service": {
+    title: "Terms of service",
+    body: "These terms set out the conditions and procedures for using the online store operated by MTS Solutions Co., Ltd. Members must comply with applicable law and these terms.",
+  },
+  "contact-information": {
+    title: "Contact information",
+    body: "MTS Solutions Co., Ltd. | CEO Chanho Hong | Business Registration No. 653-81-02761 | Mail-order Sales Registration No. 2026-Gyeonggi-Gapyeong-129 | 3 Totgol-gil, Cheongpyeong-myeon, Gapyeong-gun, Gyeonggi-do, Korea | Tel +82-10-4972-2312 | hello@mtspace.coffee",
+  },
+  "legal-notice": {
+    title: "Legal notice",
+    body: "Copyright and intellectual property rights in all content on this site (trademarks, logos, product names, text and images) belong to MTS Solutions Co., Ltd. Unauthorised copying, distribution or derivative use is prohibited.\n\nProduct information: product information on this site complies with the Korean Act on Fair Labeling and Advertising. Origin and roasting details may change with each incoming batch.\n\nE-commerce: this store complies with the Korean Act on Consumer Protection in Electronic Commerce and related mail-order laws. Mail-order Sales Registration No. 2026-Gyeonggi-Gapyeong-129.\n\nDisclaimer: brew recipes and flavour descriptions are recommended guides, and results may vary with your equipment and environment.",
+  },
+};
+const EN_NOTE = "This English version is provided for convenience. If it differs from the Korean version, the Korean version prevails.";
+
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const { locale } = await getStorefrontContext();
+  const policy = (locale === "en" ? POLICIES_EN : POLICIES)[params.slug];
+  if (!policy) return { title: locale === "en" ? "Policy" : "정책" };
   // 정책마다 고유한 설명문과 자기 경로 canonical 을 준다(D-134).
   const flat = seoText(policy.body.replace(/\s+/g, " "));
   const description = flat.length > 150 ? `${flat.slice(0, 149)}…` : flat;
@@ -41,17 +72,19 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
     title: policy.title,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${policy.title} | MTSPACE COFFEE`, description, type: "website", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images: ["/images/og-default.png"] },
+    openGraph: { title: `${policy.title} | MTSPACE COFFEE`, description, type: "website", url: path, siteName: "MTSPACE COFFEE", locale: locale === "en" ? "en_US" : "ko_KR", images: ["/images/og-default.png"] },
   };
 }
 
-export default function PolicyPage({ params }: { params: { slug: string } }) {
-  const policy = POLICIES[params.slug];
+export default async function PolicyPage({ params }: { params: { slug: string } }) {
+  const { locale } = await getStorefrontContext();
+  const policy = (locale === "en" ? POLICIES_EN : POLICIES)[params.slug];
   if (!policy) notFound();
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-2xl font-bold">{policy.title}</h1>
       <p className="mt-6 whitespace-pre-line leading-relaxed text-neutral-700">{policy.body}</p>
+      {locale === "en" && <p className="mt-8 text-xs text-neutral-500">{EN_NOTE}</p>}
     </main>
   );
 }

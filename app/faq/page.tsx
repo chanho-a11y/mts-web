@@ -6,7 +6,17 @@ import { sanitizeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 const FAQ_DESC = "MTSPACE COFFEE 자주 묻는 질문. 배송과 출고 일정, 교환과 환불, 원두 분쇄, 사업자 도매 주문, 회원 계정에 대한 답변을 모았습니다.";
-export function generateMetadata() {
+const FAQ_DESC_EN = "MTSPACE COFFEE FAQ: answers on shipping and dispatch, exchanges and refunds, grinding, wholesale orders for businesses, and member accounts.";
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  if (locale === "en") {
+    return {
+      title: "Frequently Asked Questions (FAQ)",
+      description: FAQ_DESC_EN,
+      alternates: { canonical: "/faq" },
+      openGraph: { title: "FAQ | MTSPACE COFFEE", description: FAQ_DESC_EN, type: "website", url: "/faq", siteName: "MTSPACE COFFEE", locale: "en_US", images: ["/images/og-default.png"] },
+    };
+  }
   return {
   title: "자주 묻는 질문 (FAQ)",
   description: FAQ_DESC,
@@ -23,12 +33,18 @@ export default async function FaqPage() {
     wholesale: tt.faqCatWholesale, order: tt.faqCatOrder, account: tt.faqCatAccount, general: tt.faqCatGeneral,
   };
   const supabase = createClient();
-  const { data: faqs } = await supabase
+  // select("*"): question_en, answer_html_en 칸이 있으면 EN 에서 쓰고, 없거나 비어 있으면 국문 폴백.
+  const { data: rows } = await supabase
     .from("faq")
-    .select("question,answer_html,category,position")
+    .select("*")
     .eq("status", "published")
     .order("category")
     .order("position");
+  type FaqRow = { question: string; answer_html: string; category: string; question_en?: string | null; answer_html_en?: string | null };
+  const faqs = ((rows ?? []) as FaqRow[]).map((f) =>
+    locale === "en" && f.question_en && f.answer_html_en
+      ? { question: f.question_en, answer_html: f.answer_html_en, category: f.category }
+      : { question: f.question, answer_html: f.answer_html, category: f.category });
 
   const groups = new Map<string, { question: string; answer_html: string }[]>();
   (faqs ?? []).forEach((f) => {

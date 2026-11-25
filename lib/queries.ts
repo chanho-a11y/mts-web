@@ -20,6 +20,7 @@ export interface ProductCardData {
   one_liner: string | null;
   roast_level: string | null;
   flavor_notes: string[];
+  flavor_notes_en: string[] | null;
   key_color: string | null;
   product_type: string | null;
   is_b2b_only: boolean;
@@ -52,6 +53,7 @@ function shape(row: any): ProductCardData {
     one_liner: row.one_liner,
     roast_level: row.roast_level,
     flavor_notes: row.flavor_notes ?? [],
+    flavor_notes_en: row.flavor_notes_en ?? null,
     key_color: row.key_color,
     product_type: row.product_type,
     is_b2b_only: row.is_b2b_only,
@@ -63,7 +65,7 @@ function shape(row: any): ProductCardData {
   };
 }
 
-const SELECT = `slug,title_ko,title_en,one_liner,roast_level,flavor_notes,key_color,product_type,is_b2b_only,created_at,
+const SELECT = `slug,title_ko,title_en,one_liner,roast_level,flavor_notes,flavor_notes_en,key_color,product_type,is_b2b_only,created_at,
   product_variant(sku,base_price,weight_g,grind,option_values,position,is_active,is_b2b_only),
   product_image(storage_path,alt,is_primary,position),
   product_categories(category(slug,name_ko,name_en,position)),

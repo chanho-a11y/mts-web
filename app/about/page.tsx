@@ -6,7 +6,17 @@ import { getPageSettings } from "@/lib/page-content";
 
 export const dynamic = "force-dynamic";
 const ABOUT_DESC = "바리스타 컴페티터 홍찬호 대표가 이끄는 한국 스페셜티 커피 브랜드. 2016년 시드니에서 시작해 2022년 한국에 진출하며 리브랜딩. 주 단위 로스팅, 시그니쳐 블렌드, 싱글 오리진, 사업자 전용 도매. Everyday Excellence.";
-export function generateMetadata() {
+const ABOUT_DESC_EN = "A Korean specialty coffee brand led by founder and barista competitor Chanho Hong. Started in Sydney in 2016 and rebranded on arriving in Korea in 2022. Signature blends, single origins and wholesale supply for businesses. Everyday Excellence.";
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  if (locale === "en") {
+    return {
+      title: "About MTSPACE COFFEE: Korean specialty coffee that began in Sydney",
+      description: ABOUT_DESC_EN,
+      alternates: { canonical: "/about" },
+      openGraph: { title: "About MTSPACE COFFEE", description: ABOUT_DESC_EN, type: "website", url: "/about", siteName: "MTSPACE COFFEE", locale: "en_US", images: ["/images/og-default.png"] },
+    };
+  }
   return {
   title: "About MTSPACE COFFEE: 시드니에서 시작된 한국 스페셜티 커피",
   description: ABOUT_DESC,

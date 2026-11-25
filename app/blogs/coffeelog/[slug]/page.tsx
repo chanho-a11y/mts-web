@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { DEFAULT_OG_IMAGE, FOUNDER_PERSON } from "@/lib/seo";
 import { fitTitle, seoText, seoTitle } from "@/lib/seo-text";
+import { getStorefrontContext } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,15 @@ function decodeSlug(raw: string): string {
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const slug = decodeSlug(params.slug);
+  const { locale } = await getStorefrontContext();
   const supabase = createClient();
-  const { data } = await supabase
-    .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image").eq("slug", slug).maybeSingle();
+  const { data: raw } = await supabase
+    .from("content_post").select("title,excerpt,seo_title,seo_description,cover_image,title_en,excerpt_en,seo_title_en,seo_description_en,body_html_en").eq("slug", slug).maybeSingle();
+  // D-174: EN 로케일 + 영문본이 있으면 영문 메타를 쓴다.
+  const useEn = locale === "en" && !!raw?.title_en && !!raw?.body_html_en;
+  const data = raw && useEn
+    ? { title: raw.title_en, excerpt: raw.excerpt_en, seo_title: raw.seo_title_en, seo_description: raw.seo_description_en, cover_image: raw.cover_image }
+    : raw;
   // seo_title 끝에 이미 브랜드명이 붙어 있으면 떼어 낸다. layout 의 title 템플릿이 한 번 더 붙여
   // "… - MTSPACE COFFEE · MTSPACE COFFEE" 가 되던 문제(D-134).
   const rawTitle = (data?.seo_title || data?.title || "Coffeelog").replace(/\s*[|\-–—·]\s*MTSPACE COFFEE\s*$/i, "").trim();
@@ -37,29 +44,43 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     title: fitTitle(rawTitle),
     description,
     alternates: { canonical: path },
-    openGraph: { title, description, type: "article", url: path, siteName: "MTSPACE COFFEE", locale: "ko_KR", images },
+    openGraph: { title, description, type: "article", url: path, siteName: "MTSPACE COFFEE", locale: useEn ? "en_US" : "ko_KR", images },
     twitter: { card: "summary_large_image", title, description, images },
   };
 }
 
 export default async function CoffeelogPostPage({ params }: { params: { slug: string } }) {
   const slug = decodeSlug(params.slug);
+  const { locale } = await getStorefrontContext();
   const supabase = createClient();
-  const { data: post } = await supabase
+  const { data: rawPost } = await supabase
     .from("content_post")
-    .select("title,body_html,excerpt,cover_image,author,tags,published_at,status")
+    .select("title,body_html,excerpt,cover_image,author,tags,published_at,status,title_en,excerpt_en,body_html_en")
     .eq("slug", slug)
     .maybeSingle();
-  if (!post || post.status !== "published") notFound();
+  if (!rawPost || rawPost.status !== "published") notFound();
+  // D-174: EN 로케일 + 영문본이 있으면 영문 제목, 요약, 본문으로 렌더한다. 없으면 국문 그대로.
+  const isEn = locale === "en" && !!rawPost.title_en && !!rawPost.body_html_en;
+  const post = isEn
+    ? { ...rawPost, title: rawPost.title_en as string, excerpt: rawPost.excerpt_en, body_html: rawPost.body_html_en as string }
+    : rawPost;
 
   // E-E-A-T 저자(실명 홍찬호 + 약력) — 발행 페이지 공통 정본
-  const AUTHOR = {
-    name: "홍찬호",
-    role: "MTSPACE COFFEE 대표, 바리스타 컴페티터",
-    bio: "한국과 호주의 스페셜티 커피 바리스타 컴페티터(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
-    url: "https://mtspace.coffee/about",
-  };
-  const authorName = post.author && post.author !== "통합 스튜디오" ? post.author : AUTHOR.name;
+  const AUTHOR = isEn
+    ? {
+        name: "Chanho Hong",
+        role: "Founder of MTSPACE COFFEE, barista competitor",
+        bio: "Specialty coffee barista competitor in Korea and Australia (14 podium finishes). Runs MTSPACE COFFEE drawing on hands-on work in green coffee QA, roasting and cafe operations.",
+        url: "https://mtspace.coffee/about",
+      }
+    : {
+        name: "홍찬호",
+        role: "MTSPACE COFFEE 대표, 바리스타 컴페티터",
+        bio: "한국과 호주의 스페셜티 커피 바리스타 컴페티터(입상 14회). 그린빈 QA, 로스팅, 카페 운영 실무를 바탕으로 MTSPACE COFFEE를 운영합니다.",
+        url: "https://mtspace.coffee/about",
+      };
+  const authorRaw = post.author && post.author !== "통합 스튜디오" ? post.author : "홍찬호";
+  const authorName = isEn && authorRaw === "홍찬호" ? "Chanho Hong" : authorRaw;
   const pageUrl = `https://mtspace.coffee/blogs/coffeelog/${encodeURIComponent(slug)}`;
   const dateModified = post.published_at; // 갱신 시 dateModified 관리(P2). content_post 에 수정일 컬럼이 없다(D-147, DB 별건)
 
@@ -68,10 +89,12 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
   if (post.published_at) {
     try {
       const [newer, older] = await Promise.all([
-        supabase.from("content_post").select("slug,title").eq("status", "published").gt("published_at", post.published_at).order("published_at", { ascending: true }).limit(1),
-        supabase.from("content_post").select("slug,title").eq("status", "published").lt("published_at", post.published_at).order("published_at", { ascending: false }).limit(2),
+        supabase.from("content_post").select("slug,title,title_en").eq("status", "published").gt("published_at", post.published_at).order("published_at", { ascending: true }).limit(1),
+        supabase.from("content_post").select("slug,title,title_en").eq("status", "published").lt("published_at", post.published_at).order("published_at", { ascending: false }).limit(2),
       ]);
-      others = [...(newer.data ?? []), ...(older.data ?? [])].filter((o) => o.slug !== slug);
+      others = [...(newer.data ?? []), ...(older.data ?? [])]
+        .filter((o) => o.slug !== slug && (!isEn || !!o.title_en))
+        .map((o) => ({ slug: o.slug, title: isEn ? (o.title_en as string) : o.title }));
     } catch {}
   }
 
@@ -93,7 +116,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
         headline: post.title,
         ...(post.excerpt ? { description: post.excerpt } : {}),
         image: [post.cover_image || `https://mtspace.coffee${DEFAULT_OG_IMAGE}`],
-        inLanguage: "ko-KR",
+        inLanguage: isEn ? "en" : "ko-KR",
         // 저자가 브랜드명으로 저장된 구형 글은 사람이 아니라 조직으로 표기한다(D-134).
         author: authorName === "MTSPACE COFFEE"
           ? { "@type": "Organization", name: "MTSPACE COFFEE", url: "https://mtspace.coffee" }
@@ -116,7 +139,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
       <h1 className="mt-3 text-3xl font-bold leading-tight">{post.title}</h1>
       <div className="mt-3 border-l-2 border-neutral-200 pl-3 text-sm text-neutral-500">
         <p><span className="font-semibold text-neutral-700">{authorName}</span> · {AUTHOR.role}
-          {post.published_at && <span> · {new Date(post.published_at).toLocaleDateString("ko-KR")}</span>}
+          {post.published_at && <span> · {new Date(post.published_at).toLocaleDateString(isEn ? "en-AU" : "ko-KR")}</span>}
         </p>
         <p className="mt-0.5 text-xs text-neutral-400">{AUTHOR.bio}</p>
       </div>
@@ -134,8 +157,8 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
         </div>
       )}
       {others.length > 0 && (
-        <nav aria-label="다른 글" className="mt-10 border-t border-neutral-200 pt-6">
-          <h2 className="text-sm font-semibold text-neutral-700">다른 글</h2>
+        <nav aria-label={isEn ? "More posts" : "다른 글"} className="mt-10 border-t border-neutral-200 pt-6">
+          <h2 className="text-sm font-semibold text-neutral-700">{isEn ? "More posts" : "다른 글"}</h2>
           <ul className="mt-3 space-y-2">
             {others.map((o) => (
               <li key={o.slug}>
@@ -145,7 +168,7 @@ export default async function CoffeelogPostPage({ params }: { params: { slug: st
           </ul>
         </nav>
       )}
-      <B2bCta locale="ko" source="blog" />
+      <B2bCta locale={isEn ? "en" : "ko"} source="blog" />
     </main>
   );
 }

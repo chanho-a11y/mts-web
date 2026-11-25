@@ -11,7 +11,7 @@ export interface ProductFormData {
   slug?: string; brand?: string; title_ko?: string; title_en?: string; one_liner?: string; one_liner_en?: string;
   status?: string; is_b2b_only?: boolean;
   roast_level?: string; roast_level_en?: string; flavor_notes?: string[]; flavor_notes_en?: string[];
-  origin_country?: string; origin_country_en?: string;
+  origin_country?: string; origin_country_en?: string; origin_region?: string; origin_region_en?: string;
   variety?: string; variety_en?: string; process?: string; process_en?: string;
   weight_g?: number | null; key_color?: string;
   sku?: string; base_price?: number; category?: string;
@@ -157,6 +157,7 @@ export default function ProductForm({
 
       <BilingualField label="로스팅" nameKo="roast_level" nameEn="roast_level_en" ko={i.roast_level} en={i.roast_level_en} placeholder="라이트/미디움/다크" onKoInput={setRoastKo} />
       <BilingualField label="원산지" nameKo="origin_country" nameEn="origin_country_en" ko={i.origin_country} en={i.origin_country_en} placeholder="원산지 국가 (품목보고번호 자동 선택 기준)" onKoInput={setCountry} />
+      <BilingualField label="지역 (REGION)" nameKo="origin_region" nameEn="origin_region_en" ko={i.origin_region} en={i.origin_region_en} placeholder="예: 예가체프 코체레 / Yirgacheffe Kochere" />
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm">중량(g)<input type="number" name="weight_g" value={weightStr} onChange={(e) => setWeightStr(e.target.value)} className={input} /></label>
       </div>

@@ -4,7 +4,12 @@ import { getStorefrontProducts } from "@/lib/queries";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
-export function generateMetadata() {
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  if (locale === "en") {
+    const d = "Origins, flavour notes and recommended brew recipes for every MTSPACE COFFEE bean, with downloadable information cards.";
+    return { title: "Coffee information: farms, flavour, recipes", description: d, alternates: { canonical: "/coffee-info" }, openGraph: { title: "Coffee information | MTSPACE COFFEE", description: d, type: "website", url: "/coffee-info", siteName: "MTSPACE COFFEE", locale: "en_US", images: ["/images/og-default.png"] } };
+  }
   return {
   title: "커피 정보: 농장, 플레이버, 추천 레시피",
   description: "MTSPACE COFFEE 원두별 산지, 플레이버 노트, 추천 추출 레시피와 인포메이션 카드 다운로드.",

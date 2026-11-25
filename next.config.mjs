@@ -54,6 +54,8 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      // D-175: 영문 위주 제품 썸네일은 public/images/products/thumb 에서 절대 주소로 쓴다
+      { protocol: 'https', hostname: 'mtspace.coffee' },
     ],
   },
   experimental: {

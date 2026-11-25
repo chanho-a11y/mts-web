@@ -12,7 +12,8 @@ import { organizationJsonLd, webSiteJsonLd, siteBaseUrl, DEFAULT_OG_IMAGE } from
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { brand } = await getStorefrontContext();
+  const { brand, locale } = await getStorefrontContext();
+  const philosophy = locale === "en" ? brand.philosophy.en : brand.philosophy.ko;
   let favicon = "";
   try {
     const supabase = createClient();
@@ -39,19 +40,19 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(base),
     ...verification,
     title: { default: `${brand.name} | everyday excellence`, template: `%s | ${brand.name}` },
-    description: brand.philosophy.ko,
+    description: philosophy,
     // canonical 은 여기서 주지 않는다. layout 값은 자체 canonical 이 없는 모든 하위 페이지에 상속되어
     // 상품·정책·About 등이 홈을 원본으로 가리키게 된다(D-134). 각 페이지가 자기 경로를 지정한다.
     openGraph: {
       type: "website",
       siteName: brand.name,
       title: `${brand.name} | everyday excellence`,
-      description: brand.philosophy.ko,
-      locale: "ko_KR",
+      description: philosophy,
+      locale: locale === "en" ? "en_US" : "ko_KR",
       url: base,
       images: [DEFAULT_OG_IMAGE],
     },
-    twitter: { card: "summary_large_image", title: `${brand.name} | everyday excellence`, description: brand.philosophy.ko, images: [DEFAULT_OG_IMAGE] },
+    twitter: { card: "summary_large_image", title: `${brand.name} | everyday excellence`, description: philosophy, images: [DEFAULT_OG_IMAGE] },
     ...(favicon ? { icons: { icon: favicon } } : {}),
   };
 }
@@ -115,7 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <PromoBanner message={promo} />
           <SiteHeader brand={brand} locale={locale} signedIn={signedIn} role={role} bg={cms.header_bg || undefined} logo={cms.logo_path || undefined} />
           {children}
-          <SiteFooter brand={brand} bg={cms.footer_bg || undefined} phone={cms.store_phone || undefined} email={cms.store_email || undefined} />
+          <SiteFooter brand={brand} locale={locale} bg={cms.footer_bg || undefined} phone={cms.store_phone || undefined} email={cms.store_email || undefined} />
         </CartProvider>
       </body>
     </html>

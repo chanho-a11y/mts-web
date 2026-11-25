@@ -5,7 +5,17 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 const BLOG_DESC = "MTSPACE COFFEE 블로그 Coffeelog. 카페 원두 납품과 운영 가이드, 홈카페 추출 레시피, 블렌드와 싱글 오리진 이야기를 로스터리가 직접 정리합니다.";
-export function generateMetadata() {
+const BLOG_DESC_EN = "Coffeelog, the MTSPACE COFFEE blog. Guides on cafe coffee supply and operations, home brewing recipes, and stories behind our blends and single origins, written by the roastery.";
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  if (locale === "en") {
+    return {
+      title: "Coffeelog coffee blog",
+      description: BLOG_DESC_EN,
+      alternates: { canonical: "/blogs/coffeelog" },
+      openGraph: { title: "Coffeelog | MTSPACE COFFEE", description: BLOG_DESC_EN, type: "website", url: "/blogs/coffeelog", siteName: "MTSPACE COFFEE", locale: "en_US", images: ["/images/og-default.png"] },
+    };
+  }
   return {
   title: "Coffeelog 커피 블로그",
   description: BLOG_DESC,
@@ -18,11 +28,15 @@ export default async function CoffeelogPage() {
   const { locale } = await getStorefrontContext();
   const tt = t(locale);
   const supabase = createClient();
-  const { data: posts } = await supabase
+  const { data: rows } = await supabase
     .from("content_post")
-    .select("slug,title,excerpt,published_at")
+    .select("slug,title,excerpt,title_en,excerpt_en,body_html_en,published_at")
     .eq("status", "published")
     .order("published_at", { ascending: false });
+  // D-174: EN 로케일은 영문 본문이 있는 글만 영문 제목으로 노출한다.
+  const posts = (rows ?? [])
+    .filter((p) => locale !== "en" || (!!p.title_en && !!p.body_html_en))
+    .map((p) => (locale === "en" ? { slug: p.slug, title: p.title_en as string, excerpt: p.excerpt_en } : { slug: p.slug, title: p.title, excerpt: p.excerpt }));
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">

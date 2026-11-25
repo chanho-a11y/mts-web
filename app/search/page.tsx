@@ -4,7 +4,10 @@ import ProductCard from "@/components/product-card";
 import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "검색", robots: { index: false, follow: true } };
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  return { title: locale === "en" ? "Search" : "검색", robots: { index: false, follow: true } };
+}
 
 export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
   const q = (searchParams.q ?? "").trim();

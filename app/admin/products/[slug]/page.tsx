@@ -58,6 +58,7 @@ export default async function AdminProductEdit({ params }: { params: { slug: str
     is_b2b_only: p.is_b2b_only, roast_level: p.roast_level ?? "", roast_level_en: px.roast_level_en ?? "", status: p.status ?? "active",
     flavor_notes: p.flavor_notes ?? [], flavor_notes_en: px.flavor_notes_en ?? [],
     origin_country: px.origin?.country ?? "", origin_country_en: px.origin?.country_en ?? "",
+    origin_region: px.origin?.region ?? "", origin_region_en: px.origin?.region_en ?? "",
     variety: p.variety ?? "", variety_en: px.variety_en ?? "", process: p.process ?? "", process_en: px.process_en ?? "",
     weight_g: p.weight_g, key_color: p.key_color ?? "",
     sku: pv?.sku ?? "", base_price: pv?.base_price ?? undefined, category: catSlug,

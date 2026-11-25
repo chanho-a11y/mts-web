@@ -2,14 +2,16 @@
 import { useState } from "react";
 
 // 상세페이지 이미지 갤러리 — 대표 썸네일 + 추가 이미지. 클릭 시 라이트박스로 크게 보기.
-export default function ProductGallery({ primary, images, alt }: {
+export default function ProductGallery({ primary, images, alt, locale = "ko" }: {
   primary: string | null;
   images: { storage_path: string; alt?: string | null }[];
   alt: string;
+  locale?: "ko" | "en";
 }) {
+  // EN: 저장된 alt 는 국문이라 쓰지 않고 영문 제품명(alt)으로 통일한다.
   const all = [
     ...(primary ? [{ storage_path: primary, alt }] : []),
-    ...images.filter((im) => im.storage_path !== primary),
+    ...images.filter((im) => im.storage_path !== primary).map((im) => (locale === "en" ? { ...im, alt } : im)),
   ];
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
@@ -19,7 +21,7 @@ export default function ProductGallery({ primary, images, alt }: {
 
   return (
     <>
-      <button type="button" className="imgslot" style={{ height: 264, cursor: "zoom-in", padding: 0, border: "none", width: "100%" }} onClick={() => setOpen(true)} aria-label="이미지 크게 보기">
+      <button type="button" className="imgslot" style={{ height: 264, cursor: "zoom-in", padding: 0, border: "none", width: "100%" }} onClick={() => setOpen(true)} aria-label={locale === "en" ? "View larger image" : "이미지 크게 보기"}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={cur.storage_path} alt={cur.alt ?? alt} />
       </button>

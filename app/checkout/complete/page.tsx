@@ -7,7 +7,10 @@ import PurchaseEvent, { type PurchaseItem } from "@/components/purchase-event";
 import { isPaymentFailKind } from "@/lib/payment-fail";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "주문 완료" };
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  return { title: locale === "en" ? "Order complete" : "주문 완료" };
+}
 
 // 결제 완료 시 GA4 purchase 이벤트에 실을 주문 요약을 읽는다.
 // RLS 클라이언트를 쓰므로 주문번호를 안다고 남의 주문을 볼 수는 없다(본인·관리자만 조회됨).

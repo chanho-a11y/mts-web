@@ -4,7 +4,10 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 // 장바구니는 검색엔진 색인 제외(개인화 페이지)
-export const metadata = { title: "장바구니", robots: { index: false, follow: true } };
+export async function generateMetadata() {
+  const { locale } = await getStorefrontContext();
+  return { title: locale === "en" ? "Cart" : "장바구니", robots: { index: false, follow: true } };
+}
 
 export default async function CartPage() {
   const { brand, locale } = await getStorefrontContext();

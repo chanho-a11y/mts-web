@@ -268,7 +268,7 @@ export default function CheckoutForm({
         setMsg(`${en ? "Could not open Toss Payments." : "토스 결제창을 열지 못했습니다."}${m ? ` (${m})` : ""} ${en ? "Try [Reopen payment window]." : "아래 [결제창 다시 열기]를 눌러주세요."}`);
         return false;
       }
-      setMsg("결제창을 열지 못했습니다. 팝업 차단을 해제한 뒤 아래 [결제창 다시 열기]를 눌러주세요.");
+      setMsg(en ? "Could not open the payment window. Please allow pop-ups, then press [Reopen payment window] below." : "결제창을 열지 못했습니다. 팝업 차단을 해제한 뒤 아래 [결제창 다시 열기]를 눌러주세요.");
       return false;
     }
   }
@@ -304,7 +304,7 @@ export default function CheckoutForm({
     } catch {
       // 네트워크·서버 오류: 주문이 만들어지지 않았으므로 잠금을 풀어 재시도를 허용한다.
       inFlight.current = false; setBusy(false);
-      setMsg("주문 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      setMsg(en ? "Something went wrong while placing your order. Please try again shortly." : "주문 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
     setMsg(res.message);

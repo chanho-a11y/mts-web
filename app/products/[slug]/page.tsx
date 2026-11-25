@@ -25,6 +25,29 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const p = await getProductBySlug(params.slug);
   if (!p) return {};
   const nameKo = p.title_ko.replace(/\[.*?\]\s*/g, "");
+  const { locale } = await getStorefrontContext();
+  // EN 로케일(쿠키): 영문 제목과 설명. 쿠키 없는 크롤러는 국문 그대로 받는다.
+  if (locale === "en" && p.title_en) {
+    const nameEn = p.title_en.replace(/\[.*?\]\s*/g, "");
+    const notesEn = p.flavor_notes_en?.length ? p.flavor_notes_en : [];
+    const TYPE_EN: Record<string, string> = { "싱글 오리진": "single origin", "블렌드": "blend", "디카페인": "decaf" };
+    const kindEn = (p.product_type && TYPE_EN[p.product_type]) || "coffee";
+    const descEn = [
+      `${nameEn}: ${notesEn.length ? `${notesEn.join(", ")}. ` : ""}${p.roast_level_en ? `${p.roast_level_en} roast ` : ""}${kindEn}.`,
+      p.one_liner_en ? `${p.one_liner_en.replace(/[.]\s*$/, "")}.` : "",
+      p.is_b2b_only ? "Wholesale (business) accounts only." : "",
+      "Roasted in-house by MTSPACE COFFEE.",
+    ].filter(Boolean).join(" ");
+    const descriptionEn = seoText(descEn);
+    const imagesEn = p.image ? [p.image] : [DEFAULT_OG_IMAGE];
+    return {
+      title: nameEn,
+      description: descriptionEn,
+      alternates: { canonical: `/products/${p.slug}` },
+      openGraph: { title: nameEn, description: descriptionEn, images: imagesEn, type: "website", url: `/products/${p.slug}`, siteName: "MTSPACE COFFEE", locale: "en_US" },
+      twitter: { card: "summary_large_image", title: nameEn, description: descriptionEn, images: imagesEn },
+    };
+  }
   // 검색 결과 설명문(D-134): 한 줄 소개만 쓰면 13~32자로 너무 짧다. 플레이버, 로스팅, 유형, 로스팅 일정을 조합한다.
   const kind = p.product_type || "원두";
   const desc = [
@@ -207,7 +230,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const altitudeTxt = (locale === "en" && p.altitude_en ? p.altitude_en : p.altitude) ?? null;
   const originCountry = (locale === "en" && p.origin?.country_en ? p.origin.country_en : p.origin?.country) ?? null;
 
-  const typeLine = [p.is_b2b_only ? "Wholesale" : (p.product_type || "Coffee"), roastTxt].filter(Boolean).join(" · ");
+  // 제품 유형은 DB에 국문으로만 저장된다. EN에서는 고정 매핑으로 영문화(없으면 원문).
+  const TYPE_EN: Record<string, string> = { "싱글 오리진": "Single Origin", "블렌드": "Blend", "디카페인": "Decaf", "원두": "Coffee" };
+  const typeTxt = p.product_type ? (locale === "en" ? TYPE_EN[p.product_type] ?? p.product_type : p.product_type) : null;
+  const typeLine = [p.is_b2b_only ? "Wholesale" : (typeTxt || "Coffee"), roastTxt].filter(Boolean).join(" · ");
   const notesLine = flavorArr.join(" · ") + (oneLiner ? ` — ${oneLiner}` : "");
   const flavCards = flavorArr.slice(0, 3);
 
@@ -217,7 +243,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     ["FLAVOUR", flavorArr.join(" · ") || null],
     ["WEIGHT", weightTxt || null],
     ["ORIGIN", originCountry],
-    ["REGION", p.origin?.region ?? null],
+    ["REGION", (locale === "en" ? p.origin?.region_en : p.origin?.region) || null],
     ["VARIETAL", varietyTxt],
     ["ALTITUDE", altitudeTxt],
     ["PROCESS", processTxt],
@@ -333,16 +359,18 @@ export default async function ProductPage({ params }: { params: { slug: string }
   let relatedPosts: { slug: string; title: string }[] = [];
   try {
     const [byLink, byTitle] = await Promise.all([
-      supabase.from("content_post").select("slug,title,published_at").eq("status", "published").ilike("body_html", `%/products/${fam}%`).order("published_at", { ascending: false }).limit(3),
+      supabase.from("content_post").select("slug,title,title_en,body_html_en,published_at").eq("status", "published").ilike("body_html", `%/products/${fam}%`).order("published_at", { ascending: false }).limit(3),
       baseName.length >= 2
-        ? supabase.from("content_post").select("slug,title,published_at").eq("status", "published").ilike("title", `%${baseName}%`).order("published_at", { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] as { slug: string; title: string; published_at: string | null }[] }),
+        ? supabase.from("content_post").select("slug,title,title_en,body_html_en,published_at").eq("status", "published").ilike("title", `%${baseName}%`).order("published_at", { ascending: false }).limit(3)
+        : Promise.resolve({ data: [] as { slug: string; title: string; title_en: string | null; body_html_en: string | null; published_at: string | null }[] }),
     ]);
     const seen = new Set<string>();
+    // D-174: EN 로케일은 영문본이 있는 글만, 영문 제목으로 연결한다(같은 슬러그, 쿠키 로케일로 영문 렌더).
     relatedPosts = [...(byTitle.data ?? []), ...(byLink.data ?? [])]
+      .filter((x) => locale !== "en" || (!!x.title_en && !!x.body_html_en))
       .filter((x) => (seen.has(x.slug) ? false : (seen.add(x.slug), true)))
       .slice(0, 3)
-      .map((x) => ({ slug: x.slug, title: x.title }));
+      .map((x) => ({ slug: x.slug, title: locale === "en" ? (x.title_en as string) : x.title }));
   } catch {}
   const pointVars = { ["--point" as string]: theme.point, ["--point-text" as string]: theme.pointText, ["--check" as string]: theme.check };
   const crumbCat = p.is_b2b_only ? "Wholesale" : "Coffee";
@@ -363,7 +391,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <div className="layout">
           {/* LEFT: sticky buy rail */}
           <aside className="rail">
-            <ProductGallery primary={p.image} images={p.images} alt={p.imageAlt ?? title} />
+            <ProductGallery primary={p.image} images={p.images} alt={locale === "en" ? title : (p.imageAlt ?? title)} locale={locale} />
             <div className="kicker">{typeLine}</div>
             {/* 페이지 H1 은 본문 hero 의 제목 하나만 둔다(D-134) */}
             <div className="rtitle">{title}</div>
@@ -398,9 +426,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
               )}
             </div>
             <div className="chips">
-              {p.roast_level && <span className="chip">{p.roast_level}</span>}
+              {roastTxt && <span className="chip">{roastTxt}</span>}
               {weightTxt && <span className="chip">{weightTxt}</span>}
-              <span className="chip">{(p.product_type || "COFFEE").toUpperCase()}</span>
+              <span className="chip">{(typeTxt || "COFFEE").toUpperCase()}</span>
             </div>
           </aside>
 
@@ -436,7 +464,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 </div>
                 <div className="imgslot img">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/about-roastery.jpg" alt="MTSPACE COFFEE 로스터리" />
+                  <img src="/images/about-roastery.jpg" alt={locale === "en" ? "MTSPACE COFFEE roastery" : "MTSPACE COFFEE 로스터리"} />
                 </div>
               </div>
             </section>

@@ -4,7 +4,7 @@ import { subscribeNewsletterAction, type NewsletterState } from "@/app/newslette
 
 const initial: NewsletterState = { ok: false, msg: "" };
 
-function SubmitButton() {
+function SubmitButton({ en }: { en: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -12,12 +12,13 @@ function SubmitButton() {
       disabled={pending}
       className="rounded-card bg-ink px-4 py-2 text-xs text-oat transition disabled:opacity-60"
     >
-      {pending ? "처리 중…" : "구독"}
+      {pending ? (en ? "Sending…" : "처리 중…") : (en ? "Subscribe" : "구독")}
     </button>
   );
 }
 
-export default function NewsletterForm() {
+export default function NewsletterForm({ locale = "ko" }: { locale?: "ko" | "en" }) {
+  const en = locale === "en";
   const [state, formAction] = useFormState(subscribeNewsletterAction, initial);
   return (
     <div className="mb-6 max-w-sm">
@@ -26,7 +27,7 @@ export default function NewsletterForm() {
           type="email"
           name="email"
           required
-          placeholder="뉴스레터 구독 (이메일)"
+          placeholder={en ? "Newsletter (email)" : "뉴스레터 구독 (이메일)"}
           className="flex-1 rounded-card border border-line bg-paper px-4 py-2 text-xs"
         />
         {/* 허니팟(봇 차단) — 화면·탭 이동에서 숨김 */}
@@ -38,7 +39,8 @@ export default function NewsletterForm() {
           aria-hidden="true"
           className="absolute left-[-9999px] h-0 w-0 opacity-0"
         />
-        <SubmitButton />
+        <input type="hidden" name="locale" value={locale} />
+        <SubmitButton en={en} />
       </form>
       {state.msg && (
         <p

@@ -196,7 +196,7 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
   // 주문 귀속(D-112) — 요청 호스트로 결정된 스토어프론트를 명시적으로 기록한다.
   // 이 값이 비면 집계·리포트·MCP 조회에서 주문이 통째로 사라진다(2026-08-11 사고).
   // 조회 실패로 null 이 되더라도 order_item INSERT 시 DB 안전망 트리거가 보정한다.
-  const { storefrontId, brandId } = await getStorefrontContext();
+  const { storefrontId, brandId, locale } = await getStorefrontContext();
   if (!storefrontId) console.error(`[order-storefront-unresolved] host=${headers().get("host") ?? "?"} — storefront 미해석, DB 안전망 트리거 보정 대기`);
 
   // order_no
@@ -209,7 +209,8 @@ export async function createOrderAction(payload: CheckoutPayload): Promise<Check
       order_no: orderNo, profile_id: profileId, customer_type: buyerType,
       storefront_id: storefrontId, brand_id: brandId,
       status: "created", email: user?.email ?? payload.email ?? null, phone: payload.shipping.phone,
-      shipping_address: { ...payload.shipping, shipping_label: ship.label },
+      // D-174: lang = 주문한 사이트 언어(ko|en). 고객 메일 언어 판정에 쓴다(lib/ship-date orderEmailLang).
+      shipping_address: { ...payload.shipping, shipping_label: ship.label, lang: locale === "en" ? "en" : "ko" },
       items_subtotal: usd ? Math.round(subtotal / fxRate) : subtotal, tip_amount: tip,
       discount_total: discountTotal, coupon_code: disc.label || null,
       shipping_fee: shippingFee, tax_amount: tax, grand_total: grand, currency,

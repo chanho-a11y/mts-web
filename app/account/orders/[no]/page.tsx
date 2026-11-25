@@ -4,7 +4,7 @@ import { formatKRW, t } from "@/lib/i18n";
 import ReorderButton from "@/components/reorder-button";
 import { requestTaxInvoiceAction } from "@/app/account/reorder-action";
 import { getStorefrontContext } from "@/lib/storefront";
-import { lotteTrackingUrl } from "@/lib/lotte";
+import { trackingUrl, carrierLabel } from "@/lib/tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +39,8 @@ export default async function OrderDetail({ params }: { params: { no: string } }
           <ul className="space-y-2">
             {trackings.map((no) => (
               <li key={no} className="flex items-center justify-between gap-3">
-                <span><span className="text-xs text-neutral-500">{tt.trackingCarrier}</span> <span className="font-mono">{no}</span></span>
-                <a href={lotteTrackingUrl(no)} target="_blank" rel="noreferrer" className="rounded-full border border-ink px-3 py-1 text-xs">{tt.trackingButton}</a>
+                <span><span className="text-xs text-neutral-500">{carrierLabel(no, locale === "en" ? "en" : "ko")}</span> <span className="font-mono">{no}</span></span>
+                <a href={trackingUrl(no)} target="_blank" rel="noreferrer" className="rounded-full border border-ink px-3 py-1 text-xs">{tt.trackingButton}</a>
               </li>
             ))}
           </ul>

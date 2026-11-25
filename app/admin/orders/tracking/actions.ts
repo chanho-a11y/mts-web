@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
-import { sendEmail, shipNotificationHtml } from "@/lib/email";
+import { sendEmail, shipNotificationHtml, shipNotificationSubject } from "@/lib/email";
+import { orderEmailLang, isIntlShipping } from "@/lib/ship-date";
 import { matchWaybills, formatTrackingNo, type LotteWaybill, type MatchOrder, type WaybillMatch } from "@/lib/lotte";
 
 function db() {
@@ -214,10 +215,12 @@ export async function confirmTrackingAction(input: {
         message = "운송장 저장 (고객 이메일 없음, 메일 미발송)";
       } else {
         const name = o.shipping_address?.recipient;
+        // D-174: 해외 배송지 또는 영어 사이트 주문이면 영문 출고 메일
+        const lang = orderEmailLang(o.shipping_address);
         const r = await sendEmail(
           o.email,
-          `[MTSPACE COFFEE] 주문 ${o.order_no} 출고 안내 (운송장 ${allTrackings[0]}${allTrackings.length > 1 ? ` 외 ${allTrackings.length - 1}건` : ""})`,
-          shipNotificationHtml(o.order_no, name, allTrackings),
+          shipNotificationSubject(o.order_no, allTrackings, lang),
+          shipNotificationHtml(o.order_no, name, allTrackings, { lang, intl: isIntlShipping(o.shipping_address) }),
         );
         if (r.sent) {
           await supabase.from("shipment").update({ notified_at: now }).eq("order_id", orderId);

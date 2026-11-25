@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail, orderConfirmationHtml, orderAdminNotifyHtml } from "./email";
+import { sendEmail, orderConfirmationHtml, orderConfirmationSubject, orderAdminNotifyHtml } from "./email";
+import { expectedShipDate, orderEmailLang, isIntlShipping } from "./ship-date";
 
 export interface ApproveExtra { provider?: string; tid?: string; captureId?: string; raw?: unknown;
   // H-2: PG 가 실제 승인한 금액(주문 통화 기준 정수). 제공 시 order.grand_total 과 일치할 때만 결제완료 전이.
@@ -96,10 +97,17 @@ export async function approveOrder(db: SupabaseClient, orderId: string, extra: A
     if (order.email) {
       const name = (order.shipping_address as { recipient?: string } | null)?.recipient;
       try {
+        // D-174: 예상 출고일(결제완료 시각, 한국 시간 기준)과 메일 언어(해외 배송지 또는 영어 사이트 주문 = 영어)
+        const lang = orderEmailLang(order.shipping_address);
+        const shipDate = expectedShipDate(new Date());
         const r = await sendEmail(
           order.email,
-          `[MTSPACE COFFEE] 주문이 완료되었습니다 (${order.order_no})`,
-          orderConfirmationHtml(order.order_no, name, order.grand_total, order.currency),
+          orderConfirmationSubject(order.order_no, lang),
+          orderConfirmationHtml(order.order_no, name, order.grand_total, order.currency, {
+            lang,
+            intl: isIntlShipping(order.shipping_address),
+            shipDateLabel: lang === "en" ? shipDate.en : shipDate.ko,
+          }),
         );
         console.log(`[order-confirm-email] order=${order.order_no} to=${order.email}`, r);
       } catch (e) {

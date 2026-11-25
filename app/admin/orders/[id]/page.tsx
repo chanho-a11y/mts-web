@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatKRW } from "@/lib/i18n";
 import { customerTypeLabel } from "@/lib/analytics";
 import OrderCancelPanel from "@/components/order-cancel-panel";
-import { lotteTrackingUrl } from "@/lib/lotte";
+import { trackingUrl, carrierLabel } from "@/lib/tracking";
+import EmsRegister from "@/components/ems-register";
 import AdminAttributionCard from "@/components/admin-attribution-card";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,10 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   const alreadyCancelled = (refundRows ?? []).filter((r) => r.status === "success").reduce((s, r) => s + (r.amount || 0), 0);
   const paidAmount = pay?.amount ?? order.grand_total;
   const remaining = paidAmount - alreadyCancelled;
-  const shipAddr = order.shipping_address as { recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string } | null;
+  const shipAddr = order.shipping_address as { recipient?: string; phone?: string; zipcode?: string; addr1?: string; addr2?: string; country?: string } | null;
+  // D-174: 해외 주문은 EMS 번호를 이 화면에서 직접 등록한다.
+  const isIntl = !!shipAddr?.country && shipAddr.country !== "KR";
+  const emsAllowed = ["paid", "preparing", "shipped", "in_transit", "delivered"].includes(order.status);
 
   const providerCancelable =
     ((pay?.provider === "inicis" || pay?.provider === "toss") && !!pay?.pg_tid) ||
@@ -109,23 +113,25 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
           <p className="mt-2 text-xs text-neutral-400">출고 여부: {ships.length ? "출고됨(취소 시 재고 복원)" : "미출고"}</p>
           {ships.length > 0 && (
             <div className="mt-3 border-t pt-2 text-xs">
-              <p className="mb-1 font-bold">운송장 (롯데택배)</p>
+              <p className="mb-1 font-bold">운송장</p>
               {ships.some((s) => s.tracking_no) ? (
                 <ul className="space-y-0.5">
                   {ships.filter((s) => s.tracking_no).map((s) => (
                     <li key={s.tracking_no!}>
-                      <a href={lotteTrackingUrl(s.tracking_no!)} target="_blank" rel="noreferrer" className="font-mono underline-offset-2 hover:underline">{s.tracking_no}</a>
+                      <span className="mr-1 text-neutral-400">{carrierLabel(s.tracking_no!)}</span>
+                      <a href={trackingUrl(s.tracking_no!)} target="_blank" rel="noreferrer" className="font-mono underline-offset-2 hover:underline">{s.tracking_no}</a>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-neutral-400">미등록 (송장 등록 시 출고 메일 발송)</p>
+                <p className="text-neutral-400">미등록 ({isIntl ? "EMS 번호 등록" : "송장 등록"} 시 출고 메일 발송)</p>
               )}
               <p className="mt-1 text-neutral-400">
                 출고 메일: {ships.some((s) => s.notified_at) ? new Date(ships.find((s) => s.notified_at)!.notified_at!).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "미발송"}
               </p>
             </div>
           )}
+          {isIntl && emsAllowed && <EmsRegister orderId={order.id} notified={ships.some((s) => !!s.notified_at)} />}
         </section>
       </div>
 
